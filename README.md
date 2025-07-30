@@ -26,7 +26,7 @@ A powerful and flexible resizer widget for TiddlyWiki that enables interactive r
 ```html
 <$resizer
   direction="horizontal"
-  tiddler="$:/config/sidebar/width"
+  tiddler="$:/themes/tiddlywiki/vanilla/metrics/sidebarwidth"
   min="200px"
   max="800px"
   default="350px"
