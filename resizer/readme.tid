@@ -211,6 +211,10 @@ During resize operations:
 * `.tc-resizer-active` class is added to the active resizer
 * `.tc-resize-overlay` overlay captures pointer events
 
+!! Vertical Resizer Example
+
+For a comprehensive vertical resizer example with multiple panels and different layouts, see [[$:/plugins/BTC/resizer/examples/vertical]]
+
 !! Real-World Example
 
 The resizer is used in TiddlyWiki's sidebar implementation:
