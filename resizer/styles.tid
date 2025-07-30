@@ -23,7 +23,7 @@ tags: $:/tags/Stylesheet
 	opacity: 0.75;
 }
 
-.tc-sidebar-resizer-active {
+.tc-sidebar-resizer.tc-resizer-active {
 	background-color: <<colour primary>>;
 	opacity: 0.75;
 }
@@ -51,7 +51,7 @@ tags: $:/tags/Stylesheet
 	opacity: 0.75;
 }
 
-.tc-tiddler-editor-resizer-active {
+.tc-tiddler-editor-resizer.tc-resizer-active {
 	background-color: <<colour primary>>;
 	opacity: 0.75;
 }
