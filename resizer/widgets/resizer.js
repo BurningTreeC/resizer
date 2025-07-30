@@ -62,6 +62,9 @@ Add event handlers to the resizer
 ResizerWidget.prototype.addEventHandlers = function(domNode) {
 	var self = this;
 	var isResizing = false;
+	
+	// Store cleanup function reference on the widget
+	self.cleanupResize = null;
 	var startX = 0;
 	var startY = 0;
 	var startValue = 0;
@@ -500,6 +503,9 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 		// Add pointermove handler to overlay
 		overlay.addEventListener("pointermove", handlePointerMove);
 		overlay.addEventListener("pointerup", handlePointerUp);
+		// Cancel drag if pointer leaves the window
+		overlay.addEventListener("pointerleave", handlePointerUp);
+		overlay.addEventListener("pointercancel", handlePointerUp);
 		
 		self.overlay = overlay;
 		
@@ -511,6 +517,9 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 		
 		// Prevent text selection
 		self.document.body.style.userSelect = "none";
+		
+		// Store cleanup function on the widget
+		self.cleanupResize = cleanupResize;
 	};
 	
 	var handlePointerMove = function(event) {
@@ -591,7 +600,8 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 		}
 	};
 	
-	var handlePointerUp = function(event) {
+	// Cleanup function to stop resize operation
+	var cleanupResize = function() {
 		if(!isResizing) return;
 		
 		isResizing = false;
@@ -613,6 +623,8 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 			// Remove event listeners
 			self.overlay.removeEventListener("pointermove", handlePointerMove);
 			self.overlay.removeEventListener("pointerup", handlePointerUp);
+			self.overlay.removeEventListener("pointerleave", handlePointerUp);
+			self.overlay.removeEventListener("pointercancel", handlePointerUp);
 			// Reset cursor
 			self.overlay.style.cursor = "";
 			self.overlay = null;
@@ -620,6 +632,15 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 		
 		// Restore cursor and selection
 		self.document.body.style.userSelect = "";
+		
+		// Clear the cleanup reference
+		self.cleanupResize = null;
+	};
+	
+	var handlePointerUp = function(event) {
+		if(!isResizing) return;
+		
+		cleanupResize();
 		
 		// Call resize end callback
 		if(self.onResizeEnd) {
@@ -708,6 +729,18 @@ ResizerWidget.prototype.refresh = function(changedTiddlers) {
 		return true;
 	}
 	return this.refreshChildren(changedTiddlers);
+};
+
+/*
+Remove any DOM elements created by this widget
+*/
+ResizerWidget.prototype.removeChildDomNodes = function() {
+	// Clean up any active resize operation
+	if(this.cleanupResize) {
+		this.cleanupResize();
+	}
+	// Call parent implementation
+	Widget.prototype.removeChildDomNodes.call(this);
 };
 
 exports.resizer = ResizerWidget;
