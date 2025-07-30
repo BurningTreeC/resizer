@@ -489,11 +489,11 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 		}
 		
 		// Find the existing overlay in the DOM
-		var overlay = self.document.querySelector(".tc-gridtemplate-resize-overlay");
+		var overlay = self.document.querySelector(".tc-resize-overlay");
 		if(!overlay) {
 			// If overlay doesn't exist, create it and insert as first child
 			overlay = self.document.createElement("div");
-			overlay.className = "tc-gridtemplate-resize-overlay";
+			overlay.className = "tc-resize-overlay";
 			self.document.body.insertBefore(overlay, self.document.body.firstChild);
 		}
 		
@@ -524,6 +524,15 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 	
 	var handlePointerMove = function(event) {
 		if(!isResizing) return;
+		
+		// Check if pointer is outside the viewport
+		if(event.clientX < 0 || event.clientY < 0 ||
+		   event.clientX > self.document.documentElement.clientWidth ||
+		   event.clientY > self.document.documentElement.clientHeight) {
+			// Pointer is outside viewport, stop the resize
+			cleanupResize();
+			return;
+		}
 		
 		var deltaX = event.clientX - startX;
 		var deltaY = event.clientY - startY;

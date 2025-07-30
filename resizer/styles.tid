@@ -59,3 +59,23 @@ tags: $:/tags/Stylesheet
 .tc-tiddler-frame .tc-tiddler-editor.tc-tiddler-preview .tc-tiddler-preview-preview {
 	margin-left: 0;
 }
+
+/* Overlay that captures pointer events during resize */
+.tc-resize-overlay {
+	position: fixed;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	width: 100%;
+	height: 100%;
+	z-index: 999999;
+	background: transparent;
+	cursor: inherit;
+	display: none;
+}
+
+body.tc-resizing .tc-resize-overlay {
+	display: block;
+	cursor: inherit;
+}

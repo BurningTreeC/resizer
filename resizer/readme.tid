@@ -209,7 +209,7 @@ During resize operations:
 
 * `.tc-resizing` class is added to the body element
 * `.tc-resizer-active` class is added to the active resizer
-* `.tc-gridtemplate-resize-overlay` overlay captures pointer events
+* `.tc-resize-overlay` overlay captures pointer events
 
 !! Real-World Example
 
