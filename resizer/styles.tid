@@ -34,3 +34,28 @@ tags: $:/tags/Stylesheet
   		display: none;
 	}
 }
+
+.tc-tiddler-editor-resizer {
+	grid-area: resizer;
+	width: 5px;
+	cursor: ew-resize;
+	background-color: <<colour muted-foreground>>;
+	opacity: 0.15;
+	transition: opacity 0.2s ease, background-color 0.2s ease;
+	margin: 4px 0 3px 0;
+	position: relative;
+}
+
+.tc-tiddler-editor-resizer:hover {
+	background-color: <<colour primary>>;
+	opacity: 0.75;
+}
+
+.tc-tiddler-editor-resizer-active {
+	background-color: <<colour primary>>;
+	opacity: 0.75;
+}
+
+.tc-tiddler-frame .tc-tiddler-editor.tc-tiddler-preview .tc-tiddler-preview-preview {
+	margin-left: 0;
+}
