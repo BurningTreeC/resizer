@@ -5,6 +5,14 @@ tags: $:/tags/Stylesheet
 	z-index: 100;
 }
 
+<%if [{$:/state/sidebar}match[no]] %>
+
+.tc-sidebar-scrollable {
+	z-index: initial;
+}
+
+<% endif %>
+
 .tc-sidebar-resizer {
 	position: absolute;
 	top: 0;
