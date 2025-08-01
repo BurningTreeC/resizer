@@ -1,0 +1,230 @@
+title: $:/plugins/BTC/resizer/styles-panels
+tags: $:/tags/Stylesheet
+
+/* Base Panel Styles */
+.tc-horizontal-split-panel,
+.tc-vertical-split-panel,
+.tc-three-column-panels,
+.tc-master-detail-layout,
+.tc-collapsible-master-detail {
+	position: relative;
+	display: flex;
+	width: 100%;
+	height: 100%;
+}
+
+.tc-horizontal-split-panel {
+	flex-direction: row;
+}
+
+.tc-vertical-split-panel {
+	flex-direction: column;
+}
+
+.tc-three-column-panels {
+	flex-direction: row;
+}
+
+/* Panel Components */
+.tc-panel-left,
+.tc-panel-right,
+.tc-panel-top,
+.tc-panel-bottom,
+.tc-panel-center,
+.tc-master-panel,
+.tc-detail-panel {
+	overflow: auto;
+	position: relative;
+}
+
+.tc-panel-left,
+.tc-panel-top,
+.tc-master-panel {
+	flex-shrink: 0;
+}
+
+.tc-panel-right:not(.tc-three-column-panels .tc-panel-right),
+.tc-panel-bottom,
+.tc-panel-center,
+.tc-detail-panel {
+	flex: 1;
+}
+
+.tc-three-column-panels .tc-panel-right {
+	flex-shrink: 0;
+}
+
+/* Panel Splitters */
+.tc-panel-splitter-vertical,
+.tc-panel-splitter-horizontal {
+	flex-shrink: 0;
+	position: relative;
+	background: <<colour tiddler-border>>;
+	transition: background 0.2s ease;
+}
+
+.tc-panel-splitter-vertical {
+	width: 5px;
+	cursor: ew-resize;
+}
+
+.tc-panel-splitter-horizontal {
+	height: 5px;
+	cursor: ns-resize;
+}
+
+.tc-panel-splitter-vertical:hover,
+.tc-panel-splitter-horizontal:hover {
+	background: <<colour muted-foreground>>;
+}
+
+.tc-panel-splitter-vertical.tc-resizer-active,
+.tc-panel-splitter-horizontal.tc-resizer-active {
+	background: <<colour primary>>;
+	opacity: 0.8;
+}
+
+/* Splitter Grip Indicators */
+.tc-panel-splitter-vertical::before,
+.tc-panel-splitter-horizontal::before {
+	content: "";
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	transform: translate(-50%, -50%);
+	opacity: 0.5;
+}
+
+.tc-panel-splitter-vertical::before {
+	width: 1px;
+	height: 30px;
+	background: repeating-linear-gradient(
+		to bottom,
+		<<colour muted-foreground>> 0,
+		<<colour muted-foreground>> 2px,
+		transparent 2px,
+		transparent 4px
+	);
+}
+
+.tc-panel-splitter-horizontal::before {
+	width: 30px;
+	height: 1px;
+	background: repeating-linear-gradient(
+		to right,
+		<<colour muted-foreground>> 0,
+		<<colour muted-foreground>> 2px,
+		transparent 2px,
+		transparent 4px
+	);
+}
+
+/* Three Column Layout Specific */
+/*.tc-three-column-panels .tc-panel-center {
+	padding: 0 10px;
+}*/
+
+/* Master-Detail Layout Specific */
+.tc-master-detail-layout .tc-master-panel {
+	background: <<colour tiddler-background>>;
+	border-right: 1px solid <<colour tiddler-border>>;
+}
+
+.tc-master-detail-layout.tc-vertical-split-panel .tc-master-panel {
+	border-right: none;
+	border-bottom: 1px solid <<colour tiddler-border>>;
+}
+
+/* Collapsible Master-Detail */
+.tc-collapsible-master-detail {
+	position: relative;
+}
+
+.tc-collapsible-master-detail .tc-master-panel {
+	position: relative;
+	transition: width 0.3s ease;
+}
+
+.tc-collapsible-master-detail .tc-master-panel.tc-collapsed {
+	width: 40px !important;
+	flex-shrink: 0;
+}
+
+.tc-panel-collapse-btn,
+.tc-panel-expand-btn {
+	position: absolute;
+	top: 10px;
+	right: 10px;
+	padding: 5px;
+	background: <<colour background>>;
+	border: 1px solid <<colour tiddler-border>>;
+	border-radius: 3px;
+}
+
+.tc-panel-expand-btn {
+	right: 5px;
+}
+
+.tc-panel-collapse-btn:hover,
+.tc-panel-expand-btn:hover {
+	background: <<colour tiddler-background>>;
+}
+
+/* Panel Borders and Spacing */
+/*.tc-panel-left,
+.tc-panel-right,
+.tc-panel-top,
+.tc-panel-bottom {
+	padding: 10px;
+}*/
+
+/* Responsive Behavior */
+@media (max-width: 960px) {
+	.tc-horizontal-split-panel,
+	.tc-three-column-panels {
+		flex-direction: column;
+	}
+	
+	.tc-panel-splitter-vertical {
+		width: 100%;
+		height: 5px;
+		cursor: ns-resize;
+	}
+	
+	.tc-panel-splitter-vertical::before {
+		width: 30px;
+		height: 1px;
+		background: repeating-linear-gradient(
+			to right,
+			<<colour muted-foreground>> 0,
+			<<colour muted-foreground>> 2px,
+			transparent 2px,
+			transparent 4px
+		);
+	}
+	
+	.tc-panel-left,
+	.tc-panel-right {
+		width: 100% !important;
+		height: 50%;
+	}
+	
+	.tc-three-column-panels .tc-panel-left,
+	.tc-three-column-panels .tc-panel-right {
+		height: 200px;
+	}
+}
+
+/* Dark Theme Support */
+@media (prefers-color-scheme: dark) {
+	.tc-panel-splitter-vertical,
+	.tc-panel-splitter-horizontal {
+		background: <<colour muted-foreground>>;
+		opacity: 0.3;
+	}
+	
+	.tc-panel-splitter-vertical:hover,
+	.tc-panel-splitter-horizontal:hover {
+		opacity: 0.5;
+	}
+}

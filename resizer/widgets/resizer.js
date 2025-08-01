@@ -407,54 +407,7 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 		effectiveMinValue = self.minValueRaw ? evaluateCSSValue(self.minValueRaw, parentSizeAtStart) : null;
 		effectiveMaxValue = self.maxValueRaw ? evaluateCSSValue(self.maxValueRaw, parentSizeAtStart) : null;
 		
-		// Get and store the current value for each tiddler
-		startValues = {}; // Reset the object
-		startUnits = {}; // Reset the units object
-		if(self.targetTiddlers && self.targetTiddlers.length > 0) {
-			self.targetTiddlers.forEach(function(tiddlerTitle) {
-				var tiddler = self.wiki.getTiddler(tiddlerTitle);
-				var currentValue;
-				if(tiddler && self.targetField && self.targetField !== "text") {
-					currentValue = tiddler.fields[self.targetField] || self.defaultValue || "200px";
-				} else {
-					currentValue = self.wiki.getTiddlerText(tiddlerTitle, self.defaultValue || "200px");
-				}
-				
-				// Get the numeric value and unit
-				var numericValue = getNumericValue(currentValue);
-				var valueUnit = getUnit(currentValue);
-				
-				// Store the original unit for this tiddler
-				startUnits[tiddlerTitle] = valueUnit;
-				
-				// Convert to pixels for internal calculations
-				var pixelValue = convertToPixels(numericValue, valueUnit, domNode);
-				startValues[tiddlerTitle] = pixelValue;
-				
-			});
-			// For backwards compatibility, set startValue to the first tiddler's value
-			startValue = startValues[self.targetTiddlers[0]] || 0;
-		} else if(self.targetTiddler) {
-			// Fallback to single tiddler for backwards compatibility
-			var tiddler = self.wiki.getTiddler(self.targetTiddler);
-			var currentValue;
-			if(tiddler && self.targetField && self.targetField !== "text") {
-				currentValue = tiddler.fields[self.targetField] || self.defaultValue || "200px";
-			} else {
-				currentValue = self.wiki.getTiddlerText(self.targetTiddler, self.defaultValue || "200px");
-			}
-			
-			// Get the numeric value and unit
-			var numericValue = getNumericValue(currentValue);
-			var valueUnit = getUnit(currentValue);
-			
-			// Convert to pixels for internal calculations
-			startValue = convertToPixels(numericValue, valueUnit, domNode);
-		} else {
-			startValue = getNumericValue(self.defaultValue || "200px");
-		}
-		
-		// Find the target element(s) to resize
+		// Find the target element(s) to resize FIRST so we can measure them
 		var targetElements = [];
 		if(self.targetSelector) {
 			if(self.resizeMode === "multiple") {
@@ -469,8 +422,112 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 			if(domNode.previousElementSibling) targetElements = [domNode.previousElementSibling];
 		} else if(self.targetElement === "nextSibling") {
 			if(domNode.nextElementSibling) targetElements = [domNode.nextElementSibling];
+		} else {
+			// Default behavior: for vertical resizers, target previous sibling; for horizontal, target parent
+			if(self.direction === "vertical") {
+				if(domNode.previousElementSibling) targetElements = [domNode.previousElementSibling];
+			} else {
+				// For horizontal, could default to parent or previous sibling based on layout
+				if(domNode.previousElementSibling) targetElements = [domNode.previousElementSibling];
+			}
 		}
 		targetElement = targetElements[0]; // Keep for backward compatibility
+		
+		// Get and store the current value for each tiddler
+		startValues = {}; // Reset the object
+		startUnits = {}; // Reset the units object
+		
+		// Helper to get the actual computed size of an element
+		var getElementSize = function(element) {
+			if(!element) return null;
+			var rect = element.getBoundingClientRect();
+			return self.direction === "horizontal" ? rect.width : rect.height;
+		};
+		
+		// If we have a target element, measure its actual size
+		var measuredSize = null;
+		if(targetElement) {
+			measuredSize = getElementSize(targetElement);
+		}
+		
+		if(self.targetTiddlers && self.targetTiddlers.length > 0) {
+			self.targetTiddlers.forEach(function(tiddlerTitle, index) {
+				// If we have a measured size from the actual element, use that for the first tiddler
+				// This ensures we're starting from the actual rendered size, not the stored value
+				if(index === 0 && measuredSize !== null) {
+					startValues[tiddlerTitle] = measuredSize;
+					// Detect the unit from the tiddler value for later conversion
+					var tiddler = self.wiki.getTiddler(tiddlerTitle);
+					var storedValue;
+					if(tiddler && self.targetField && self.targetField !== "text") {
+						storedValue = tiddler.fields[self.targetField] || self.defaultValue || "200px";
+					} else {
+						storedValue = self.wiki.getTiddlerText(tiddlerTitle, self.defaultValue || "200px");
+					}
+					startUnits[tiddlerTitle] = getUnit(storedValue);
+				} else {
+					// For other tiddlers or if no element to measure, fall back to stored value
+					var tiddler = self.wiki.getTiddler(tiddlerTitle);
+					var currentValue;
+					if(tiddler && self.targetField && self.targetField !== "text") {
+						currentValue = tiddler.fields[self.targetField] || self.defaultValue || "200px";
+					} else {
+						currentValue = self.wiki.getTiddlerText(tiddlerTitle, self.defaultValue || "200px");
+					}
+					
+					// Get the numeric value and unit
+					var numericValue = getNumericValue(currentValue);
+					var valueUnit = getUnit(currentValue);
+					
+					// Store the original unit for this tiddler
+					startUnits[tiddlerTitle] = valueUnit;
+					
+					// Convert to pixels for internal calculations
+					var pixelValue = convertToPixels(numericValue, valueUnit, domNode);
+					startValues[tiddlerTitle] = pixelValue;
+				}
+			});
+			// For backwards compatibility, set startValue to the first tiddler's value
+			startValue = startValues[self.targetTiddlers[0]] || 0;
+		} else if(self.targetTiddler) {
+			// Fallback to single tiddler for backwards compatibility
+			if(measuredSize !== null) {
+				// Use the measured size from the actual element
+				startValue = measuredSize;
+				// Get the unit from the stored value
+				var tiddler = self.wiki.getTiddler(self.targetTiddler);
+				var storedValue;
+				if(tiddler && self.targetField && self.targetField !== "text") {
+					storedValue = tiddler.fields[self.targetField] || self.defaultValue || "200px";
+				} else {
+					storedValue = self.wiki.getTiddlerText(self.targetTiddler, self.defaultValue || "200px");
+				}
+				self.unit = getUnit(storedValue);
+			} else {
+				// No element to measure, fall back to stored value
+				var tiddler = self.wiki.getTiddler(self.targetTiddler);
+				var currentValue;
+				if(tiddler && self.targetField && self.targetField !== "text") {
+					currentValue = tiddler.fields[self.targetField] || self.defaultValue || "200px";
+				} else {
+					currentValue = self.wiki.getTiddlerText(self.targetTiddler, self.defaultValue || "200px");
+				}
+				
+				// Get the numeric value and unit
+				var numericValue = getNumericValue(currentValue);
+				var valueUnit = getUnit(currentValue);
+				
+				// Convert to pixels for internal calculations
+				startValue = convertToPixels(numericValue, valueUnit, domNode);
+			}
+		} else {
+			// No tiddler specified, try to measure element or use default
+			if(measuredSize !== null) {
+				startValue = measuredSize;
+			} else {
+				startValue = getNumericValue(self.defaultValue || "200px");
+			}
+		}
 		
 		// Add active class
 		domNode.classList.add("tc-resizer-active");
