@@ -1,13 +1,19 @@
 title: $:/plugins/BTC/resizer/styles
 tags: $:/tags/Stylesheet
 
-.tc-sidebar-scrollable {
+.tc-sidebar-scrollable-wrapper {
+	position: fixed;
+	top: 0;
+	right: 0;
+	bottom: 0;
+	left: {{{ [{$:/themes/tiddlywiki/vanilla/options/sidebarlayout}match[fixed-fluid]then{$:/themes/tiddlywiki/vanilla/metrics/storyright}] :else[[auto]] }}};
+	width: {{{ [{$:/themes/tiddlywiki/vanilla/options/sidebarlayout}match[fluid-fixed]then{$:/themes/tiddlywiki/vanilla/metrics/sidebarwidth}] :else[[auto]] }}};
 	z-index: 100;
 }
 
 <%if [{$:/state/sidebar}match[no]] %>
 
-.tc-sidebar-scrollable {
+.tc-sidebar-scrollable-wrapper {
 	z-index: initial;
 }
 

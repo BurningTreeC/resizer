@@ -6,7 +6,7 @@ tags: $:/tags/PageTemplate
 $:/config/SideBarSegments/Visibility/$(listItem)$
 \end
 
-<$scrollable fallthrough="no" class="tc-sidebar-scrollable">
+<div class="tc-sidebar-scrollable-wrapper">
 
 <%if [{$:/state/sidebar}!match[no]] %>
 <%if [{$:/themes/tiddlywiki/vanilla/options/sidebarlayout}match[fluid-fixed]] %>
@@ -34,6 +34,8 @@ $:/config/SideBarSegments/Visibility/$(listItem)$
 <% endif %>
 <% endif %>
 
+<$scrollable fallthrough="no" class="tc-sidebar-scrollable">
+
 <div class="tc-sidebar-header">
 
 <$reveal state="$:/state/sidebar" type="match" text="yes" default="yes" retain="yes" animate="yes">
@@ -53,3 +55,5 @@ $:/config/SideBarSegments/Visibility/$(listItem)$
 </div>
 
 </$scrollable>
+
+</div>

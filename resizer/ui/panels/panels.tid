@@ -6,13 +6,9 @@ tags: $:/tags/Global
 <div class={{{ tc-horizontal-split-panel [<class>] +[join[ ]] }}} style.min-height=<<minHeight>> style.max-width="100%">
 	<div class={{{ tc-panel-left [<leftClass>] +[join[ ]] }}} style.width={{{ [<stateTiddler>get[text]else<width>] }}} style.max-width=<<maxWidth>>>
 		<%if [<leftContent>is[variable]] %>
-
 			<$transclude $variable=<<leftContent>> mode="block"/>
-
 		<%elseif [<leftContent>is[tiddler]] [<leftContent>is[shadow]] %>
-
 			<$transclude $tiddler=<<leftContent>> mode="block"/>
-
 		<% endif %>
 	</div>
 	<$resizer
@@ -26,13 +22,9 @@ tags: $:/tags/Global
 	/>
 	<div class={{{ tc-panel-right [<rightClass>] +[join[ ]] }}}>
 		<%if [<rightContent>is[variable]] %>
-
 			<$transclude $variable=<<rightContent>> mode="block"/>
-
 		<%elseif [<rightContent>is[tiddler]] [<rightContent>is[shadow]] %>
-
 			<$transclude $tiddler=<<rightContent>> mode="block"/>
-
 		<% endif %>
 	</div>
 </div>
@@ -43,13 +35,9 @@ tags: $:/tags/Global
 <div class={{{ tc-vertical-split-panel [<class>] +[join[ ]] }}} style.height=<<panelHeight>> style.max-width="100%">
 	<div class={{{ tc-panel-top [<topClass>] +[join[ ]] }}} style.height={{{ [<stateTiddler>get[text]else<height>] }}} style.max-height=<<maxHeight>>>
 		<%if [<topContent>is[variable]] %>
-
 			<$transclude $variable=<<topContent>> mode="block"/>
-
 		<%elseif [<topContent>is[tiddler]] [<topContent>is[shadow]] %>
-
 			<$transclude $tiddler=<<topContent>> mode="block"/>
-
 		<% endif %>
 	</div>
 	<$resizer
@@ -63,13 +51,9 @@ tags: $:/tags/Global
 	/>
 	<div class={{{ tc-panel-bottom [<bottomClass>] +[join[ ]] }}}>
 		<%if [<bottomContent>is[variable]] %>
-
 			<$transclude $variable=<<bottomContent>> mode="block"/>
-
 		<%elseif [<bottomContent>is[tiddler]] [<bottomContent>is[shadow]] %>
-
 			<$transclude $tiddler=<<bottomContent>> mode="block"/>
-
 		<% endif %>
 	</div>
 </div>
@@ -83,13 +67,9 @@ tags: $:/tags/Global
 <div class={{{ tc-three-column-panels [<class>] +[join[ ]] }}} style.min-height=<<minHeight>> style.max-width="100%">
 	<div class="tc-panel-left" style.width={{{ [<leftStateTiddler>get[text]else<leftWidth>] }}}>
 		<%if [<leftContent>is[variable]] %>
-
 			<$transclude $variable=<<leftContent>> mode="block"/>
-
 		<%elseif [<leftContent>is[tiddler]] [<leftContent>is[shadow]] %>
-
 			<$transclude $tiddler=<<leftContent>> mode="block"/>
-
 		<% endif %>
 	</div>
 	<$resizer
@@ -103,13 +83,9 @@ tags: $:/tags/Global
 	/>
 	<div class="tc-panel-center" style.min-width=<<minWidth>>>
 		<%if [<centerContent>is[variable]] %>
-
 			<$transclude $variable=<<centerContent>> mode="block"/>
-
 		<%elseif [<centerContent>is[tiddler]] [<centerContent>is[shadow]] %>
-
 			<$transclude $tiddler=<<centerContent>> mode="block"/>
-
 		<% endif %>
 	</div>
 	<$resizer
@@ -125,13 +101,9 @@ tags: $:/tags/Global
 	/>
 	<div class="tc-panel-right" style.width={{{ [<rightStateTiddler>get[text]else<rightWidth>] }}}>
 		<%if [<rightContent>is[variable]] %>
-
 			<$transclude $variable=<<rightContent>> mode="block"/>
-
 		<%elseif [<rightContent>is[tiddler]] [<rightContent>is[shadow]] %>
-
 			<$transclude $tiddler=<<rightContent>> mode="block"/>
-
 		<% endif %>
 	</div>
 </div>
@@ -143,13 +115,9 @@ tags: $:/tags/Global
 	<%if [<collapseStateTiddler>get[text]else<collapsed>match[no]]%>
 		<div class="tc-master-panel" style.width={{{ [<stateTiddler>get[text]else<size>] }}} style.max-width=<<maxSize>>>
 			<%if [<masterContent>is[variable]] %>
-
 				<$transclude $variable=<<masterContent>> mode="block"/>
-
 			<%elseif [<masterContent>is[tiddler]] [<masterContent>is[shadow]] %>
-
 				<$transclude $tiddler=<<masterContent>> mode="block"/>
-
 			<% endif %>
 			<$button class="tc-btn-invisible tc-panel-collapse-btn" set=<<collapseStateTiddler>> setTo="yes">
 				{{$:/core/images/chevron-left}}
@@ -173,13 +141,9 @@ tags: $:/tags/Global
 	<% endif %>
 	<div class="tc-detail-panel">
 		<%if [<detailContent>is[variable]] %>
-
 			<$transclude $variable=<<detailContent>> mode="block"/>
-
 		<%elseif [<detailContent>is[tiddler]] [<detailContent>is[shadow]] %>
-
 			<$transclude $tiddler=<<detailContent>> mode="block"/>
-			
 		<% endif %>
 	</div>
 </div>
