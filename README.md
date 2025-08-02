@@ -387,10 +387,96 @@ Features:
 - Detail panel automatically expands when master panel is collapsed
 - State persistence for both size and collapse state
 
+## MediaQuery Filter
+
+The plugin includes a `mediaquery` filter operator that allows you to evaluate CSS media queries within TiddlyWiki filters. This is particularly useful for creating responsive layouts and conditional content.
+
+### Syntax
+
+```
+[mediaquery<media-query>]
+```
+
+### Examples
+
+```html
+<!-- Show content only on mobile devices -->
+<%if [mediaquery[(max-width: 768px)]] %>
+  This content only appears on mobile devices
+<% endif %>
+
+<!-- Show different content for touch vs mouse devices -->
+<%if [mediaquery[(pointer: coarse)]] %>
+  <div class="touch-interface">
+    Touch-optimized interface with larger buttons
+  </div>
+<% else %>
+  <div class="mouse-interface">
+    Mouse-optimized interface with hover states
+  </div>
+<% endif %>
+
+<!-- Responsive layout based on screen size -->
+<%if [mediaquery[(min-width: 1024px)]] %>
+  <<three-column-panels
+    leftContent:"Navigation"
+    centerContent:"Main Content"
+    rightContent:"Sidebar"
+  >>
+<% else %>
+  <<vertical-split-panel
+    topContent:"Navigation"
+    bottomContent:"Main Content"
+  >>
+<% endif %>
+
+<!-- Dark mode support -->
+<%if [mediaquery[(prefers-color-scheme: dark)]] %>
+  <style>
+    .my-component { background: #1a1a1a; color: #ffffff; }
+  </style>
+<% endif %>
+
+<!-- Responsive resizer configuration -->
+<$let handleWidth={{{ [mediaquery[(pointer: coarse)]then[40px]else[10px]] }}}>
+  <$resizer
+    direction="horizontal"
+    tiddler="$:/state/panel-width"
+    default=<<handleWidth>>
+  />
+</$let>
+
+<!-- Disable animations for users who prefer reduced motion -->
+<%if [mediaquery[(prefers-reduced-motion: reduce)]] %>
+  <style>
+    * { animation: none !important; transition: none !important; }
+  </style>
+<% endif %>
+```
+
+### Features
+
+- **Reactive Updates**: Automatically refreshes when media query state changes (e.g., window resize, device rotation)
+- **Browser-Only**: Returns empty results when running in Node.js
+- **Error Handling**: Invalid media queries return empty results
+- **Negation Support**: Use `!mediaquery` to invert the condition
+
+### Common Media Queries
+
+- `(max-width: 768px)` - Mobile devices
+- `(min-width: 769px)` - Tablets and desktops
+- `(pointer: coarse)` - Touch devices
+- `(pointer: fine)` - Mouse/trackpad devices  
+- `(prefers-color-scheme: dark)` - Dark mode preference
+- `(orientation: portrait)` - Portrait orientation
+- `(orientation: landscape)` - Landscape orientation
+- `(prefers-reduced-motion: reduce)` - Reduced motion preference
+
 ## Browser Compatibility
 
 - Modern browsers with ES5 support
 - Touch devices via pointer events
+- MediaQueryList API support for reactive media queries
 - Fallback handling for older viewport unit implementations
 - Cross-browser window object detection
 
