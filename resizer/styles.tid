@@ -23,11 +23,11 @@ tags: $:/tags/Stylesheet
 	position: absolute;
 	top: 0;
 	bottom: 0;
-	left: 18px;
+	left: {{{ [{$:/themes/tiddlywiki/vanilla/options/sidebarlayout}match[fluid-fixed]then[18px]] :else[[-24px]] }}};
 	width: 6px;
 	cursor: ew-resize;
 	background-color: <<colour muted-foreground>>;
-	opacity: 0.15;
+	opacity: 0.75;
 	transition: opacity 0.2s ease, background-color 0.2s ease;
 	z-index: 10;
 }
