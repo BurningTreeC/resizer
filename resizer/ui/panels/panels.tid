@@ -59,7 +59,7 @@ tags: $:/tags/Global
 </div>
 \end
 
-\function tf.get-three-column-panels-left-max-width() [<rightStateTiddler>get[text]addsuffix[ - ]addsuffix<minWidth>addprefix[calc(100% - ]addsuffix[)]] :else[<rightWidth>addsuffix[ - ]addsuffix<minWidth>addprefix[calc(100% - ]addsuffix[)]]
+\function tf.get-three-column-panels-left-max-width() [<rightStateTiddler>get[text]addsuffix[ - 10px - ]addsuffix<minWidth>addprefix[calc(100% - ]addsuffix[)]] :else[<rightWidth>addsuffix[ - 10px - ]addsuffix<minWidth>addprefix[calc(100% - ]addsuffix[)]]
 \function tf.get-three-column-panels-right-max-width() [<leftStateTiddler>get[text]addsuffix[ - ]addsuffix<minWidth>addprefix[calc(100% - ]addsuffix[)]] :else[<leftWidth>addsuffix[ - ]addsuffix<minWidth>addprefix[calc(100% - ]addsuffix[)]]
 
 \procedure three-column-panels(leftContent:"", centerContent:"", rightContent:"", leftWidth:"200px", rightWidth:"200px", minWidth:"150px", maxWidth:"400px", minHeight:"100%", leftStateTiddler:"$:/state/three-col/left", rightStateTiddler:"$:/state/three-col/right", class:"")
