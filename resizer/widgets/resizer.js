@@ -754,8 +754,9 @@ ResizerWidget.prototype.execute = function() {
 	// Get our parameters
 	this.direction = this.getAttribute("direction", "horizontal"); // horizontal or vertical
 	this.targetTiddler = this.getAttribute("tiddler");
+	this.targetFilter = this.getAttribute("filter");
 	// Parse tiddler attribute as a filter expression
-	this.targetTiddlers = this.targetTiddler ? this.wiki.filterTiddlers(this.targetTiddler) : [];
+	this.targetTiddlers = this.targetFilter ? this.wiki.filterTiddlers(this.targetFilter) : [];
 	this.targetField = this.getAttribute("field", "text");
 	this.targetSelector = this.getAttribute("selector");
 	this.targetElement = this.getAttribute("element"); // parent, previousSibling, nextSibling

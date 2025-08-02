@@ -18,16 +18,18 @@ $:/config/SideBarSegments/Visibility/$(listItem)$
 	max={{{ [[calc(100vw - ]addsuffix{$:/themes/tiddlywiki/vanilla/metrics/storyminwidth}addsuffix[)]] }}}
 	default="350px"
 	invert="yes"
+	live="yes"
 />
 <%elseif [{$:/themes/tiddlywiki/vanilla/options/sidebarlayout}match[fixed-fluid]] %>
 <$resizer
 	class="tc-sidebar-resizer"
 	direction="horizontal"
-	tiddler="$:/themes/tiddlywiki/vanilla/metrics/storyright $:/themes/tiddlywiki/vanilla/metrics/storywidth $:/themes/tiddlywiki/vanilla/metrics/tiddlerwidth"
+	filter="$:/themes/tiddlywiki/vanilla/metrics/storyright $:/themes/tiddlywiki/vanilla/metrics/storywidth $:/themes/tiddlywiki/vanilla/metrics/tiddlerwidth"
 	min={{$:/themes/tiddlywiki/vanilla/metrics/storyminwidth}}
 	max={{{ [[calc(100vw - ]addsuffix{$:/themes/tiddlywiki/vanilla/metrics/sidebarminwidth}addsuffix[)]] }}}
 	default="350px"
 	invert="no"
+	live="yes"
 />
 <% endif %>
 <% endif %>

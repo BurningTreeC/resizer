@@ -137,6 +137,9 @@ tags: $:/tags/Stylesheet
 
 .tc-collapsible-master-detail .tc-master-panel {
 	position: relative;
+}
+
+.tc-collapsible-master-detail .tc-master-panel:not(body.tc-resizing .tc-collapsible-master-detail .tc-master-panel) {
 	transition: width 0.3s ease;
 }
 
