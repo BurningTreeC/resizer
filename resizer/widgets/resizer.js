@@ -203,6 +203,175 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 		}
 	};
 	
+	// Robust calc() expression evaluator with support for nested expressions, parentheses, and all operations
+	var evaluateCalcExpression = function(expression, contextSize) {
+		// Tokenize the expression
+		var tokens = [];
+		var current = "";
+		var i = 0;
+		
+		while(i < expression.length) {
+			var char = expression[i];
+			
+			// Handle whitespace
+			if(/\s/.test(char)) {
+				if(current) {
+					tokens.push(current);
+					current = "";
+				}
+				i++;
+				continue;
+			}
+			
+			// Handle operators and parentheses
+			if("+-*/()".indexOf(char) !== -1) {
+				if(current) {
+					tokens.push(current);
+					current = "";
+				}
+				tokens.push(char);
+				i++;
+				continue;
+			}
+			
+			// Handle nested calc()
+			if(expression.substr(i, 5) === "calc(") {
+				if(current) {
+					tokens.push(current);
+					current = "";
+				}
+				// Find matching closing parenthesis
+				var depth = 1;
+				var j = i + 5;
+				while(j < expression.length && depth > 0) {
+					if(expression[j] === "(") depth++;
+					else if(expression[j] === ")") depth--;
+					j++;
+				}
+				// Recursively evaluate nested calc
+				var nestedExpr = expression.substring(i + 5, j - 1);
+				var nestedResult = evaluateCalcExpression(nestedExpr, contextSize);
+				tokens.push(String(nestedResult));
+				i = j;
+				continue;
+			}
+			
+			// Build current token
+			current += char;
+			i++;
+		}
+		
+		if(current) {
+			tokens.push(current);
+		}
+		
+		// Convert tokens to values
+		var values = [];
+		var operators = [];
+		
+		for(var t = 0; t < tokens.length; t++) {
+			var token = tokens[t];
+			
+			if("+-*/".indexOf(token) !== -1) {
+				// Process higher precedence operators first
+				while(operators.length > 0 && operators[operators.length - 1] !== "(" &&
+					  getPrecedence(operators[operators.length - 1]) >= getPrecedence(token)) {
+					processOperator(values, operators);
+				}
+				operators.push(token);
+			} else if(token === "(") {
+				operators.push(token);
+			} else if(token === ")") {
+				// Process until matching opening parenthesis
+				while(operators.length > 0 && operators[operators.length - 1] !== "(") {
+					processOperator(values, operators);
+				}
+				operators.pop(); // Remove the "("
+			} else {
+				// It's a value - convert to pixels
+				values.push(convertToPixels(token, contextSize));
+			}
+		}
+		
+		// Process remaining operators
+		while(operators.length > 0) {
+			processOperator(values, operators);
+		}
+		
+		return values[0] || 0;
+		
+		// Helper functions
+		function getPrecedence(op) {
+			if(op === "+" || op === "-") return 1;
+			if(op === "*" || op === "/") return 2;
+			return 0;
+		}
+		
+		function processOperator(values, operators) {
+			var op = operators.pop();
+			var b = values.pop();
+			var a = values.pop();
+			
+			if(a === undefined || b === undefined) {
+				values.push(0);
+				return;
+			}
+			
+			switch(op) {
+				case "+": values.push(a + b); break;
+				case "-": values.push(a - b); break;
+				case "*": values.push(a * b); break;
+				case "/": values.push(b !== 0 ? a / b : 0); break;
+			}
+		}
+		
+		function convertToPixels(value, contextSize) {
+			// If already a number, return it
+			var num = parseFloat(value);
+			if(!isNaN(num) && value === String(num)) {
+				return num;
+			}
+			
+			// Get viewport dimensions
+			var viewportWidth = (self.document.defaultView || self.document.parentWindow || {}).innerWidth || self.document.documentElement.clientWidth;
+			var viewportHeight = (self.document.defaultView || self.document.parentWindow || {}).innerHeight || self.document.documentElement.clientHeight;
+			var vmin = Math.min(viewportWidth, viewportHeight);
+			var vmax = Math.max(viewportWidth, viewportHeight);
+			
+			// Handle different units
+			if(value.endsWith("px")) {
+				return parseFloat(value);
+			} else if(value.endsWith("vw")) {
+				return (parseFloat(value) / 100) * viewportWidth;
+			} else if(value.endsWith("vh")) {
+				return (parseFloat(value) / 100) * viewportHeight;
+			} else if(value.endsWith("vmin")) {
+				return (parseFloat(value) / 100) * vmin;
+			} else if(value.endsWith("vmax")) {
+				return (parseFloat(value) / 100) * vmax;
+			} else if(value.endsWith("%")) {
+				return (parseFloat(value) / 100) * contextSize;
+			} else if(value.endsWith("em") || value.endsWith("rem")) {
+				// For em/rem, we need to get the computed font size
+				// Default to 16px if we can't determine it
+				var fontSize = 16;
+				try {
+					if(value.endsWith("rem")) {
+						fontSize = parseFloat(getComputedStyle(self.document.documentElement).fontSize) || 16;
+					} else if(self.domNodes && self.domNodes[0]) {
+						fontSize = parseFloat(getComputedStyle(self.domNodes[0]).fontSize) || 16;
+					}
+				} catch(e) {
+					// Fallback to default
+				}
+				return parseFloat(value) * fontSize;
+			} else {
+				// Try to parse as number (treat as pixels)
+				return parseFloat(value) || 0;
+			}
+		}
+	};
+	
 	// Helper to evaluate calc() expressions and other CSS values
 	var evaluateCSSValue = function(value, contextSize) {
 		if(typeof value !== "string") return value;
@@ -230,49 +399,7 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 		// Handle calc() expressions
 		if(value.startsWith("calc(") && value.endsWith(")")) {
 			var expression = value.substring(5, value.length - 1).trim();
-			
-			// Simple calc parser for expressions like "100% - 350px" or "100vw - 350px"
-			// This handles basic addition and subtraction
-			var parts = expression.split(/\s*([+-])\s*/);
-			var result = 0;
-			var operator = "+";
-			
-			for(var i = 0; i < parts.length; i++) {
-				var part = parts[i].trim();
-				if(part === "") continue;
-				
-				if(part === "+" || part === "-") {
-					operator = part;
-					continue;
-				}
-				
-				var partValue = 0;
-				if(part.endsWith("vw")) {
-					// vw needs to be checked before % to avoid incorrect parsing
-					var viewportWidth = (self.document.defaultView || self.document.parentWindow || {}).innerWidth || self.document.documentElement.clientWidth;
-					partValue = (parseFloat(part) / 100) * viewportWidth;
-				} else if(part.endsWith("vh")) {
-					var viewportHeight = (self.document.defaultView || self.document.parentWindow || {}).innerHeight || self.document.documentElement.clientHeight;
-					partValue = (parseFloat(part) / 100) * viewportHeight;
-				} else if(part.endsWith("%")) {
-					partValue = (parseFloat(part) / 100) * contextSize;
-				} else if(part.endsWith("px")) {
-					partValue = parseFloat(part);
-				} else if(part.match(/^\d+(\.\d+)?$/)) {
-					// Plain number without unit, treat as pixels
-					partValue = parseFloat(part);
-				} else {
-					// Try to parse any other format
-					partValue = parseFloat(part) || 0;
-				}
-				
-				if(operator === "+") {
-					result += partValue;
-				} else if(operator === "-") {
-					result -= partValue;
-				}
-			}
-			return result;
+			return evaluateCalcExpression(expression, contextSize);
 		}
 		
 		// If we can't evaluate it, try to parse as a number
