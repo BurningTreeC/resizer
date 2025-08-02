@@ -33,7 +33,8 @@ A powerful and flexible resizer widget that enables interactive resizing of UI e
 
 |!Attribute |!Description |!Default |
 |direction |Resize direction: "horizontal" or "vertical" |"horizontal" |
-|tiddler |Target tiddler(s) - can be a filter expression |– |
+|tiddler |Target tiddler |– |
+|filter |Filter attribute to specify multiple tiddlers (optional alternative to tiddler) |– |
 |field |Field to update in the target tiddler |"text" |
 |unit |Unit for the resizer (px, %, em, rem, vh, vw, etc.) |"px" |
 |default |Default value if tiddler doesn't exist |"200px" or "50%" |
@@ -54,7 +55,7 @@ A powerful and flexible resizer widget that enables interactive resizing of UI e
 |selector |CSS selector for target DOM element(s) |– |
 |element |Target relative element: "parent", "previousSibling", "nextSibling" |– |
 |property |CSS property to modify |"width" or "height" |
-|aspectRatio |Maintain aspect ratio (e.g., "16:9" or "1.5") |– |
+|aspectRatio |Maintain aspect ratio for live DOM manipulation only (e.g., "16:9" or "1.5") |– |
 
 !!! Event Attributes
 
@@ -83,12 +84,12 @@ A powerful and flexible resizer widget that enables interactive resizing of UI e
 />
 ```
 
-!!! Space-Separated Tiddler List
+!!! Space-Separated Tiddler List (Filter)
 
 ```
 <$resizer
   direction="horizontal"
-  tiddler="$:/metrics/storyright $:/metrics/storywidth $:/metrics/tiddlerwidth"
+  filter="$:/metrics/storyright $:/metrics/storywidth $:/metrics/tiddlerwidth"
   min="300px"
   max="calc(100vw - 350px)"
 />
@@ -223,7 +224,7 @@ The resizer is used in TiddlyWiki's sidebar implementation:
 <$resizer
   class="tc-sidebar-resizer"
   direction="horizontal"
-  tiddler="$:/themes/tiddlywiki/vanilla/metrics/storyright $:/themes/tiddlywiki/vanilla/metrics/storywidth $:/themes/tiddlywiki/vanilla/metrics/tiddlerwidth"
+  filter="$:/themes/tiddlywiki/vanilla/metrics/storyright $:/themes/tiddlywiki/vanilla/metrics/storywidth $:/themes/tiddlywiki/vanilla/metrics/tiddlerwidth"
   min={{$:/themes/tiddlywiki/vanilla/metrics/storyminwidth}}
   max={{{ [[calc(100vw - ]addsuffix{$:/themes/tiddlywiki/vanilla/metrics/sidebarminwidth}addsuffix[)]] }}}
   default="350px"
@@ -244,6 +245,146 @@ This example demonstrates:
 * Touch devices via pointer events
 * Fallback handling for older viewport unit implementations
 * Cross-browser window object detection
+
+!! Layout Procedures
+
+The resizer plugin includes several pre-built layout procedures that make it easy to create common split-panel layouts:
+
+!!! horizontal-split-panel
+
+Creates a horizontally split layout with a resizable divider between left and right panels.
+
+```
+<<horizontal-split-panel
+  leftContent:"Content for left panel"
+  rightContent:"Content for right panel"
+  width:"50%"
+  minWidth:"100px"
+  maxWidth:"80%"
+  stateTiddler:"$:/state/hsplit/width"
+  class:"my-panel"
+  leftClass:"left-panel-class"
+  rightClass:"right-panel-class"
+  splitterClass:"splitter-class"
+>>
+```
+
+|!Parameter |!Description |!Default |
+|leftContent |Content for the left panel (variable or tiddler name) |"" |
+|rightContent |Content for the right panel (variable or tiddler name) |"" |
+|width |Initial width of the left panel |"50%" |
+|minHeight |Minimum height of the panel container |"100%" |
+|minWidth |Minimum width of the left panel |"100px" |
+|maxWidth |Maximum width of the left panel |"80%" |
+|stateTiddler |Tiddler to store the current width |"$:/state/hsplit/width" |
+|class |Additional CSS classes for the container |"" |
+|leftClass |Additional CSS classes for the left panel |"" |
+|rightClass |Additional CSS classes for the right panel |"" |
+|splitterClass |Additional CSS classes for the splitter |"" |
+
+!!! vertical-split-panel
+
+Creates a vertically split layout with a resizable divider between top and bottom panels.
+
+```
+<<vertical-split-panel
+  topContent:"Content for top panel"
+  bottomContent:"Content for bottom panel"
+  height:"50%"
+  panelHeight:"100%"
+  minHeight:"100px"
+  maxHeight:"80%"
+  stateTiddler:"$:/state/vsplit/height"
+  class:"my-panel"
+  topClass:"top-panel-class"
+  bottomClass:"bottom-panel-class"
+  splitterClass:"splitter-class"
+>>
+```
+
+|!Parameter |!Description |!Default |
+|topContent |Content for the top panel (variable or tiddler name) |"" |
+|bottomContent |Content for the bottom panel (variable or tiddler name) |"" |
+|panelHeight |Height of the entire panel container |"100%" |
+|height |Initial height of the top panel |"50%" |
+|minHeight |Minimum height of the top panel |"100px" |
+|maxHeight |Maximum height of the top panel |"80%" |
+|stateTiddler |Tiddler to store the current height |"$:/state/vsplit/height" |
+|class |Additional CSS classes for the container |"" |
+|topClass |Additional CSS classes for the top panel |"" |
+|bottomClass |Additional CSS classes for the bottom panel |"" |
+|splitterClass |Additional CSS classes for the splitter |"" |
+
+!!! three-column-panels
+
+Creates a three-column layout with resizable left and right panels, and a flexible center panel.
+
+```
+<<three-column-panels
+  leftContent:"Left panel content"
+  centerContent:"Center panel content"
+  rightContent:"Right panel content"
+  leftWidth:"200px"
+  rightWidth:"200px"
+  minWidth:"150px"
+  maxWidth:"400px"
+  minHeight:"100%"
+  leftStateTiddler:"$:/state/three-col/left"
+  rightStateTiddler:"$:/state/three-col/right"
+  class:"my-three-col"
+>>
+```
+
+|!Parameter |!Description |!Default |
+|leftContent |Content for the left panel (variable or tiddler name) |"" |
+|centerContent |Content for the center panel (variable or tiddler name) |"" |
+|rightContent |Content for the right panel (variable or tiddler name) |"" |
+|leftWidth |Initial width of the left panel |"200px" |
+|rightWidth |Initial width of the right panel |"200px" |
+|minWidth |Minimum width for side panels |"150px" |
+|maxWidth |Maximum width for side panels |"400px" |
+|minHeight |Minimum height of the panel container |"100%" |
+|leftStateTiddler |Tiddler to store the left panel width |"$:/state/three-col/left" |
+|rightStateTiddler |Tiddler to store the right panel width |"$:/state/three-col/right" |
+|class |Additional CSS classes for the container |"" |
+
+Note: The center panel automatically adjusts its width based on the left and right panel sizes, with constraints to ensure all panels remain visible.
+
+!!! collapsible-master-detail-panel
+
+Creates a master-detail layout where the master panel can be collapsed to save space.
+
+```
+<<collapsible-master-detail-panel
+  masterContent:"Master panel content"
+  detailContent:"Detail panel content"
+  collapsed:"no"
+  size:"300px"
+  minSize:"200px"
+  maxSize:"500px"
+  minHeight:"100%"
+  stateTiddler:"$:/state/cmd/size"
+  collapseStateTiddler:"$:/state/cmd/collapsed"
+  class:"my-master-detail"
+>>
+```
+
+|!Parameter |!Description |!Default |
+|masterContent |Content for the master panel (variable or tiddler name) |"" |
+|detailContent |Content for the detail panel (variable or tiddler name) |"" |
+|collapsed |Initial collapsed state ("yes" or "no") |"no" |
+|size |Initial width of the master panel |"300px" |
+|minSize |Minimum width of the master panel |"200px" |
+|maxSize |Maximum width of the master panel |"500px" |
+|minHeight |Minimum height of the panel container |"100%" |
+|stateTiddler |Tiddler to store the master panel width |"$:/state/cmd/size" |
+|collapseStateTiddler |Tiddler to store the collapsed state |"$:/state/cmd/collapsed" |
+|class |Additional CSS classes for the container |"" |
+
+Features:
+* Collapse/expand buttons integrated into the master panel
+* Detail panel automatically expands when master panel is collapsed
+* State persistence for both size and collapse state
 
 !! License
 
