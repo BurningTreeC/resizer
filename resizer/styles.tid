@@ -87,3 +87,13 @@ body.tc-resizing .tc-resize-overlay {
 	display: block;
 	cursor: inherit;
 }
+
+/* Prevent scrolling on touch devices when using resizers */
+.tc-resizer {
+	touch-action: none;
+}
+
+/* Also prevent scrolling on the overlay during vertical resize */
+body.tc-resizing .tc-resize-overlay {
+	touch-action: none;
+}

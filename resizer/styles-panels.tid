@@ -59,7 +59,7 @@ tags: $:/tags/Stylesheet
 .tc-panel-splitter-horizontal {
 	flex-shrink: 0;
 	position: relative;
-	background: <<colour tiddler-border>>;
+	background: <<colour muted-foreground>>;
 	transition: background 0.2s ease;
 }
 
@@ -75,7 +75,7 @@ tags: $:/tags/Stylesheet
 
 .tc-panel-splitter-vertical:hover,
 .tc-panel-splitter-horizontal:hover {
-	background: <<colour muted-foreground>>;
+	background: <<colour primary>>;
 }
 
 .tc-panel-splitter-vertical.tc-resizer-active,
@@ -86,7 +86,7 @@ tags: $:/tags/Stylesheet
 
 /* Splitter Grip Indicators */
 .tc-panel-splitter-vertical::before,
-.tc-panel-splitter-horizontal::before {
+.tc-panel-splitter-horizontal::before, .tc-sidebar-resizer::before {
 	content: "";
 	position: absolute;
 	top: 50%;
@@ -95,7 +95,7 @@ tags: $:/tags/Stylesheet
 	opacity: 0.5;
 }
 
-.tc-panel-splitter-vertical::before {
+.tc-panel-splitter-vertical::before, .tc-sidebar-resizer::before {
 	width: 1px;
 	height: 30px;
 	background: repeating-linear-gradient(
@@ -118,11 +118,6 @@ tags: $:/tags/Stylesheet
 		transparent 4px
 	);
 }
-
-/* Three Column Layout Specific */
-/*.tc-three-column-panels .tc-panel-center {
-	padding: 0 10px;
-}*/
 
 /* Master-Detail Layout Specific */
 .tc-master-detail-layout .tc-master-panel {
@@ -168,63 +163,4 @@ tags: $:/tags/Stylesheet
 .tc-panel-collapse-btn:hover,
 .tc-panel-expand-btn:hover {
 	background: <<colour tiddler-background>>;
-}
-
-/* Panel Borders and Spacing */
-/*.tc-panel-left,
-.tc-panel-right,
-.tc-panel-top,
-.tc-panel-bottom {
-	padding: 10px;
-}*/
-
-/* Responsive Behavior */
-@media (max-width: 960px) {
-	.tc-horizontal-split-panel,
-	.tc-three-column-panels {
-		flex-direction: column;
-	}
-	
-	.tc-panel-splitter-vertical {
-		width: 100%;
-		height: 5px;
-		cursor: ns-resize;
-	}
-	
-	.tc-panel-splitter-vertical::before {
-		width: 30px;
-		height: 1px;
-		background: repeating-linear-gradient(
-			to right,
-			<<colour muted-foreground>> 0,
-			<<colour muted-foreground>> 2px,
-			transparent 2px,
-			transparent 4px
-		);
-	}
-	
-	.tc-panel-left,
-	.tc-panel-right {
-		width: 100% !important;
-		height: 50%;
-	}
-	
-	.tc-three-column-panels .tc-panel-left,
-	.tc-three-column-panels .tc-panel-right {
-		height: 200px;
-	}
-}
-
-/* Dark Theme Support */
-@media (prefers-color-scheme: dark) {
-	.tc-panel-splitter-vertical,
-	.tc-panel-splitter-horizontal {
-		background: <<colour muted-foreground>>;
-		opacity: 0.3;
-	}
-	
-	.tc-panel-splitter-vertical:hover,
-	.tc-panel-splitter-horizontal:hover {
-		opacity: 0.5;
-	}
 }
