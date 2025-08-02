@@ -63,6 +63,16 @@ tags: $:/tags/Stylesheet
 	position: relative;
 }
 
+.tc-panel-left > p,
+.tc-panel-right > p,
+.tc-panel-top > p,
+.tc-panel-bottom > p,
+.tc-panel-center > p,
+.tc-master-panel > p,
+.tc-detail-panel > p {
+	margin: 0;
+}
+
 .tc-panel-left,
 .tc-panel-top,
 .tc-master-panel {
