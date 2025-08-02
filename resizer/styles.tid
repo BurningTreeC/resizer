@@ -1,14 +1,18 @@
 title: $:/plugins/BTC/resizer/styles
 tags: $:/tags/Stylesheet
 
-.tc-sidebar-scrollable-wrapper {
-	position: fixed;
-	top: 0;
-	right: 0;
-	bottom: 0;
-	left: {{{ [{$:/themes/tiddlywiki/vanilla/options/sidebarlayout}match[fixed-fluid]then{$:/themes/tiddlywiki/vanilla/metrics/storyright}] :else[[auto]] }}};
-	width: {{{ [{$:/themes/tiddlywiki/vanilla/options/sidebarlayout}match[fluid-fixed]then{$:/themes/tiddlywiki/vanilla/metrics/sidebarwidth}] :else[[auto]] }}};
-	z-index: 100;
+@media (min-width: {{$:/themes/tiddlywiki/vanilla/metrics/sidebarbreakpoint}}) {
+
+	.tc-sidebar-scrollable-wrapper {
+		position: fixed;
+		top: 0;
+		right: 0;
+		bottom: 0;
+		left: {{{ [{$:/themes/tiddlywiki/vanilla/options/sidebarlayout}match[fixed-fluid]then{$:/themes/tiddlywiki/vanilla/metrics/storyright}] :else[[auto]] }}};
+		width: {{{ [{$:/themes/tiddlywiki/vanilla/options/sidebarlayout}match[fluid-fixed]then{$:/themes/tiddlywiki/vanilla/metrics/sidebarwidth}] :else[[auto]] }}};
+		z-index: 100;
+	}
+
 }
 
 <%if [{$:/state/sidebar}match[no]] %>
@@ -43,7 +47,7 @@ tags: $:/tags/Stylesheet
 }
 
 /* Hide resizers on mobile */
-@media (max-width: 960px) {
+@media (max-width: {{$:/themes/tiddlywiki/vanilla/metrics/sidebarbreakpoint}}) {
 	.tc-sidebar-resizer {
   		display: none;
 	}
