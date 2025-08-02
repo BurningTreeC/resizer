@@ -60,11 +60,11 @@ tags: $:/tags/Global
 \end
 
 \function tf.get-three-column-panels-left-max-width() [<rightStateTiddler>get[text]addsuffix[ - 10px - ]addsuffix<minWidth>addprefix[calc(100% - ]addsuffix[)]] :else[<rightWidth>addsuffix[ - 10px - ]addsuffix<minWidth>addprefix[calc(100% - ]addsuffix[)]]
-\function tf.get-three-column-panels-right-max-width() [<leftStateTiddler>get[text]addsuffix[ - ]addsuffix<minWidth>addprefix[calc(100% - ]addsuffix[)]] :else[<leftWidth>addsuffix[ - ]addsuffix<minWidth>addprefix[calc(100% - ]addsuffix[)]]
+\function tf.get-three-column-panels-right-max-width() [<leftStateTiddler>get[text]addsuffix[ - 10px - ]addsuffix<minWidth>addprefix[calc(100% - ]addsuffix[)]] :else[<leftWidth>addsuffix[ - 10px - ]addsuffix<minWidth>addprefix[calc(100% - ]addsuffix[)]]
 
 \procedure three-column-panels(leftContent:"", centerContent:"", rightContent:"", leftWidth:"200px", rightWidth:"200px", minWidth:"150px", maxWidth:"400px", minHeight:"100%", leftStateTiddler:"$:/state/three-col/left", rightStateTiddler:"$:/state/three-col/right", class:"")
 \whitespace trim
-<div class={{{ tc-three-column-panels [<class>] +[join[ ]] }}} style.min-height=<<minHeight>>>
+<div class={{{ tc-three-column-panels [<class>] +[join[ ]] }}} style.min-height=<<minHeight>> style.max-width="100%">
 	<div class="tc-panel-left" style.width={{{ [<leftStateTiddler>get[text]else<leftWidth>] }}}>
 		<%if [<leftContent>is[variable]] %>
 			<$transclude $variable=<<leftContent>> mode="block"/>
@@ -109,7 +109,7 @@ tags: $:/tags/Global
 </div>
 \end
 
-\procedure collapsible-master-detail-panel(masterContent:"", detailContent:"", collapsed:"no", size:"300px", minSize:"200px", maxSize:"500px", minHeight:"100%" stateTiddler:"$:/state/cmd/size", collapseStateTiddler:"$:/state/cmd/collapsed", class:"")
+\procedure collapsible-master-detail-panel(masterContent:"", detailContent:"", collapsed:"no", size:"300px", minSize:"200px", maxSize:"500px", minHeight:"100%" stateTiddler:"$:/state/cmdp/size", collapseStateTiddler:"$:/state/cmdp/collapsed", class:"")
 \whitespace trim
 <div class={{{ tc-collapsible-master-detail [<class>] +[join[ ]] }}} style.min-height=<<minHeight>>>
 	<%if [<collapseStateTiddler>get[text]else<collapsed>match[no]]%>
