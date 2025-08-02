@@ -107,3 +107,20 @@ body.tc-resizing .tc-resize-overlay {
 body.tc-resizing .tc-resize-overlay {
 	touch-action: none;
 }
+
+/* Prevent inputs and interactive elements from getting focus during resize */
+body.tc-resizing {
+	-webkit-user-select: none;
+	-moz-user-select: none;
+	-ms-user-select: none;
+	user-select: none;
+}
+
+body.tc-resizing * {
+	pointer-events: none !important;
+}
+
+/* Except the resize overlay which needs to receive events */
+body.tc-resizing .tc-resize-overlay {
+	pointer-events: auto !important;
+}

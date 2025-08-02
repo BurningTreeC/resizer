@@ -25,6 +25,32 @@ tags: $:/tags/Stylesheet
 	flex-direction: row;
 }
 
+/* Add gap on touch devices to prevent resizer overlap */
+@media (pointer: coarse) {
+	.tc-horizontal-split-panel,
+	.tc-three-column-panels,
+	.tc-collapsible-master-detail {
+		gap: 10px;
+	}
+	
+	.tc-vertical-split-panel {
+		gap: 10px;
+	}
+	
+	/* Center resizers in the gap space */
+	.tc-horizontal-split-panel .tc-panel-splitter-vertical,
+	.tc-three-column-panels .tc-panel-splitter-vertical,
+	.tc-collapsible-master-detail .tc-panel-splitter-vertical {
+		margin-left: -10px;
+		margin-right: -10px;
+	}
+	
+	.tc-vertical-split-panel .tc-panel-splitter-horizontal {
+		margin-top: -10px;
+		margin-bottom: -10px;
+	}
+}
+
 /* Panel Components */
 .tc-panel-left,
 .tc-panel-right,
@@ -117,6 +143,47 @@ tags: $:/tags/Stylesheet
 		transparent 2px,
 		transparent 4px
 	);
+}
+
+/* Enhanced splitters for touch devices */
+@media (pointer: coarse) {
+	.tc-panel-splitter-vertical,
+	.tc-panel-splitter-horizontal {
+		opacity: 0.3;
+	}
+	
+	.tc-panel-splitter-vertical {
+		width: 20px;
+		flex-shrink: 0;
+	}
+	
+	.tc-panel-splitter-horizontal {
+		height: 20px;
+		flex-shrink: 0;
+	}
+	
+	.tc-panel-splitter-vertical::before {
+		width: 3px;
+		height: 40px;
+		background: <<colour muted-foreground>>;
+		border-radius: 1.5px;
+		opacity: 1;
+	}
+	
+	.tc-panel-splitter-horizontal::before {
+		width: 40px;
+		height: 3px;
+		background: <<colour muted-foreground>>;
+		border-radius: 1.5px;
+		opacity: 1;
+	}
+	
+	.tc-panel-splitter-vertical:hover,
+	.tc-panel-splitter-horizontal:hover,
+	.tc-panel-splitter-vertical.tc-resizer-active,
+	.tc-panel-splitter-horizontal.tc-resizer-active {
+		opacity: 1;
+	}
 }
 
 /* Master-Detail Layout Specific */

@@ -1,0 +1,75 @@
+title: $:/plugins/BTC/resizer/docs/mediaquery-filter
+tags: $:/tags/Documentation
+
+! MediaQuery Filter Operator
+
+The `mediaquery` filter operator evaluates CSS media queries and filters tiddlers based on whether the media query matches.
+
+!! Syntax
+
+```
+[<titles>mediaquery<media-query>]
+```
+
+!! Parameters
+
+* `media-query` - A valid CSS media query string
+
+!! Examples
+
+!!! Check if on mobile device
+```
+[[MyTiddler]mediaquery[(max-width: 768px)]]
+```
+Returns "MyTiddler" only if the viewport width is 768px or less.
+
+!!! Check for touch support
+```
+[[TouchUI]mediaquery[(pointer: coarse)]]
+```
+Returns "TouchUI" only on devices with coarse pointer (typically touch devices).
+
+!!! Check for dark mode preference
+```
+[[DarkTheme]mediaquery[(prefers-color-scheme: dark)]]
+```
+Returns "DarkTheme" only if the user prefers dark color scheme.
+
+!!! Multiple conditions
+```
+[[MobilePortrait]mediaquery[(max-width: 768px) and (orientation: portrait)]]
+```
+Returns "MobilePortrait" only on mobile devices in portrait orientation.
+
+!!! Using with list widget
+```
+<$list filter="[[ShowOnDesktop]mediaquery[(min-width: 1024px)]]">
+  This content only shows on desktop screens
+</$list>
+```
+
+!!! Negation
+The filter automatically supports negation with the `!` prefix:
+```
+[[HideOnMobile]!mediaquery[(max-width: 768px)]]
+```
+Returns "HideOnMobile" only when NOT on mobile (viewport wider than 768px).
+
+!! Common Media Queries
+
+* `(max-width: 768px)` - Mobile devices
+* `(min-width: 769px) and (max-width: 1024px)` - Tablets
+* `(min-width: 1025px)` - Desktop
+* `(pointer: coarse)` - Touch devices
+* `(pointer: fine)` - Mouse/trackpad devices
+* `(prefers-reduced-motion: reduce)` - User prefers reduced motion
+* `(prefers-color-scheme: dark)` - User prefers dark theme
+* `(orientation: portrait)` - Portrait orientation
+* `(orientation: landscape)` - Landscape orientation
+
+!! Notes
+
+* This filter only works in the browser (returns empty results in Node.js)
+* Invalid media queries return empty results
+* The filter is reactive - it automatically updates when the media query state changes (e.g., when the user resizes their browser or rotates their device)
+* Media query listeners are automatically cleaned up when the widget is destroyed
