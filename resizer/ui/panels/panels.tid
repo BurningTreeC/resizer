@@ -3,7 +3,7 @@ tags: $:/tags/Global
 
 \procedure horizontal-split-panel(leftContent:"", rightContent:"", width:"50%", minHeight:"100%", minWidth:"100px", maxWidth:"80%", stateTiddler:"$:/state/hsplit/width", class:"", leftClass:"", rightClass:"", splitterClass:"")
 \whitespace trim
-<div class={{{ tc-horizontal-split-panel [<class>] +[join[ ]] }}} style.min-height=<<minHeight>>>
+<div class={{{ tc-horizontal-split-panel [<class>] +[join[ ]] }}} style.min-height=<<minHeight>> style.max-width="100%">
 	<div class={{{ tc-panel-left [<leftClass>] +[join[ ]] }}} style.width={{{ [<stateTiddler>get[text]else<width>] }}} style.max-width=<<maxWidth>>>
 		<%if [<leftContent>is[variable]] %>
 			<$transclude $variable=<<leftContent>> mode="block"/>
@@ -32,7 +32,7 @@ tags: $:/tags/Global
 
 \procedure vertical-split-panel(topContent:"", bottomContent:"", panelHeight:"100%", height:"50%", minHeight:"100px", maxHeight:"80%", stateTiddler:"$:/state/vsplit/height", class:"", topClass:"", bottomClass:"", splitterClass:"")
 \whitespace trim
-<div class={{{ tc-vertical-split-panel [<class>] +[join[ ]] }}} style.height=<<panelHeight>>>
+<div class={{{ tc-vertical-split-panel [<class>] +[join[ ]] }}} style.height=<<panelHeight>> style.max-width="100%">
 	<div class={{{ tc-panel-top [<topClass>] +[join[ ]] }}} style.height={{{ [<stateTiddler>get[text]else<height>] }}} style.max-height=<<maxHeight>>>
 		<%if [<topContent>is[variable]] %>
 			<$transclude $variable=<<topContent>> mode="block"/>
@@ -111,7 +111,7 @@ tags: $:/tags/Global
 
 \procedure collapsible-master-detail-panel(masterContent:"", detailContent:"", collapsed:"no", size:"300px", minSize:"200px", maxSize:"500px", minHeight:"100%" stateTiddler:"$:/state/cmdp/size", collapseStateTiddler:"$:/state/cmdp/collapsed", class:"")
 \whitespace trim
-<div class={{{ tc-collapsible-master-detail [<class>] +[join[ ]] }}} style.min-height=<<minHeight>>>
+<div class={{{ tc-collapsible-master-detail [<class>] +[join[ ]] }}} style.min-height=<<minHeight>> style.max-width="100%">
 	<%if [<collapseStateTiddler>get[text]else<collapsed>match[no]]%>
 		<div class="tc-master-panel" style.width={{{ [<stateTiddler>get[text]else<size>] }}} style.max-width=<<maxSize>>>
 			<%if [<masterContent>is[variable]] %>
