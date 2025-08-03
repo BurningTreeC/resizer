@@ -75,6 +75,8 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 	
 	// Store active resize operations by pointer ID (using object for ES5 compatibility)
 	self.activeResizeOperations = {};
+	// Store shared parent size cache for coordinated resizing
+	self.parentSizeCache = {};
 	var aspectRatioValue = null;
 	
 	// Parse aspect ratio
@@ -567,6 +569,7 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 			initialMouseX: 0,
 			initialMouseY: 0,
 			parentSizeAtStart: 0,
+			parentKey: null,
 			effectiveMinValue: null,
 			effectiveMaxValue: null,
 			animationFrameId: null,
@@ -593,7 +596,28 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 		// We need this early for unit conversions
 		var parentElement = domNode.parentElement;
 		if(parentElement) {
-			operation.parentSizeAtStart = getParentSize(domNode);
+			// Create a unique key for this parent element
+			var parentKey = parentElement.className || "default";
+			
+			// Check if we already have a cached size for this parent from another active resize
+			var hasActiveResizeOnSameParent = false;
+			for(var activeId in self.activeResizeOperations) {
+				var activeOp = self.activeResizeOperations[activeId];
+				if(activeOp && activeOp.isResizing && activeOp.parentKey === parentKey) {
+					hasActiveResizeOnSameParent = true;
+					break;
+				}
+			}
+			
+			// If there's already an active resize on the same parent, use the cached size
+			// Otherwise, measure and cache it
+			if(hasActiveResizeOnSameParent && self.parentSizeCache[parentKey]) {
+				operation.parentSizeAtStart = self.parentSizeCache[parentKey];
+			} else {
+				operation.parentSizeAtStart = getParentSize(domNode);
+				self.parentSizeCache[parentKey] = operation.parentSizeAtStart;
+			}
+			operation.parentKey = parentKey;
 		}
 		
 		// Cache the evaluated min/max values at drag start
@@ -932,6 +956,21 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 		// Only remove active class if no operations are active
 		if(!hasActiveOperations) {
 			domNode.classList.remove("tc-resizer-active");
+		}
+		
+		// Clean up parent size cache if no operations are using it
+		if(operation.parentKey) {
+			var parentKeyStillInUse = false;
+			for(var id in self.activeResizeOperations) {
+				if(id !== pointerId && self.activeResizeOperations[id].isResizing && 
+				   self.activeResizeOperations[id].parentKey === operation.parentKey) {
+					parentKeyStillInUse = true;
+					break;
+				}
+			}
+			if(!parentKeyStillInUse) {
+				delete self.parentSizeCache[operation.parentKey];
+			}
 		}
 		
 		// Cancel any pending animation frame
