@@ -49,6 +49,17 @@ body.tc-resizing * {
 	pointer-events: none !important;
 }
 
+/* Disabled resizer state */
+.tc-resizer-disabled {
+	opacity: 0.3;
+	cursor: not-allowed !important;
+}
+
+.tc-resizer-disabled:hover {
+	background-color: <<colour muted-foreground>> !important;
+	opacity: 0.3 !important;
+}
+
 /* =================================================================
    SIDEBAR RESIZER
    Styles for the main sidebar resizer

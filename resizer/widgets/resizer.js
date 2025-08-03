@@ -47,11 +47,16 @@ ResizerWidget.prototype.render = function(parent,nextSibling) {
 	this.execute();
 	// Create our element
 	var domNode = this.document.createElement("div");
-	domNode.className = "tc-resizer " + (this.resizerClass || "");
+	domNode.className = "tc-resizer " + (this.resizerClass || "") + (this.disable === "yes" ? " tc-resizer-disabled" : "");
 	domNode.setAttribute("data-direction", this.direction);
 	domNode.setAttribute("data-handle-position", this.handlePosition);
-	// Add event handlers
-	this.addEventHandlers(domNode);
+	if(this.disable === "yes") {
+		domNode.setAttribute("data-disabled", "true");
+	}
+	// Add event handlers only if not disabled
+	if(this.disable !== "yes") {
+		this.addEventHandlers(domNode);
+	}
 	// Insert element based on handle position
 	try {
 		if(this.handlePosition === "before" && this.targetElement && parent[this.targetElement]) {
@@ -981,6 +986,7 @@ ResizerWidget.prototype.execute = function() {
 	this.onResizeStart = this.getAttribute("onResizeStart");
 	this.onResize = this.getAttribute("onResize");
 	this.onResizeEnd = this.getAttribute("onResizeEnd");
+	this.disable = this.getAttribute("disable", "no");
 	// Make child widgets
 	this.makeChildWidgets();
 };
