@@ -1004,11 +1004,20 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 	self.handlePointerMoveReference = handlePointerMove;
 	self.handlePointerUpReference = handlePointerUp;
 	
-	// Add pointer event listeners to the element
+	// Add pointer event listeners
+	// Only pointerdown on the element itself
 	domNode.addEventListener("pointerdown", handlePointerDown);
-	domNode.addEventListener("pointermove", handlePointerMove);
-	domNode.addEventListener("pointerup", handlePointerUp);
-	domNode.addEventListener("pointercancel", handlePointerUp);
+	
+	// Move and up events on document for multi-touch support
+	// These are only added once per widget instance
+	if(!self.documentListenersAdded) {
+		self.document.addEventListener("pointermove", handlePointerMove);
+		self.document.addEventListener("pointerup", handlePointerUp);
+		self.document.addEventListener("pointercancel", handlePointerUp);
+		self.documentListenersAdded = true;
+	}
+	
+	// Keep lostpointercapture on the element
 	domNode.addEventListener("lostpointercapture", handlePointerUp);
 };
 
@@ -1087,14 +1096,16 @@ ResizerWidget.prototype.destroy = function() {
 		if(self.handlePointerDownReference) {
 			domNode.removeEventListener("pointerdown", self.handlePointerDownReference);
 		}
-		if(self.handlePointerMoveReference) {
-			domNode.removeEventListener("pointermove", self.handlePointerMoveReference);
-		}
 		if(self.handlePointerUpReference) {
-			domNode.removeEventListener("pointerup", self.handlePointerUpReference);
-			domNode.removeEventListener("pointercancel", self.handlePointerUpReference);
 			domNode.removeEventListener("lostpointercapture", self.handlePointerUpReference);
 		}
+	}
+	// Remove document-level listeners
+	if(self.documentListenersAdded && self.handlePointerMoveReference && self.handlePointerUpReference) {
+		self.document.removeEventListener("pointermove", self.handlePointerMoveReference);
+		self.document.removeEventListener("pointerup", self.handlePointerUpReference);
+		self.document.removeEventListener("pointercancel", self.handlePointerUpReference);
+		self.documentListenersAdded = false;
 	}
 	// Clean up any active resize operations
 	if(self.activeResizeOperations && self.cleanupResize) {
