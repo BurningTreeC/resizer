@@ -81,6 +81,7 @@ A powerful and flexible resizer widget for TiddlyWiki that enables interactive r
 |-----------|-------------|---------|
 | `class` | Additional CSS classes for the resizer | "" |
 | `handlePosition` | Position of resize handle: "before", "after", "overlay" | "after" |
+| `disable` | Disable the resizer: "yes" or "no" | "no" |
 
 ## Advanced Examples
 
@@ -156,6 +157,32 @@ A powerful and flexible resizer widget for TiddlyWiki that enables interactive r
   live="yes"
 />
 ```
+
+### Disabling the Resizer
+
+The `disable` attribute allows you to temporarily disable the resizer functionality:
+
+```html
+<!-- Disable resizer based on condition -->
+<$resizer
+  direction="horizontal"
+  tiddler="$:/state/panel/width"
+  disable={{{ [{$:/state/edit-mode}match[yes]then[yes]else[no]] }}}
+/>
+
+<!-- Always disabled resizer -->
+<$resizer
+  direction="horizontal"
+  tiddler="$:/state/panel/width"
+  disable="yes"
+/>
+```
+
+When disabled:
+- The resizer handle remains visible but is non-interactive
+- The class `tc-resizer-disabled` is added for styling
+- No resize events or actions are triggered
+- The `data-disabled="true"` attribute is set on the DOM element
 
 ### Real-World Example
 
@@ -249,6 +276,11 @@ The widget creates a div element with the class `tc-resizer` plus any additional
 
 .tc-resizer-active {
   background: #666;
+}
+
+.tc-resizer-disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 ```
 
