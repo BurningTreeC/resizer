@@ -22,18 +22,6 @@ Inherit from the base widget class
 */
 ResizerWidget.prototype = new Widget();
 
-/*
-Static overlay management - singleton pattern
-*/
-ResizerWidget.overlayInstance = null;
-ResizerWidget.getOverlay = function(document) {
-	if(!ResizerWidget.overlayInstance || !document.body.contains(ResizerWidget.overlayInstance)) {
-		ResizerWidget.overlayInstance = document.createElement("div");
-		ResizerWidget.overlayInstance.className = "tc-resize-overlay";
-		document.body.insertBefore(ResizerWidget.overlayInstance, document.body.firstChild);
-	}
-	return ResizerWidget.overlayInstance;
-};
 
 /*
 Render this widget into the DOM
@@ -84,25 +72,10 @@ Add event handlers to the resizer
 */
 ResizerWidget.prototype.addEventHandlers = function(domNode) {
 	var self = this;
-	var isResizing = false;
 	
-	// Store cleanup function reference on the widget
-	self.cleanupResize = null;
-	var startX = 0;
-	var startY = 0;
-	var startValue = 0;
-	var startValues = {}; // Object to store initial values for each tiddler (in pixels)
-	var startUnits = {}; // Object to store original units for each tiddler
-	var targetElement = null;
-	var targetElements = [];
-	var initialMouseX = 0;
-	var initialMouseY = 0;
-	var parentSizeAtStart = 0;
+	// Store active resize operations by pointer ID (using object for ES5 compatibility)
+	self.activeResizeOperations = {};
 	var aspectRatioValue = null;
-	var effectiveMinValue = null;
-	var effectiveMaxValue = null;
-	var animationFrameId = null;
-	var pendingMouseEvent = null;
 	
 	// Parse aspect ratio
 	if(self.aspectRatio) {
@@ -456,7 +429,7 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 	};
 	
 	// Helper to update the tiddler values based on drag delta (in pixels)
-	var updateValues = function(pixelDelta) {
+	var updateValues = function(pixelDelta, operation) {
 		// Use the cached min/max values from drag start
 		// They're already in pixels from evaluateCSSValue
 		
@@ -466,36 +439,36 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 		// Check constraints for all tiddlers and clamp delta accordingly
 		if(self.targetTiddlers && self.targetTiddlers.length > 0) {
 			$tw.utils.each(self.targetTiddlers, function(tiddlerTitle) {
-				if(startValues[tiddlerTitle] !== undefined) {
-					var newPixelValue = startValues[tiddlerTitle] + pixelDelta;
-					if(effectiveMinValue !== null && newPixelValue < effectiveMinValue) {
+				if(operation.startValues[tiddlerTitle] !== undefined) {
+					var newPixelValue = operation.startValues[tiddlerTitle] + pixelDelta;
+					if(operation.effectiveMinValue !== null && newPixelValue < operation.effectiveMinValue) {
 						// Calculate the maximum negative delta that won't go below min
-						var maxNegativeDelta = effectiveMinValue - startValues[tiddlerTitle];
+						var maxNegativeDelta = operation.effectiveMinValue - operation.startValues[tiddlerTitle];
 						clampedDelta = Math.max(clampedDelta, maxNegativeDelta);
 					}
-					if(effectiveMaxValue !== null && newPixelValue > effectiveMaxValue) {
+					if(operation.effectiveMaxValue !== null && newPixelValue > operation.effectiveMaxValue) {
 						// Calculate the maximum positive delta that won't exceed max
-						var maxPositiveDelta = effectiveMaxValue - startValues[tiddlerTitle];
+						var maxPositiveDelta = operation.effectiveMaxValue - operation.startValues[tiddlerTitle];
 						clampedDelta = Math.min(clampedDelta, maxPositiveDelta);
 					}
 				}
 			});
 		} else if(self.targetTiddler) {
-			var newPixelValue = startValue + pixelDelta;
-			if(effectiveMinValue !== null && newPixelValue < effectiveMinValue) {
-				clampedDelta = effectiveMinValue - startValue;
+			var newPixelValue = operation.startValue + pixelDelta;
+			if(operation.effectiveMinValue !== null && newPixelValue < operation.effectiveMinValue) {
+				clampedDelta = operation.effectiveMinValue - operation.startValue;
 			}
-			if(effectiveMaxValue !== null && newPixelValue > effectiveMaxValue) {
-				clampedDelta = effectiveMaxValue - startValue;
+			if(operation.effectiveMaxValue !== null && newPixelValue > operation.effectiveMaxValue) {
+				clampedDelta = operation.effectiveMaxValue - operation.startValue;
 			}
 		}
 		
 		// Update all target tiddlers with clamped delta
 		if(self.targetTiddlers && self.targetTiddlers.length > 0) {
 			$tw.utils.each(self.targetTiddlers, function(tiddlerTitle) {
-				if(startValues[tiddlerTitle] !== undefined && startUnits[tiddlerTitle]) {
-					var newPixelValue = startValues[tiddlerTitle] + clampedDelta;
-					var originalUnit = startUnits[tiddlerTitle];
+				if(operation.startValues[tiddlerTitle] !== undefined && operation.startUnits[tiddlerTitle]) {
+					var newPixelValue = operation.startValues[tiddlerTitle] + clampedDelta;
+					var originalUnit = operation.startUnits[tiddlerTitle];
 					
 					// Convert back to the original unit
 					var convertedValue = convertFromPixels(newPixelValue, originalUnit, domNode);
@@ -521,7 +494,7 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 			});
 		} else if(self.targetTiddler) {
 			// Fallback to single tiddler for backwards compatibility
-			var newPixelValue = startValue + clampedDelta;
+			var newPixelValue = operation.startValue + clampedDelta;
 			
 			// Use widget's unit for single tiddler mode
 			var convertedValue = convertFromPixels(newPixelValue, self.unit, domNode);
@@ -545,9 +518,9 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 		// Call action string if provided
 		if(self.actions) {
 			// Use the first tiddler's value for the action
-			var actionPixelValue = startValue + clampedDelta;
-			if(self.targetTiddlers && self.targetTiddlers.length > 0 && startValues[self.targetTiddlers[0]] !== undefined) {
-				actionPixelValue = startValues[self.targetTiddlers[0]] + clampedDelta;
+			var actionPixelValue = operation.startValue + clampedDelta;
+			if(self.targetTiddlers && self.targetTiddlers.length > 0 && operation.startValues[self.targetTiddlers[0]] !== undefined) {
+				actionPixelValue = operation.startValues[self.targetTiddlers[0]] + clampedDelta;
 			}
 			
 			// Convert to widget's unit for the action
@@ -567,63 +540,88 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 		}
 	};
 	
+	// Create a resize operation object for a specific pointer
+	var createResizeOperation = function(pointerId) {
+		return {
+			pointerId: pointerId,
+			isResizing: true,
+			startX: 0,
+			startY: 0,
+			startValue: 0,
+			startValues: {},
+			startUnits: {},
+			targetElement: null,
+			targetElements: [],
+			initialMouseX: 0,
+			initialMouseY: 0,
+			parentSizeAtStart: 0,
+			effectiveMinValue: null,
+			effectiveMaxValue: null,
+			animationFrameId: null,
+			pendingMouseEvent: null
+		};
+	};
+	
 	var handlePointerDown = function(event) {
 		event.preventDefault();
-		isResizing = true;
+		
+		// Create a new resize operation for this pointer
+		var operation = createResizeOperation(event.pointerId);
+		self.activeResizeOperations[event.pointerId] = operation;
 		
 		// Store the actual initial mouse position
-		initialMouseX = event.clientX;
-		initialMouseY = event.clientY;
+		operation.initialMouseX = event.clientX;
+		operation.initialMouseY = event.clientY;
 		
 		// For now, use simple start position without offset adjustment
-		startX = event.clientX;
-		startY = event.clientY;
+		operation.startX = event.clientX;
+		operation.startY = event.clientY;
 		
 		// Cache the parent size at the start of drag for percentage calculations
 		// We need this early for unit conversions
 		var parentElement = domNode.parentElement;
 		if(parentElement) {
-			parentSizeAtStart = getParentSize(domNode);
+			operation.parentSizeAtStart = getParentSize(domNode);
 		}
 		
 		// Cache the evaluated min/max values at drag start
-		effectiveMinValue = self.minValueRaw ? evaluateCSSValue(self.minValueRaw, parentSizeAtStart) : null;
-		effectiveMaxValue = self.maxValueRaw ? evaluateCSSValue(self.maxValueRaw, parentSizeAtStart) : null;
+		operation.effectiveMinValue = self.minValueRaw ? evaluateCSSValue(self.minValueRaw, operation.parentSizeAtStart) : null;
+		operation.effectiveMaxValue = self.maxValueRaw ? evaluateCSSValue(self.maxValueRaw, operation.parentSizeAtStart) : null;
 		
 		// Find the target element(s) to resize FIRST so we can measure them
-		var targetElements = [];
+		operation.targetElements = [];
 		if(self.targetSelector) {
 			if(self.resizeMode === "multiple") {
-				targetElements = Array.from(self.document.querySelectorAll(self.targetSelector));
+				operation.targetElements = Array.from(self.document.querySelectorAll(self.targetSelector));
 			} else {
 				var singleElement = self.document.querySelector(self.targetSelector);
-				if(singleElement) targetElements = [singleElement];
+				if(singleElement) operation.targetElements = [singleElement];
 			}
 		} else if(self.targetElement === "parent") {
-			targetElements = [domNode.parentElement];
+			operation.targetElements = [domNode.parentElement];
 		} else if(self.targetElement === "previousSibling") {
-			if(domNode.previousElementSibling) targetElements = [domNode.previousElementSibling];
+			if(domNode.previousElementSibling) operation.targetElements = [domNode.previousElementSibling];
 		} else if(self.targetElement === "nextSibling") {
-			if(domNode.nextElementSibling) targetElements = [domNode.nextElementSibling];
+			if(domNode.nextElementSibling) operation.targetElements = [domNode.nextElementSibling];
 		} else {
 			// Default behavior depends on handle position
 			if(self.handlePosition === "overlay") {
 				// For overlay mode, target the parent element
-				targetElements = [domNode.parentElement];
+				operation.targetElements = [domNode.parentElement];
 			} else {
 				// For non-overlay mode: for vertical resizers, target previous sibling; for horizontal, target previous sibling
 				if(self.direction === "vertical") {
-					if(domNode.previousElementSibling) targetElements = [domNode.previousElementSibling];
+					if(domNode.previousElementSibling) operation.targetElements = [domNode.previousElementSibling];
 				} else {
-					if(domNode.previousElementSibling) targetElements = [domNode.previousElementSibling];
+					if(domNode.previousElementSibling) operation.targetElements = [domNode.previousElementSibling];
 				}
 			}
 		}
-		targetElement = targetElements[0]; // Keep for backward compatibility
+		operation.targetElement = operation.targetElements[0]; // Keep for backward compatibility
 		
 		// Get and store the current value for each tiddler
-		startValues = {}; // Reset the object
-		startUnits = {}; // Reset the units object
+		operation.startValues = {}; // Reset the object
+		operation.startUnits = {}; // Reset the units object
 		
 		// Helper to get the actual computed size of an element
 		var getElementSize = function(element) {
@@ -634,8 +632,8 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 		
 		// If we have a target element, measure its actual size
 		var measuredSize = null;
-		if(targetElement) {
-			measuredSize = getElementSize(targetElement);
+		if(operation.targetElement) {
+			measuredSize = getElementSize(operation.targetElement);
 		}
 		
 		if(self.targetTiddlers && self.targetTiddlers.length > 0) {
@@ -643,7 +641,7 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 				// If we have a measured size from the actual element, use that for the first tiddler
 				// This ensures we're starting from the actual rendered size, not the stored value
 				if(index === 0 && measuredSize !== null) {
-					startValues[tiddlerTitle] = measuredSize;
+					operation.startValues[tiddlerTitle] = measuredSize;
 					// Detect the unit from the tiddler value for later conversion
 					var tiddler = self.wiki.getTiddler(tiddlerTitle);
 					var storedValue;
@@ -656,7 +654,7 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 					if(!storedValue || storedValue.trim() === "") {
 						storedValue = self.defaultValue || "200px";
 					}
-					startUnits[tiddlerTitle] = getUnit(storedValue);
+					operation.startUnits[tiddlerTitle] = getUnit(storedValue);
 				} else {
 					// For other tiddlers or if no element to measure, fall back to stored value
 					var tiddler = self.wiki.getTiddler(tiddlerTitle);
@@ -675,31 +673,31 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 					// Check if it's a calc() expression
 					if(currentValue.startsWith("calc(") && currentValue.endsWith(")")) {
 						// For calc expressions, we can't easily determine the unit, so default to px
-						startUnits[tiddlerTitle] = "px";
+						operation.startUnits[tiddlerTitle] = "px";
 						// Evaluate the calc expression
-						var pixelValue = evaluateCSSValue(currentValue, parentSizeAtStart);
-						startValues[tiddlerTitle] = pixelValue;
+						var pixelValue = evaluateCSSValue(currentValue, operation.parentSizeAtStart);
+						operation.startValues[tiddlerTitle] = pixelValue;
 					} else {
 						// Get the numeric value and unit
 						var numericValue = getNumericValue(currentValue);
 						var valueUnit = getUnit(currentValue);
 						
 						// Store the original unit for this tiddler
-						startUnits[tiddlerTitle] = valueUnit;
+						operation.startUnits[tiddlerTitle] = valueUnit;
 						
 						// Convert to pixels for internal calculations
 						var pixelValue = convertToPixels(numericValue, valueUnit, domNode);
-						startValues[tiddlerTitle] = pixelValue;
+						operation.startValues[tiddlerTitle] = pixelValue;
 					}
 				}
 			});
 			// For backwards compatibility, set startValue to the first tiddler's value
-			startValue = startValues[self.targetTiddlers[0]] || 0;
+			operation.startValue = operation.startValues[self.targetTiddlers[0]] || 0;
 		} else if(self.targetTiddler) {
 			// Fallback to single tiddler for backwards compatibility
 			if(measuredSize !== null) {
 				// Use the measured size from the actual element
-				startValue = measuredSize;
+				operation.startValue = measuredSize;
 				// Get the unit from the stored value
 				var tiddler = self.wiki.getTiddler(self.targetTiddler);
 				var storedValue;
@@ -738,7 +736,7 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 					// For calc expressions, we can't easily determine the unit, so default to px
 					self.unit = "px";
 					// Evaluate the calc expression
-					startValue = evaluateCSSValue(currentValue, parentSizeAtStart);
+					operation.startValue = evaluateCSSValue(currentValue, operation.parentSizeAtStart);
 				} else {
 					// Get the numeric value and unit
 					var numericValue = getNumericValue(currentValue);
@@ -746,16 +744,16 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 					self.unit = valueUnit;
 					
 					// Convert to pixels for internal calculations
-					startValue = convertToPixels(numericValue, valueUnit, domNode);
+					operation.startValue = convertToPixels(numericValue, valueUnit, domNode);
 				}
 			}
 		} else {
 			// No tiddler specified, try to measure element or use default
 			if(measuredSize !== null) {
-				startValue = measuredSize;
+				operation.startValue = measuredSize;
 			} else {
 				// Evaluate the default value which might be a calc() expression
-				startValue = evaluateCSSValue(self.defaultValue || "200px", parentSizeAtStart);
+				operation.startValue = evaluateCSSValue(self.defaultValue || "200px", operation.parentSizeAtStart);
 			}
 		}
 		
@@ -768,34 +766,16 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 		// Call resize start callback
 		if(self.onResizeStart) {
 			// Set variables for the action string
-			self.setVariable("actionValue", startValue.toString());
-			self.setVariable("actionFormattedValue", startValue + (self.unit || "px"));
+			self.setVariable("actionValue", operation.startValue.toString());
+			self.setVariable("actionFormattedValue", operation.startValue + (self.unit || "px"));
 			self.setVariable("actionDirection", self.direction);
 			self.setVariable("actionProperty", self.targetProperty);
 			self.invokeActionString(self.onResizeStart, self);
 		}
 		
-		// Get or create the singleton overlay
-		var overlay = ResizerWidget.getOverlay(self.document);
-		
-		// Set the cursor for this resize operation
-		overlay.style.cursor = self.direction === "horizontal" ? "ew-resize" : "ns-resize";
-		
-		// Add pointermove handler to overlay
-		overlay.addEventListener("pointermove", handlePointerMove);
-		overlay.addEventListener("pointerup", handlePointerUp);
-		// Cancel drag if pointer leaves the window
-		overlay.addEventListener("pointerleave", handlePointerUp);
-		overlay.addEventListener("pointercancel", handlePointerUp);
-		
-		self.overlay = overlay;
-		
-		// Store pointer ID for capture
-		self.pointerId = event.pointerId;
-		
-		// Capture pointer events to the overlay
+		// For multi-touch support, capture pointer events directly on the element
 		try {
-			overlay.setPointerCapture(event.pointerId);
+			domNode.setPointerCapture(event.pointerId);
 		} catch(e) {
 			// Pointer capture might not be supported or might fail
 			console.error("Failed to capture pointer:", e);
@@ -804,34 +784,49 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 		// Prevent text selection
 		self.document.body.style.userSelect = "none";
 		
-		// Store cleanup function on the widget
-		self.cleanupResize = cleanupResize;
+		// Get the cursor from the resizer element's computed style
+		var computedStyle = self.document.defaultView.getComputedStyle(domNode);
+		var resizerCursor = computedStyle.cursor;
+		
+		// Store the cursor in the operation
+		if(resizerCursor && (resizerCursor.indexOf("resize") !== -1 || resizerCursor === "move" || resizerCursor === "grab")) {
+			operation.cursor = resizerCursor;
+		} else {
+			// Fallback to direction-based cursor
+			operation.cursor = self.direction === "horizontal" ? "ew-resize" : "ns-resize";
+		}
+		
+		// Set cursor on body
+		self.document.body.style.cursor = operation.cursor;
+		
 	};
 	
 	var handlePointerMove = function(event) {
-		if(!isResizing) return;
+		// Get the operation for this pointer
+		var operation = self.activeResizeOperations[event.pointerId];
+		if(!operation || !operation.isResizing) return;
 		
 		// Check if pointer is outside the viewport
 		if(event.clientX < 0 || event.clientY < 0 ||
 		   event.clientX > self.document.documentElement.clientWidth ||
 		   event.clientY > self.document.documentElement.clientHeight) {
 			// Pointer is outside viewport, stop the resize
-			cleanupResize();
+			self.cleanupResize(event.pointerId);
 			return;
 		}
 		
 		// Store the event for processing
-		pendingMouseEvent = event;
+		operation.pendingMouseEvent = event;
 		
 		// Use requestAnimationFrame for smooth updates
-		if(!animationFrameId) {
-			animationFrameId = requestAnimationFrame(function() {
-				animationFrameId = null;
+		if(!operation.animationFrameId) {
+			operation.animationFrameId = requestAnimationFrame(function() {
+				operation.animationFrameId = null;
 				
-				if(!pendingMouseEvent || !isResizing) return;
+				if(!operation.pendingMouseEvent || !operation.isResizing) return;
 				
-				var deltaX = pendingMouseEvent.clientX - startX;
-				var deltaY = pendingMouseEvent.clientY - startY;
+				var deltaX = operation.pendingMouseEvent.clientX - operation.startX;
+				var deltaY = operation.pendingMouseEvent.clientY - operation.startY;
 				
 				// Calculate pixel delta based on direction and invert setting
 				var pixelDelta;
@@ -842,14 +837,14 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 				}
 				
 				// Update all values based on the pixel delta
-				updateValues(pixelDelta);
+				updateValues(pixelDelta, operation);
 				
 				// Call resize callback
 				if(self.onResize) {
 					// Use the first tiddler's value for the callback
-					var callbackPixelValue = startValue + pixelDelta;
-					if(self.targetTiddlers && self.targetTiddlers.length > 0 && startValues[self.targetTiddlers[0]] !== undefined) {
-						callbackPixelValue = startValues[self.targetTiddlers[0]] + pixelDelta;
+					var callbackPixelValue = operation.startValue + pixelDelta;
+					if(self.targetTiddlers && self.targetTiddlers.length > 0 && operation.startValues[self.targetTiddlers[0]] !== undefined) {
+						callbackPixelValue = operation.startValues[self.targetTiddlers[0]] + pixelDelta;
 					}
 					
 					// Convert to widget's unit for the callback
@@ -874,17 +869,17 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 				}
 				
 				// Optionally update the target element(s) directly for immediate feedback
-				if(self.liveResize === "yes" && targetElements.length > 0) {
+				if(self.liveResize === "yes" && operation.targetElements.length > 0) {
 					// For live resize of DOM elements, we'll use the first tiddler's value as reference
-					var livePixelValue = startValue + pixelDelta;
-					if(self.targetTiddlers && self.targetTiddlers.length > 0 && startValues[self.targetTiddlers[0]] !== undefined) {
-						livePixelValue = startValues[self.targetTiddlers[0]] + pixelDelta;
+					var livePixelValue = operation.startValue + pixelDelta;
+					if(self.targetTiddlers && self.targetTiddlers.length > 0 && operation.startValues[self.targetTiddlers[0]] !== undefined) {
+						livePixelValue = operation.startValues[self.targetTiddlers[0]] + pixelDelta;
 					}
 					
 					// Convert to widget's unit for live resize
 					var liveValue = convertFromPixels(livePixelValue, self.unit, domNode);
 					
-					$tw.utils.each(targetElements, function(element) {
+					$tw.utils.each(operation.targetElements, function(element) {
 						if(element) {
 							element.style[self.targetProperty] = liveValue + (self.unit || "px");
 							
@@ -907,58 +902,72 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 		}
 	};
 	
-	// Cleanup function to stop resize operation
-	var cleanupResize = function() {
-		if(!isResizing) return;
+	// Cleanup function to stop resize operation for a specific pointer
+	self.cleanupResize = function(pointerId) {
+		var operation = self.activeResizeOperations[pointerId];
+		if(!operation || !operation.isResizing) return;
 		
-		isResizing = false;
-		domNode.classList.remove("tc-resizer-active");
+		operation.isResizing = false;
 		
-		// Cancel any pending animation frame
-		if(animationFrameId) {
-			cancelAnimationFrame(animationFrameId);
-			animationFrameId = null;
-		}
-		
-		// Remove resizing class from body
-		self.document.body.classList.remove("tc-resizing");
-		
-		// Clean up overlay
-		if(self.overlay) {
-			// Release pointer capture if we have it
-			if(self.pointerId !== undefined) {
-				try {
-					self.overlay.releasePointerCapture(self.pointerId);
-				} catch(e) {
-					// Pointer might already be released
+		// Check if this was the last active resize operation and get the cursor from remaining operations
+		var hasActiveOperations = false;
+		var remainingCursor = null;
+		for(var id in self.activeResizeOperations) {
+			if(self.activeResizeOperations[id].isResizing) {
+				hasActiveOperations = true;
+				// Use the cursor from one of the remaining operations
+				if(!remainingCursor && self.activeResizeOperations[id].cursor) {
+					remainingCursor = self.activeResizeOperations[id].cursor;
 				}
 			}
-			// Remove event listeners
-			self.overlay.removeEventListener("pointermove", handlePointerMove);
-			self.overlay.removeEventListener("pointerup", handlePointerUp);
-			self.overlay.removeEventListener("pointerleave", handlePointerUp);
-			self.overlay.removeEventListener("pointercancel", handlePointerUp);
-			// Reset cursor
-			self.overlay.style.cursor = "";
-			self.overlay = null;
 		}
 		
-		// Restore cursor and selection
-		self.document.body.style.userSelect = "";
+		// Only remove active class if no operations are active
+		if(!hasActiveOperations) {
+			domNode.classList.remove("tc-resizer-active");
+		}
 		
-		// Clear the cleanup reference
-		self.cleanupResize = null;
+		// Cancel any pending animation frame
+		if(operation.animationFrameId) {
+			cancelAnimationFrame(operation.animationFrameId);
+			operation.animationFrameId = null;
+		}
+		
+		// Remove resizing class from body only if no operations are active
+		if(!hasActiveOperations) {
+			self.document.body.classList.remove("tc-resizing");
+		}
+		
+		// Release pointer capture on the element
+		try {
+			domNode.releasePointerCapture(pointerId);
+		} catch(e) {
+			// Pointer might already be released
+		}
+		
+		// Remove the operation from our tracking
+		delete self.activeResizeOperations[pointerId];
+		
+		// Restore cursor and selection only if no operations are active
+		if(!hasActiveOperations) {
+			self.document.body.style.userSelect = "";
+			self.document.body.style.cursor = "";
+		} else if(remainingCursor) {
+			// If there are still active operations, use the cursor from one of them
+			self.document.body.style.cursor = remainingCursor;
+		}
 	};
 	
 	var handlePointerUp = function(event) {
-		if(!isResizing) return;
+		var operation = self.activeResizeOperations[event.pointerId];
+		if(!operation || !operation.isResizing) return;
 		
-		cleanupResize();
+		self.cleanupResize(event.pointerId);
 		
 		// Call resize end callback
 		if(self.onResizeEnd) {
 			// Get final value from tiddler or current state
-			var finalValue = startValue;
+			var finalValue = operation.startValue;
 			if(self.targetTiddlers && self.targetTiddlers.length > 0) {
 				var firstTiddler = self.targetTiddlers[0];
 				var tiddler = self.wiki.getTiddler(firstTiddler);
@@ -992,9 +1001,15 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 	
 	// Store the event handler reference for cleanup
 	self.handlePointerDownReference = handlePointerDown;
+	self.handlePointerMoveReference = handlePointerMove;
+	self.handlePointerUpReference = handlePointerUp;
 	
-	// Add pointer event listener (works for both mouse and touch)
+	// Add pointer event listeners to the element
 	domNode.addEventListener("pointerdown", handlePointerDown);
+	domNode.addEventListener("pointermove", handlePointerMove);
+	domNode.addEventListener("pointerup", handlePointerUp);
+	domNode.addEventListener("pointercancel", handlePointerUp);
+	domNode.addEventListener("lostpointercapture", handlePointerUp);
 };
 
 /*
@@ -1067,12 +1082,28 @@ Destroy the widget and clean up resources
 ResizerWidget.prototype.destroy = function() {
 	var self = this;
 	// Remove event listeners
-	if(self.domNodes && self.domNodes[0] && self.handlePointerDownReference) {
-		self.domNodes[0].removeEventListener("pointerdown", self.handlePointerDownReference);
+	if(self.domNodes && self.domNodes[0]) {
+		var domNode = self.domNodes[0];
+		if(self.handlePointerDownReference) {
+			domNode.removeEventListener("pointerdown", self.handlePointerDownReference);
+		}
+		if(self.handlePointerMoveReference) {
+			domNode.removeEventListener("pointermove", self.handlePointerMoveReference);
+		}
+		if(self.handlePointerUpReference) {
+			domNode.removeEventListener("pointerup", self.handlePointerUpReference);
+			domNode.removeEventListener("pointercancel", self.handlePointerUpReference);
+			domNode.removeEventListener("lostpointercapture", self.handlePointerUpReference);
+		}
 	}
-	// Clean up any active resize
-	if(self.cleanupResize) {
-		self.cleanupResize();
+	// Clean up any active resize operations
+	if(self.activeResizeOperations && self.cleanupResize) {
+		for(var pointerId in self.activeResizeOperations) {
+			if(self.activeResizeOperations[pointerId].isResizing) {
+				// Call cleanupResize directly
+				self.cleanupResize(pointerId);
+			}
+		}
 	}
 	// Call parent destroy if it exists
 	if(Widget.prototype.destroy) {
