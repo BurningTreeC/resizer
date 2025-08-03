@@ -49,6 +49,11 @@ body.tc-resizing * {
 	pointer-events: none !important;
 }
 
+/* Allow pointer events on resizer elements even during resize for multi-touch support */
+body.tc-resizing .tc-resizer {
+	pointer-events: auto !important;
+}
+
 /* Disabled resizer state */
 .tc-resizer-disabled {
 	opacity: 0.3;
