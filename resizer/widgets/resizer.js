@@ -433,6 +433,15 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 	
 	// Helper to update the tiddler values based on drag delta (in pixels)
 	var updateValues = function(pixelDelta, operation) {
+		// For concurrent resize scenarios, re-evaluate min value if it contains calc()
+		// This ensures we get current values from other panels
+		if(self.minValueRaw && self.minValueRaw.indexOf("calc(") !== -1) {
+			var freshMinValue = evaluateCSSValue(self.minValueRaw, operation.parentSizeAtStart);
+			if(freshMinValue !== null) {
+				operation.effectiveMinValue = Math.max(freshMinValue, 0);
+			}
+		}
+		
 		// For concurrent resize scenarios, re-evaluate max value if it contains calc()
 		// This ensures we get current values from other panels
 		if(self.maxValueRaw && self.maxValueRaw.indexOf("calc(") !== -1) {
