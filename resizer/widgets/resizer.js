@@ -189,7 +189,8 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 				return pixelValue;
 			case "%":
 				var parentSize = getParentSize(element || domNode);
-				return parentSize > 0 ? (pixelValue / parentSize) * 100 : 0;
+				// Ensure we never return negative percentages
+				return parentSize > 0 ? Math.max((pixelValue / parentSize) * 100, 0) : 0;
 			case "em":
 				var fontSize = 16; // default fallback
 				try {
@@ -432,8 +433,14 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 	
 	// Helper to update the tiddler values based on drag delta (in pixels)
 	var updateValues = function(pixelDelta, operation) {
-		// Use the cached min/max values from drag start
-		// They're already in pixels from evaluateCSSValue
+		// For concurrent resize scenarios, re-evaluate max value if it contains calc()
+		// This ensures we get current values from other panels
+		if(self.maxValueRaw && self.maxValueRaw.indexOf("calc(") !== -1) {
+			var freshMaxValue = evaluateCSSValue(self.maxValueRaw, operation.parentSizeAtStart);
+			if(freshMaxValue !== null && freshMaxValue > 0) {
+				operation.effectiveMaxValue = freshMaxValue;
+			}
+		}
 		
 		// Pre-calculate clamped delta based on min/max constraints
 		var clampedDelta = pixelDelta;
@@ -443,12 +450,14 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 			$tw.utils.each(self.targetTiddlers, function(tiddlerTitle) {
 				if(operation.startValues[tiddlerTitle] !== undefined) {
 					var newPixelValue = operation.startValues[tiddlerTitle] + pixelDelta;
-					if(operation.effectiveMinValue !== null && newPixelValue < operation.effectiveMinValue) {
+					// Ensure minimum value is respected (never less than absolute minimum)
+					var absoluteMin = Math.max(operation.effectiveMinValue || 0, 0);
+					if(newPixelValue < absoluteMin) {
 						// Calculate the maximum negative delta that won't go below min
-						var maxNegativeDelta = operation.effectiveMinValue - operation.startValues[tiddlerTitle];
+						var maxNegativeDelta = absoluteMin - operation.startValues[tiddlerTitle];
 						clampedDelta = Math.max(clampedDelta, maxNegativeDelta);
 					}
-					if(operation.effectiveMaxValue !== null && newPixelValue > operation.effectiveMaxValue) {
+					if(operation.effectiveMaxValue !== null && operation.effectiveMaxValue > 0 && newPixelValue > operation.effectiveMaxValue) {
 						// Calculate the maximum positive delta that won't exceed max
 						var maxPositiveDelta = operation.effectiveMaxValue - operation.startValues[tiddlerTitle];
 						clampedDelta = Math.min(clampedDelta, maxPositiveDelta);
@@ -457,10 +466,11 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 			});
 		} else if(self.targetTiddler) {
 			var newPixelValue = operation.startValue + pixelDelta;
-			if(operation.effectiveMinValue !== null && newPixelValue < operation.effectiveMinValue) {
-				clampedDelta = operation.effectiveMinValue - operation.startValue;
+			var absoluteMin = Math.max(operation.effectiveMinValue || 0, 0);
+			if(newPixelValue < absoluteMin) {
+				clampedDelta = absoluteMin - operation.startValue;
 			}
-			if(operation.effectiveMaxValue !== null && newPixelValue > operation.effectiveMaxValue) {
+			if(operation.effectiveMaxValue !== null && operation.effectiveMaxValue > 0 && newPixelValue > operation.effectiveMaxValue) {
 				clampedDelta = operation.effectiveMaxValue - operation.startValue;
 			}
 		}
@@ -477,7 +487,7 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 					
 					// Ensure the converted value never goes below the minimum
 					if(operation.effectiveMinValue !== null) {
-						var minInOriginalUnit = convertFromPixels(operation.effectiveMinValue, originalUnit, domNode);
+						var minInOriginalUnit = convertFromPixels(Math.max(operation.effectiveMinValue, 0), originalUnit, domNode);
 						convertedValue = Math.max(convertedValue, minInOriginalUnit);
 					}
 					
@@ -509,7 +519,7 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 			
 			// Ensure the converted value never goes below the minimum
 			if(operation.effectiveMinValue !== null) {
-				var minInOriginalUnit = convertFromPixels(operation.effectiveMinValue, self.unit, domNode);
+				var minInOriginalUnit = convertFromPixels(Math.max(operation.effectiveMinValue, 0), self.unit, domNode);
 				convertedValue = Math.max(convertedValue, minInOriginalUnit);
 			}
 			
@@ -623,6 +633,16 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 		// Cache the evaluated min/max values at drag start
 		operation.effectiveMinValue = self.minValueRaw ? evaluateCSSValue(self.minValueRaw, operation.parentSizeAtStart) : null;
 		operation.effectiveMaxValue = self.maxValueRaw ? evaluateCSSValue(self.maxValueRaw, operation.parentSizeAtStart) : null;
+		
+		// Ensure min/max values are reasonable
+		if(operation.effectiveMinValue !== null) {
+			operation.effectiveMinValue = Math.max(operation.effectiveMinValue, 0);
+		}
+		if(operation.effectiveMaxValue !== null && operation.effectiveMaxValue < 0) {
+			// If max value calculated to negative (can happen with concurrent resize), 
+			// use parent size as a reasonable maximum
+			operation.effectiveMaxValue = operation.parentSizeAtStart * 0.8;
+		}
 		
 		// Find the target element(s) to resize FIRST so we can measure them
 		operation.targetElements = [];
