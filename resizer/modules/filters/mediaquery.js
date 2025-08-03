@@ -6,7 +6,6 @@ module-type: filteroperator
 Filter operator for evaluating CSS media queries
 
 \*/
-(function(){
 
 /*jslint node: true, browser: true */
 /*global $tw: false */
@@ -96,5 +95,3 @@ exports.mediaquery = function(source,operator,options) {
 	
 	return results;
 };
-
-})();

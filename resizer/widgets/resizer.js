@@ -6,7 +6,6 @@ module-type: widget
 Resizer widget for resizing elements
 
 \*/
-(function(){
 
 /*jslint node: true, browser: true */
 /*global $tw: false */
@@ -938,5 +937,3 @@ ResizerWidget.prototype.removeChildDomNodes = function() {
 };
 
 exports.resizer = ResizerWidget;
-
-})();

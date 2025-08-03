@@ -66,7 +66,7 @@ tags: $:/tags/Global
 \whitespace trim
 <$let handleWidth={{{ [mediaquery[(pointer: coarse)]then[40px]else[10px]] }}}>
 	<div class={{{ tc-three-column-panels [<class>] +[join[ ]] }}} style.min-height=<<minHeight>> style.max-width="100%">
-		<div class="tc-panel-left" style.width={{{ [<leftStateTiddler>get[text]else<leftWidth>] }}}>
+		<div class="tc-panel-left" style.width={{{ [<leftStateTiddler>get[text]else<leftWidth>] }}} style.max-height="100%">
 			<%if [<leftContent>is[variable]] %>
 				<$transclude $variable=<<leftContent>> $mode="block"/>
 			<%elseif [<leftContent>is[tiddler]] [<leftContent>is[shadow]] %>
@@ -82,7 +82,7 @@ tags: $:/tags/Global
 			default=<<leftWidth>>
 			unit={{{ [<leftWidth>split[]last[1]match[%]then[%]else[px]] }}}
 		/>
-		<div class="tc-panel-center" style.min-width=<<minWidth>>>
+		<div class="tc-panel-center" style.min-width=<<minWidth>> style.max-height="100%">
 			<%if [<centerContent>is[variable]] %>
 				<$transclude $variable=<<centerContent>> $mode="block"/>
 			<%elseif [<centerContent>is[tiddler]] [<centerContent>is[shadow]] %>
@@ -100,7 +100,7 @@ tags: $:/tags/Global
 			invert="yes"
 			element="nextSibling"
 		/>
-		<div class="tc-panel-right" style.width={{{ [<rightStateTiddler>get[text]else<rightWidth>] }}}>
+		<div class="tc-panel-right" style.width={{{ [<rightStateTiddler>get[text]else<rightWidth>] }}} style.max-height="100%">
 			<%if [<rightContent>is[variable]] %>
 				<$transclude $variable=<<rightContent>> $mode="block"/>
 			<%elseif [<rightContent>is[tiddler]] [<rightContent>is[shadow]] %>
