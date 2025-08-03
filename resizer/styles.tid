@@ -362,7 +362,7 @@ body.tc-resizing .tc-resizer {
 	.tc-vertical-split-panel {
 		gap: 10px;
 		/* Prevent vertical scroll interference on touch */
-		touch-action: pan-x pinch-zoom;
+		/*touch-action: pan-x pinch-zoom;*/
 	}
 	
 	/* Center resizers in gap space */

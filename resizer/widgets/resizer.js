@@ -1165,8 +1165,32 @@ Selectively refreshes the widget if needed. Returns true if the widget or any of
 ResizerWidget.prototype.refresh = function(changedTiddlers) {
 	var changedAttributes = this.computeAttributes();
 	if(Object.keys(changedAttributes).length) {
-		this.refreshSelf();
-		return true;
+		// Check if only min/max values changed
+		var onlyMinMaxChanged = true;
+		var attributeNames = Object.keys(changedAttributes);
+		for(var i = 0; i < attributeNames.length; i++) {
+			if(attributeNames[i] !== "min" && attributeNames[i] !== "max") {
+				onlyMinMaxChanged = false;
+				break;
+			}
+		}
+		
+		if(onlyMinMaxChanged) {
+			// Update only the min/max values without full refresh
+			this.minValueRaw = this.getAttribute("min");
+			this.maxValueRaw = this.getAttribute("max");
+			// Parse min/max values - defaults depend on unit type
+			var minDefault = this.unit === "%" ? "10" : "50";
+			var maxDefault = this.unit === "%" ? "90" : "800";
+			this.minValue = this.minValueRaw ? parseFloat(this.minValueRaw) : parseFloat(minDefault);
+			this.maxValue = this.maxValueRaw ? parseFloat(this.maxValueRaw) : parseFloat(maxDefault);
+			// Return false since we handled the update without re-rendering
+			return false;
+		} else {
+			// Full refresh for other attribute changes
+			this.refreshSelf();
+			return true;
+		}
 	}
 	return this.refreshChildren(changedTiddlers);
 };
