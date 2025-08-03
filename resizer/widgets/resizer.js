@@ -473,6 +473,12 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 					// Convert back to the original unit
 					var convertedValue = convertFromPixels(newPixelValue, originalUnit, domNode);
 					
+					// Ensure the converted value never goes below the minimum
+					if(operation.effectiveMinValue !== null) {
+						var minInOriginalUnit = convertFromPixels(operation.effectiveMinValue, originalUnit, domNode);
+						convertedValue = Math.max(convertedValue, minInOriginalUnit);
+					}
+					
 					// Format the value based on the original unit type
 					var formattedValue;
 					if(originalUnit === "%") {
@@ -498,6 +504,12 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 			
 			// Use widget's unit for single tiddler mode
 			var convertedValue = convertFromPixels(newPixelValue, self.unit, domNode);
+			
+			// Ensure the converted value never goes below the minimum
+			if(operation.effectiveMinValue !== null) {
+				var minInOriginalUnit = convertFromPixels(operation.effectiveMinValue, self.unit, domNode);
+				convertedValue = Math.max(convertedValue, minInOriginalUnit);
+			}
 			
 			// Format the value based on the unit type
 			var formattedValue;
