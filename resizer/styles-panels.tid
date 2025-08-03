@@ -53,57 +53,6 @@ tags: $:/tags/Stylesheet
 	}
 }
 
-/* Panel Components */
-.tc-panel-left,
-.tc-panel-right,
-.tc-panel-top,
-.tc-panel-bottom,
-.tc-panel-center,
-.tc-master-panel,
-.tc-detail-panel {
-	overflow: hidden;
-	position: relative;
-	display: flex;
-	flex-direction: column;
-	justify-content: center;
-	align-items: stretch;
-	min-width: 0;
-	min-height: 0;
-	box-sizing: border-box;
-}
-
-.tc-panel-left > p,
-.tc-panel-right > p,
-.tc-panel-top > p,
-.tc-panel-bottom > p,
-.tc-panel-center > p,
-.tc-master-panel > p,
-.tc-detail-panel > p {
-	margin: 0;
-	display: flex;
-	flex-direction: column;
-	justify-content: center;
-	align-items: center;
-	width: 100%;
-	height: 100%;
-	min-width: 0;
-	min-height: 0;
-	box-sizing: border-box;
-}
-
-.tc-panel-left > p > *,
-.tc-panel-right > p > *,
-.tc-panel-top > p > *,
-.tc-panel-bottom > p > *,
-.tc-panel-center > p > *,
-.tc-master-panel > p > *,
-.tc-detail-panel > p > * {
-	max-height: 100%;
-	max-width: 100%;
-	object-fit: contain;
-	flex-shrink: 1;
-}
-
 .tc-panel-left,
 .tc-panel-top,
 .tc-master-panel {
@@ -274,50 +223,6 @@ tags: $:/tags/Stylesheet
 .tc-panel-collapse-btn:hover,
 .tc-panel-expand-btn:hover {
 	background: <<colour tiddler-background>>;
-}
-
-/* Content scaling within panels */
-.tc-panel-left img,
-.tc-panel-right img,
-.tc-panel-top img,
-.tc-panel-bottom img,
-.tc-panel-center img,
-.tc-master-panel img,
-.tc-detail-panel img {
-	max-width: 100%;
-	max-height: 100%;
-	width: auto;
-	height: auto;
-	object-fit: contain;
-}
-
-/* SVG scaling within panels */
-.tc-panel-left svg,
-.tc-panel-right svg,
-.tc-panel-top svg,
-.tc-panel-bottom svg,
-.tc-panel-center svg,
-.tc-master-panel svg,
-.tc-detail-panel svg {
-	max-width: 100%;
-	max-height: 100%;
-	width: 100%;
-	height: auto;
-	display: block;
-}
-
-/* Ensure SVGs maintain aspect ratio */
-.tc-panel-left > p > svg,
-.tc-panel-right > p > svg,
-.tc-panel-top > p > svg,
-.tc-panel-bottom > p > svg,
-.tc-panel-center > p > svg,
-.tc-master-panel > p > svg,
-.tc-detail-panel > p > svg {
-	max-width: 100%;
-	max-height: 100%;
-	width: auto;
-	height: auto;
 }
 
 /* Ensure text content wraps and doesn't overflow */
