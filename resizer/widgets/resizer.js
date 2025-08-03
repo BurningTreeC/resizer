@@ -773,13 +773,8 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 			self.invokeActionString(self.onResizeStart, self);
 		}
 		
-		// For multi-touch support, capture pointer events directly on the element
-		try {
-			domNode.setPointerCapture(event.pointerId);
-		} catch(e) {
-			// Pointer capture might not be supported or might fail
-			console.error("Failed to capture pointer:", e);
-		}
+		// Note: Not using setPointerCapture to allow multi-touch to work properly
+		// The document-level listeners will handle events even when pointer moves outside
 		
 		// Prevent text selection
 		self.document.body.style.userSelect = "none";
@@ -938,12 +933,7 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 			self.document.body.classList.remove("tc-resizing");
 		}
 		
-		// Release pointer capture on the element
-		try {
-			domNode.releasePointerCapture(pointerId);
-		} catch(e) {
-			// Pointer might already be released
-		}
+		// Note: Not using pointer capture, so no need to release
 		
 		// Remove the operation from our tracking
 		delete self.activeResizeOperations[pointerId];
