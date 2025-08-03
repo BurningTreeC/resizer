@@ -1,8 +1,61 @@
-title: $:/plugins/BTC/resizer/styles
+title: $:/plugins/BTC/resizer/styles-complete
 tags: $:/tags/Stylesheet
 
-@media (min-width: {{$:/themes/tiddlywiki/vanilla/metrics/sidebarbreakpoint}}) {
+/* =================================================================
+   BASE RESIZER STYLES
+   Common styles for all resizer components
+   ================================================================= */
 
+/* Global resizer behavior */
+.tc-resizer {
+	touch-action: none;
+	-webkit-touch-callout: none;
+	-webkit-user-select: none;
+	user-select: none;
+	-webkit-tap-highlight-color: transparent;
+}
+
+/* Resize overlay for capturing events during resize */
+.tc-resize-overlay {
+	position: fixed;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	width: 100%;
+	height: 100%;
+	z-index: 999999;
+	background: transparent;
+	cursor: inherit;
+	display: none;
+	touch-action: none;
+}
+
+body.tc-resizing .tc-resize-overlay {
+	display: block;
+	cursor: inherit;
+	pointer-events: auto !important;
+}
+
+/* Prevent interaction during resize */
+body.tc-resizing {
+	-webkit-user-select: none;
+	-moz-user-select: none;
+	-ms-user-select: none;
+	user-select: none;
+}
+
+body.tc-resizing * {
+	pointer-events: none !important;
+}
+
+/* =================================================================
+   SIDEBAR RESIZER
+   Styles for the main sidebar resizer
+   ================================================================= */
+
+/* Sidebar wrapper positioning */
+@media (min-width: {{$:/themes/tiddlywiki/vanilla/metrics/sidebarbreakpoint}}) {
 	.tc-sidebar-scrollable-wrapper {
 		position: fixed;
 		top: 0;
@@ -12,17 +65,15 @@ tags: $:/tags/Stylesheet
 		width: {{{ [{$:/themes/tiddlywiki/vanilla/options/sidebarlayout}match[fluid-fixed]then{$:/themes/tiddlywiki/vanilla/metrics/sidebarwidth}] :else[[auto]] }}};
 		z-index: 100;
 	}
-
 }
 
 <%if [{$:/state/sidebar}match[no]] %>
-
 .tc-sidebar-scrollable-wrapper {
 	z-index: initial;
 }
-
 <% endif %>
 
+/* Sidebar resizer bar */
 .tc-sidebar-resizer {
 	position: absolute;
 	top: 0;
@@ -36,22 +87,42 @@ tags: $:/tags/Stylesheet
 	z-index: 10;
 }
 
-.tc-sidebar-resizer:hover {
-	background-color: <<colour primary>>;
-	opacity: 0.75;
-}
-
+.tc-sidebar-resizer:hover,
 .tc-sidebar-resizer.tc-resizer-active {
 	background-color: <<colour primary>>;
 	opacity: 0.75;
 }
 
-/* Hide resizers on mobile */
+/* Sidebar resizer grip indicator */
+.tc-sidebar-resizer::before {
+	content: "";
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	transform: translate(-50%, -50%);
+	opacity: 0.5;
+	width: 1px;
+	height: 30px;
+	background: repeating-linear-gradient(
+		to bottom,
+		<<colour muted-foreground>> 0,
+		<<colour muted-foreground>> 2px,
+		transparent 2px,
+		transparent 4px
+	);
+}
+
+/* Hide sidebar resizer on mobile */
 @media (max-width: {{$:/themes/tiddlywiki/vanilla/metrics/sidebarbreakpoint}}) {
 	.tc-sidebar-resizer {
-  		display: none;
+		display: none;
 	}
 }
+
+/* =================================================================
+   EDITOR RESIZER
+   Styles for the tiddler editor preview pane resizer
+   ================================================================= */
 
 .tc-tiddler-editor-resizer {
 	grid-area: resizer;
@@ -64,11 +135,7 @@ tags: $:/tags/Stylesheet
 	position: relative;
 }
 
-.tc-tiddler-editor-resizer:hover {
-	background-color: <<colour primary>>;
-	opacity: 0.75;
-}
-
+.tc-tiddler-editor-resizer:hover,
 .tc-tiddler-editor-resizer.tc-resizer-active {
 	background-color: <<colour primary>>;
 	opacity: 0.75;
@@ -78,49 +145,293 @@ tags: $:/tags/Stylesheet
 	margin-left: 0;
 }
 
-/* Overlay that captures pointer events during resize */
-.tc-resize-overlay {
-	position: fixed;
-	top: 0;
-	left: 0;
-	right: 0;
-	bottom: 0;
+/* =================================================================
+   PANEL LAYOUTS
+   Base styles for various panel layout components
+   ================================================================= */
+
+/* Base panel containers */
+.tc-horizontal-split-panel,
+.tc-vertical-split-panel,
+.tc-three-column-panels,
+.tc-master-detail-layout,
+.tc-collapsible-master-detail {
+	position: relative;
+	display: flex;
 	width: 100%;
 	height: 100%;
-	z-index: 999999;
-	background: transparent;
-	cursor: inherit;
-	display: none;
+	box-sizing: border-box;
+	overflow: hidden;
 }
 
-body.tc-resizing .tc-resize-overlay {
-	display: block;
-	cursor: inherit;
+.tc-horizontal-split-panel,
+.tc-three-column-panels {
+	flex-direction: row;
 }
 
-/* Prevent scrolling on touch devices when using resizers */
-.tc-resizer {
-	touch-action: none;
+.tc-vertical-split-panel {
+	flex-direction: column;
 }
 
-/* Also prevent scrolling on the overlay during vertical resize */
-body.tc-resizing .tc-resize-overlay {
-	touch-action: none;
+/* Panel flex behavior */
+.tc-panel-left,
+.tc-panel-top,
+.tc-master-panel,
+.tc-three-column-panels .tc-panel-right {
+	flex-shrink: 0;
 }
 
-/* Prevent inputs and interactive elements from getting focus during resize */
-body.tc-resizing {
-	-webkit-user-select: none;
-	-moz-user-select: none;
-	-ms-user-select: none;
-	user-select: none;
+.tc-panel-right:not(.tc-three-column-panels .tc-panel-right),
+.tc-panel-bottom,
+.tc-panel-center,
+.tc-detail-panel {
+	flex: 1;
 }
 
-body.tc-resizing * {
-	pointer-events: none !important;
+/* Ensure text wrapping in panels */
+.tc-panel-left,
+.tc-panel-right,
+.tc-panel-top,
+.tc-panel-bottom,
+.tc-panel-center,
+.tc-master-panel,
+.tc-detail-panel {
+	word-wrap: break-word;
+	overflow-wrap: break-word;
 }
 
-/* Except the resize overlay which needs to receive events */
-body.tc-resizing .tc-resize-overlay {
-	pointer-events: auto !important;
+/* =================================================================
+   PANEL SPLITTERS
+   Resizer bars between panels
+   ================================================================= */
+
+.tc-panel-splitter-vertical,
+.tc-panel-splitter-horizontal {
+	flex-shrink: 0;
+	position: relative;
+	background: <<colour muted-foreground>>;
+	transition: background 0.2s ease;
+}
+
+.tc-panel-splitter-vertical {
+	width: 5px;
+	cursor: ew-resize;
+}
+
+.tc-panel-splitter-horizontal {
+	height: 5px;
+	cursor: ns-resize;
+}
+
+.tc-panel-splitter-vertical:hover,
+.tc-panel-splitter-horizontal:hover,
+.tc-panel-splitter-vertical.tc-resizer-active,
+.tc-panel-splitter-horizontal.tc-resizer-active {
+	background: <<colour primary>>;
+}
+
+.tc-panel-splitter-vertical.tc-resizer-active,
+.tc-panel-splitter-horizontal.tc-resizer-active {
+	opacity: 0.8;
+}
+
+/* Splitter grip indicators */
+.tc-panel-splitter-vertical::before,
+.tc-panel-splitter-horizontal::before {
+	content: "";
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	transform: translate(-50%, -50%);
+	opacity: 0.5;
+}
+
+.tc-panel-splitter-vertical::before {
+	width: 1px;
+	height: 30px;
+	background: repeating-linear-gradient(
+		to bottom,
+		<<colour muted-foreground>> 0,
+		<<colour muted-foreground>> 2px,
+		transparent 2px,
+		transparent 4px
+	);
+}
+
+.tc-panel-splitter-horizontal::before {
+	width: 30px;
+	height: 1px;
+	background: repeating-linear-gradient(
+		to right,
+		<<colour muted-foreground>> 0,
+		<<colour muted-foreground>> 2px,
+		transparent 2px,
+		transparent 4px
+	);
+}
+
+/* =================================================================
+   MASTER-DETAIL LAYOUTS
+   Specific styles for master-detail panel arrangements
+   ================================================================= */
+
+.tc-master-detail-layout .tc-master-panel {
+	background: <<colour tiddler-background>>;
+	border-right: 1px solid <<colour tiddler-border>>;
+}
+
+.tc-master-detail-layout.tc-vertical-split-panel .tc-master-panel {
+	border-right: none;
+	border-bottom: 1px solid <<colour tiddler-border>>;
+}
+
+/* Collapsible master-detail */
+.tc-collapsible-master-detail {
+	position: relative;
+}
+
+.tc-collapsible-master-detail .tc-master-panel {
+	position: relative;
+}
+
+.tc-collapsible-master-detail .tc-master-panel:not(body.tc-resizing .tc-collapsible-master-detail .tc-master-panel) {
+	transition: width 0.3s ease;
+}
+
+.tc-collapsible-master-detail .tc-master-panel.tc-collapsed {
+	width: 40px !important;
+	flex-shrink: 0;
+}
+
+/* Collapse/expand buttons */
+.tc-panel-collapse-btn,
+.tc-panel-expand-btn {
+	position: absolute;
+	top: 10px;
+	right: 10px;
+	padding: 5px;
+	background: <<colour background>>;
+	border: 1px solid <<colour tiddler-border>>;
+	border-radius: 3px;
+}
+
+.tc-panel-expand-btn {
+	right: 5px;
+}
+
+.tc-panel-collapse-btn:hover,
+.tc-panel-expand-btn:hover {
+	background: <<colour tiddler-background>>;
+}
+
+/* =================================================================
+   TOUCH DEVICE ENHANCEMENTS
+   Improved usability for mobile and touch interfaces
+   ================================================================= */
+
+@media (pointer: coarse) {
+	/* Add gaps between panels for easier touch */
+	.tc-horizontal-split-panel,
+	.tc-three-column-panels,
+	.tc-collapsible-master-detail {
+		gap: 10px;
+	}
+	
+	.tc-vertical-split-panel {
+		gap: 10px;
+	}
+	
+	/* Center resizers in gap space */
+	.tc-horizontal-split-panel .tc-panel-splitter-vertical,
+	.tc-three-column-panels .tc-panel-splitter-vertical,
+	.tc-collapsible-master-detail .tc-panel-splitter-vertical {
+		margin-left: -10px;
+		margin-right: -10px;
+	}
+	
+	.tc-vertical-split-panel .tc-panel-splitter-horizontal {
+		margin-top: -10px;
+		margin-bottom: -10px;
+	}
+	
+	/* Enhanced splitters for touch */
+	.tc-panel-splitter-vertical,
+	.tc-panel-splitter-horizontal {
+		opacity: 0.3;
+	}
+	
+	.tc-panel-splitter-vertical {
+		width: 20px;
+		flex-shrink: 0;
+	}
+	
+	.tc-panel-splitter-horizontal {
+		height: 20px;
+		flex-shrink: 0;
+	}
+	
+	.tc-panel-splitter-vertical::before {
+		width: 3px;
+		height: 40px;
+		background: <<colour muted-foreground>>;
+		border-radius: 1.5px;
+		opacity: 1;
+	}
+	
+	.tc-panel-splitter-horizontal::before {
+		width: 40px;
+		height: 3px;
+		background: <<colour muted-foreground>>;
+		border-radius: 1.5px;
+		opacity: 1;
+	}
+	
+	.tc-panel-splitter-vertical:hover,
+	.tc-panel-splitter-horizontal:hover,
+	.tc-panel-splitter-vertical.tc-resizer-active,
+	.tc-panel-splitter-horizontal.tc-resizer-active {
+		opacity: 1;
+	}
+	
+	/* Enhanced touch targets for all resizers */
+	.tc-resizer {
+		position: relative;
+	}
+	
+	.tc-resizer[data-direction="horizontal"]:not(.tc-tiddler-editor-resizer) {
+		min-width: 20px;
+	}
+	
+	.tc-resizer[data-direction="vertical"]:not(.tc-tiddler-editor-resizer) {
+		min-height: 20px;
+	}
+	
+	/* Editor resizer enhancement for touch */
+	.tc-tiddler-editor-resizer {
+		width: 15px;
+		opacity: 0.3;
+		padding: 0 5px;
+	}
+	
+	.tc-tiddler-editor-resizer::after {
+		content: "⋮";
+		position: absolute;
+		top: 50%;
+		left: 50%;
+		transform: translate(-50%, -50%);
+		font-size: 12px;
+		color: <<colour muted-foreground>>;
+		opacity: 0.7;
+	}
+	
+	/* Active state for touch */
+	.tc-resizer.tc-resizer-active {
+		opacity: 1 !important;
+		background-color: <<colour primary>>;
+	}
+	
+	.tc-tiddler-editor-resizer.tc-resizer-active::after {
+		color: <<colour background>>;
+		opacity: 1;
+	}
 }
