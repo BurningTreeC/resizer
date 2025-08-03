@@ -44,7 +44,7 @@ A powerful and flexible resizer widget for TiddlyWiki that enables interactive r
 | `filter` | Filter attribute to specify multiple tiddlers (optional alternative to `tiddler`) | - |
 | `field` | Field to update in the target tiddler | "text" |
 | `unit` | Unit for the resizer (px, %, em, rem, vh, vw, etc.) | "px" |
-| `default` | Default value if tiddler doesn't exist | "200px" or "50%" |
+| `default` | Default value if tiddler doesn't exist (supports calc() expressions) | "200px" or "50%" |
 | `min` | Minimum value (supports calc() expressions) | "50" or "10" |
 | `max` | Maximum value (supports calc() expressions) | "800" or "90" |
 
@@ -181,7 +181,7 @@ This example demonstrates:
 
 ## CSS calc() Expression Support
 
-The widget supports CSS calc() expressions in min and max values:
+The widget supports CSS calc() expressions in min, max, and default values:
 
 ```html
 <!-- Leave 350px for sidebar -->
@@ -198,6 +198,20 @@ The widget supports CSS calc() expressions in min and max values:
 <$resizer
   min="calc(20% + 100px)"
   max="calc(80% - 50px)"
+/>
+
+<!-- Dynamic default value based on viewport -->
+<$resizer
+  default="calc(50vw - 100px)"
+  min="200px"
+  max="800px"
+/>
+
+<!-- Responsive default with fallback -->
+<$resizer
+  default="calc(100% / 3)"
+  min="calc(100% / 6)"
+  max="calc(100% / 2)"
 />
 ```
 

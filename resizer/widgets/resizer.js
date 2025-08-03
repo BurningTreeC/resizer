@@ -122,12 +122,16 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 	// Helper to detect the unit of a value
 	var getUnit = function(value) {
 		if(typeof value !== "string") return "px";
+		// Handle calc() expressions - default to px
+		if(value.startsWith("calc(") && value.endsWith(")")) return "px";
 		if(value.endsWith("%")) return "%";
 		if(value.endsWith("px")) return "px";
 		if(value.endsWith("em")) return "em";
 		if(value.endsWith("rem")) return "rem";
 		if(value.endsWith("vh")) return "vh";
 		if(value.endsWith("vw")) return "vw";
+		if(value.endsWith("vmin")) return "vmin";
+		if(value.endsWith("vmax")) return "vmax";
 		// If no unit specified, assume pixels
 		return "px";
 	};
@@ -648,6 +652,10 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 					} else {
 						storedValue = self.wiki.getTiddlerText(tiddlerTitle, self.defaultValue || "200px");
 					}
+					// If the stored value is empty or just whitespace, use the default value
+					if(!storedValue || storedValue.trim() === "") {
+						storedValue = self.defaultValue || "200px";
+					}
 					startUnits[tiddlerTitle] = getUnit(storedValue);
 				} else {
 					// For other tiddlers or if no element to measure, fall back to stored value
@@ -659,16 +667,30 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 						currentValue = self.wiki.getTiddlerText(tiddlerTitle, self.defaultValue || "200px");
 					}
 					
-					// Get the numeric value and unit
-					var numericValue = getNumericValue(currentValue);
-					var valueUnit = getUnit(currentValue);
+					// If the current value is empty or just whitespace, use the default value
+					if(!currentValue || currentValue.trim() === "") {
+						currentValue = self.defaultValue || "200px";
+					}
 					
-					// Store the original unit for this tiddler
-					startUnits[tiddlerTitle] = valueUnit;
-					
-					// Convert to pixels for internal calculations
-					var pixelValue = convertToPixels(numericValue, valueUnit, domNode);
-					startValues[tiddlerTitle] = pixelValue;
+					// Check if it's a calc() expression
+					if(currentValue.startsWith("calc(") && currentValue.endsWith(")")) {
+						// For calc expressions, we can't easily determine the unit, so default to px
+						startUnits[tiddlerTitle] = "px";
+						// Evaluate the calc expression
+						var pixelValue = evaluateCSSValue(currentValue, parentSizeAtStart);
+						startValues[tiddlerTitle] = pixelValue;
+					} else {
+						// Get the numeric value and unit
+						var numericValue = getNumericValue(currentValue);
+						var valueUnit = getUnit(currentValue);
+						
+						// Store the original unit for this tiddler
+						startUnits[tiddlerTitle] = valueUnit;
+						
+						// Convert to pixels for internal calculations
+						var pixelValue = convertToPixels(numericValue, valueUnit, domNode);
+						startValues[tiddlerTitle] = pixelValue;
+					}
 				}
 			});
 			// For backwards compatibility, set startValue to the first tiddler's value
@@ -686,7 +708,16 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 				} else {
 					storedValue = self.wiki.getTiddlerText(self.targetTiddler, self.defaultValue || "200px");
 				}
-				self.unit = getUnit(storedValue);
+				// If the stored value is empty or just whitespace, use the default value
+				if(!storedValue || storedValue.trim() === "") {
+					storedValue = self.defaultValue || "200px";
+				}
+				// For calc expressions, default to px unit
+				if(storedValue.startsWith("calc(") && storedValue.endsWith(")")) {
+					self.unit = "px";
+				} else {
+					self.unit = getUnit(storedValue);
+				}
 			} else {
 				// No element to measure, fall back to stored value
 				var tiddler = self.wiki.getTiddler(self.targetTiddler);
@@ -697,19 +728,34 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 					currentValue = self.wiki.getTiddlerText(self.targetTiddler, self.defaultValue || "200px");
 				}
 				
-				// Get the numeric value and unit
-				var numericValue = getNumericValue(currentValue);
-				var valueUnit = getUnit(currentValue);
+				// If the current value is empty or just whitespace, use the default value
+				if(!currentValue || currentValue.trim() === "") {
+					currentValue = self.defaultValue || "200px";
+				}
 				
-				// Convert to pixels for internal calculations
-				startValue = convertToPixels(numericValue, valueUnit, domNode);
+				// Check if it's a calc() expression
+				if(currentValue.startsWith("calc(") && currentValue.endsWith(")")) {
+					// For calc expressions, we can't easily determine the unit, so default to px
+					self.unit = "px";
+					// Evaluate the calc expression
+					startValue = evaluateCSSValue(currentValue, parentSizeAtStart);
+				} else {
+					// Get the numeric value and unit
+					var numericValue = getNumericValue(currentValue);
+					var valueUnit = getUnit(currentValue);
+					self.unit = valueUnit;
+					
+					// Convert to pixels for internal calculations
+					startValue = convertToPixels(numericValue, valueUnit, domNode);
+				}
 			}
 		} else {
 			// No tiddler specified, try to measure element or use default
 			if(measuredSize !== null) {
 				startValue = measuredSize;
 			} else {
-				startValue = getNumericValue(self.defaultValue || "200px");
+				// Evaluate the default value which might be a calc() expression
+				startValue = evaluateCSSValue(self.defaultValue || "200px", parentSizeAtStart);
 			}
 		}
 		
