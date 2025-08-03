@@ -117,9 +117,16 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 	};
 	
 	// Helper to get parent size for percentage calculations
-	var getParentSize = function(element) {
+	var getParentSize = function(element, forceFreshMeasurement) {
 		if(!element || !element.parentElement) return 0;
 		var parentElement = element.parentElement;
+		
+		// If forced fresh measurement, ensure we get current layout
+		if(forceFreshMeasurement) {
+			// Force a reflow to get accurate measurements
+			parentElement.offsetHeight; // Reading offsetHeight forces reflow
+		}
+		
 		if(self.position === "relative") {
 			return self.direction === "horizontal" ? parentElement.offsetWidth : parentElement.offsetHeight;
 		} else {
@@ -188,8 +195,16 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 			case "px":
 				return pixelValue;
 			case "%":
-				var parentSize = getParentSize(element || domNode);
-				// Ensure we never return negative percentages
+				// For percentage calculations, we need the parent of the element being resized,
+				// not the parent of the resizer widget itself
+				var targetElement = element || domNode;
+				var parentSize = getParentSize(targetElement);
+				// If parent size is 0 or invalid during concurrent resize, try to get fresh measurement
+				if(parentSize <= 0) {
+					// Force fresh measurement
+					parentSize = getParentSize(targetElement, true);
+				}
+				// Ensure we never return negative percentages or divide by zero
 				return parentSize > 0 ? Math.max((pixelValue / parentSize) * 100, 0) : 0;
 			case "em":
 				var fontSize = 16; // default fallback
@@ -492,11 +507,13 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 					var originalUnit = operation.startUnits[tiddlerTitle];
 					
 					// Convert back to the original unit
-					var convertedValue = convertFromPixels(newPixelValue, originalUnit, domNode);
+					// Use the first target element for percentage calculations if available
+					var referenceElement = operation.targetElements && operation.targetElements[0] ? operation.targetElements[0] : domNode;
+					var convertedValue = convertFromPixels(newPixelValue, originalUnit, referenceElement);
 					
 					// Ensure the converted value never goes below the minimum
 					if(operation.effectiveMinValue !== null) {
-						var minInOriginalUnit = convertFromPixels(Math.max(operation.effectiveMinValue, 0), originalUnit, domNode);
+						var minInOriginalUnit = convertFromPixels(Math.max(operation.effectiveMinValue, 0), originalUnit, referenceElement);
 						convertedValue = Math.max(convertedValue, minInOriginalUnit);
 					}
 					
@@ -524,11 +541,13 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 			var newPixelValue = operation.startValue + clampedDelta;
 			
 			// Use widget's unit for single tiddler mode
-			var convertedValue = convertFromPixels(newPixelValue, self.unit, domNode);
+			// Use the first target element for percentage calculations if available
+			var referenceElement = operation.targetElements && operation.targetElements[0] ? operation.targetElements[0] : domNode;
+			var convertedValue = convertFromPixels(newPixelValue, self.unit, referenceElement);
 			
 			// Ensure the converted value never goes below the minimum
 			if(operation.effectiveMinValue !== null) {
-				var minInOriginalUnit = convertFromPixels(Math.max(operation.effectiveMinValue, 0), self.unit, domNode);
+				var minInOriginalUnit = convertFromPixels(Math.max(operation.effectiveMinValue, 0), self.unit, referenceElement);
 				convertedValue = Math.max(convertedValue, minInOriginalUnit);
 			}
 			
@@ -611,47 +630,7 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 		operation.startX = event.clientX;
 		operation.startY = event.clientY;
 		
-		// Cache the parent size at the start of drag for percentage calculations
-		// We need this early for unit conversions
-		var parentElement = domNode.parentElement;
-		if(parentElement) {
-			// Create a unique key for this parent element
-			var parentKey = parentElement.className || "default";
-			
-			// Check if we already have a cached size for this parent from another active resize
-			var hasActiveResizeOnSameParent = false;
-			for(var activeId in self.activeResizeOperations) {
-				var activeOp = self.activeResizeOperations[activeId];
-				if(activeOp && activeOp.isResizing && activeOp.parentKey === parentKey) {
-					hasActiveResizeOnSameParent = true;
-					break;
-				}
-			}
-			
-			// If there's already an active resize on the same parent, use the cached size
-			// Otherwise, measure and cache it
-			if(hasActiveResizeOnSameParent && self.parentSizeCache[parentKey]) {
-				operation.parentSizeAtStart = self.parentSizeCache[parentKey];
-			} else {
-				operation.parentSizeAtStart = getParentSize(domNode);
-				self.parentSizeCache[parentKey] = operation.parentSizeAtStart;
-			}
-			operation.parentKey = parentKey;
-		}
-		
-		// Cache the evaluated min/max values at drag start
-		operation.effectiveMinValue = self.minValueRaw ? evaluateCSSValue(self.minValueRaw, operation.parentSizeAtStart) : null;
-		operation.effectiveMaxValue = self.maxValueRaw ? evaluateCSSValue(self.maxValueRaw, operation.parentSizeAtStart) : null;
-		
-		// Ensure min/max values are reasonable
-		if(operation.effectiveMinValue !== null) {
-			operation.effectiveMinValue = Math.max(operation.effectiveMinValue, 0);
-		}
-		if(operation.effectiveMaxValue !== null && operation.effectiveMaxValue < 0) {
-			// If max value calculated to negative (can happen with concurrent resize), 
-			// use parent size as a reasonable maximum
-			operation.effectiveMaxValue = operation.parentSizeAtStart * 0.8;
-		}
+		// We'll set up parent size cache after finding target elements
 		
 		// Find the target element(s) to resize FIRST so we can measure them
 		operation.targetElements = [];
@@ -683,6 +662,55 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 			}
 		}
 		operation.targetElement = operation.targetElements[0]; // Keep for backward compatibility
+		
+		// Now that we have target elements, set up parent size cache
+		// Use the target element's parent for percentage calculations
+		var measureElement = operation.targetElements && operation.targetElements[0] ? operation.targetElements[0] : domNode;
+		var parentElement = measureElement.parentElement;
+		if(parentElement) {
+			// Create a unique key for this parent element
+			var parentKey = parentElement.className || "default";
+			if(parentElement.id) {
+				parentKey = parentElement.id + "-" + parentKey;
+			}
+			
+			// Check if we already have a cached size for this parent from another active resize
+			var hasActiveResizeOnSameParent = false;
+			for(var activeId in self.activeResizeOperations) {
+				var activeOp = self.activeResizeOperations[activeId];
+				if(activeOp && activeOp.isResizing && activeOp.parentKey === parentKey) {
+					hasActiveResizeOnSameParent = true;
+					break;
+				}
+			}
+			
+			// If there's already an active resize on the same parent, use the cached size
+			// Otherwise, measure and cache it
+			if(hasActiveResizeOnSameParent && self.parentSizeCache[parentKey]) {
+				operation.parentSizeAtStart = self.parentSizeCache[parentKey];
+			} else {
+				operation.parentSizeAtStart = getParentSize(measureElement);
+				self.parentSizeCache[parentKey] = operation.parentSizeAtStart;
+			}
+			operation.parentKey = parentKey;
+		} else {
+			// Fallback if no parent element
+			operation.parentSizeAtStart = getParentSize(domNode);
+		}
+		
+		// Cache the evaluated min/max values at drag start
+		operation.effectiveMinValue = self.minValueRaw ? evaluateCSSValue(self.minValueRaw, operation.parentSizeAtStart) : null;
+		operation.effectiveMaxValue = self.maxValueRaw ? evaluateCSSValue(self.maxValueRaw, operation.parentSizeAtStart) : null;
+		
+		// Ensure min/max values are reasonable
+		if(operation.effectiveMinValue !== null) {
+			operation.effectiveMinValue = Math.max(operation.effectiveMinValue, 0);
+		}
+		if(operation.effectiveMaxValue !== null && operation.effectiveMaxValue < 0) {
+			// If max value calculated to negative (can happen with concurrent resize), 
+			// use parent size as a reasonable maximum
+			operation.effectiveMaxValue = operation.parentSizeAtStart * 0.8;
+		}
 		
 		// Get and store the current value for each tiddler
 		operation.startValues = {}; // Reset the object
