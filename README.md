@@ -75,6 +75,20 @@ A powerful and flexible resizer widget for TiddlyWiki that enables interactive r
 | `onResize` | Actions to execute during resize |
 | `onResizeEnd` | Actions to execute when resize ends |
 
+#### Available Action Variables
+
+The following variables are available within action strings:
+
+| Variable | Description | Available In |
+|----------|-------------|--------------|
+| `<<actionValue>>` | The numeric value without unit | All actions |
+| `<<actionFormattedValue>>` | The value with unit (e.g., "350px", "50%") | All actions |
+| `<<actionDirection>>` | The resize direction ("horizontal" or "vertical") | All actions |
+| `<<actionProperty>>` | The CSS property being modified | All actions |
+| `<<actionHandleSize>>` | The computed size of the resize handle in pixels | All actions |
+| `<<actionDeltaX>>` | The horizontal mouse movement delta | `onResize` only |
+| `<<actionDeltaY>>` | The vertical mouse movement delta | `onResize` only |
+
 ### Styling Attributes
 
 | Attribute | Description | Default |
@@ -208,7 +222,17 @@ This example demonstrates:
 
 ## CSS calc() Expression Support
 
-The widget supports CSS calc() expressions in min, max, and default values:
+The widget supports CSS calc() expressions in min, max, and default values, including special variables:
+
+### Special Variables
+
+The following variables can be used within calc() expressions in the `min`, `max`, and `default` attributes:
+
+- `handleSize` - The computed width/height of the resize handle
+- `handleWidth` - Alias for handleSize
+- `handleHeight` - Alias for handleSize
+
+These variables are automatically replaced with the actual pixel size of the resize handle when the calc() expression is evaluated.
 
 ```html
 <!-- Leave 350px for sidebar -->
@@ -239,6 +263,20 @@ The widget supports CSS calc() expressions in min, max, and default values:
   default="calc(100% / 3)"
   min="calc(100% / 6)"
   max="calc(100% / 2)"
+/>
+
+<!-- Using handle size in calculations -->
+<$resizer
+  min="calc(handleSize + 20px)"
+  max="calc(100% - handleSize)"
+  default="calc(50% - handleSize / 2)"
+/>
+
+<!-- Account for handle in panel layouts -->
+<$resizer
+  direction="horizontal"
+  max="calc(100vw - 400px - handleWidth)"
+  min="calc(200px + handleWidth)"
 />
 ```
 
