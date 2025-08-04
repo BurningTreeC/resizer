@@ -42,7 +42,14 @@ ResizerWidget.prototype.render = function(parent,nextSibling) {
 		domNode.setAttribute("data-disabled", "true");
 	}
 	// Ensure touch-action is set for touch devices
-	domNode.style.touchAction = "none";
+	// For vertical resizers, we need to be more specific to prevent scroll interference
+	if(this.direction === "vertical") {
+		domNode.style.touchAction = "none";
+		domNode.style.msTouchAction = "none"; // For older IE/Edge
+		domNode.style.webkitTouchAction = "none"; // For older webkit
+	} else {
+		domNode.style.touchAction = "none";
+	}
 	// Add event handlers only if not disabled
 	if(this.disable !== "yes") {
 		this.addEventHandlers(domNode);
@@ -623,6 +630,7 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 	
 	var handlePointerDown = function(event) {
 		event.preventDefault();
+		event.stopPropagation();
 		
 		// Create a new resize operation for this pointer
 		var operation = createResizeOperation(event.pointerId);
@@ -862,6 +870,9 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 		// Add resizing class to body to disable transitions
 		self.document.body.classList.add("tc-resizing");
 		
+		// Prevent touch scrolling during resize
+		self.document.body.style.touchAction = "none";
+		
 		// Call resize start callback
 		if(self.onResizeStart) {
 			// Set variables for the action string
@@ -910,6 +921,9 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 		// Get the operation for this pointer
 		var operation = self.activeResizeOperations[event.pointerId];
 		if(!operation || !operation.isResizing) return;
+		
+		// Prevent default to stop any scrolling behavior
+		event.preventDefault();
 		
 		// Check if pointer is outside the viewport
 		if(event.clientX < 0 || event.clientY < 0 ||
@@ -1075,6 +1089,7 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 		if(!hasActiveOperations) {
 			self.document.body.style.userSelect = "";
 			self.document.body.style.cursor = "";
+			self.document.body.style.touchAction = "";
 		} else if(remainingCursor) {
 			// If there are still active operations, use the cursor from one of them
 			self.document.body.style.cursor = remainingCursor;
@@ -1128,6 +1143,8 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 		if(domNode) {
 			domNode.style.touchAction = "none";
 		}
+		// Prevent any default touch behavior
+		event.preventDefault();
 	};
 	
 	// Store the event handler reference for cleanup
