@@ -123,6 +123,17 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 		return "px";
 	};
 	
+	// Helper to get the handle width/height
+	var getHandleSize = function() {
+		// Get the computed size of the handle
+		var computedStyle = self.document.defaultView.getComputedStyle(domNode);
+		if(self.direction === "horizontal") {
+			return parseFloat(computedStyle.width) || 0;
+		} else {
+			return parseFloat(computedStyle.height) || 0;
+		}
+	};
+	
 	// Helper to convert percentage to pixels based on parent size
 	var convertPercentageToPixels = function(percentValue, parentSize) {
 		return (percentValue / 100) * parentSize;
@@ -256,7 +267,7 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 	};
 	
 	// Robust calc() expression evaluator with support for nested expressions, parentheses, and all operations
-	var evaluateCalcExpression = function(expression, contextSize) {
+	var evaluateCalcExpression = function(expression, contextSize, handleSize) {
 		// Tokenize the expression
 		var tokens = [];
 		var current = "";
@@ -378,6 +389,11 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 		}
 		
 		function convertToPixels(value, contextSize) {
+			// Handle special variables
+			if(value === "handleSize" || value === "handleWidth" || value === "handleHeight") {
+				return handleSize || 0;
+			}
+			
 			// If already a number, return it
 			var num = parseFloat(value);
 			if(!isNaN(num) && value === String(num)) {
@@ -425,7 +441,7 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 	};
 	
 	// Helper to evaluate calc() expressions and other CSS values
-	var evaluateCSSValue = function(value, contextSize) {
+	var evaluateCSSValue = function(value, contextSize, handleSize) {
 		if(typeof value !== "string") return value;
 		
 		// Clean up the value by trimming and removing trailing semicolons
@@ -451,7 +467,7 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 		// Handle calc() expressions
 		if(value.startsWith("calc(") && value.endsWith(")")) {
 			var expression = value.substring(5, value.length - 1).trim();
-			return evaluateCalcExpression(expression, contextSize);
+			return evaluateCalcExpression(expression, contextSize, handleSize);
 		}
 		
 		// If we can't evaluate it, try to parse as a number
@@ -463,7 +479,7 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 		// For concurrent resize scenarios, re-evaluate min value if it contains calc()
 		// This ensures we get current values from other panels
 		if(self.minValueRaw && self.minValueRaw.indexOf("calc(") !== -1) {
-			var freshMinValue = evaluateCSSValue(self.minValueRaw, operation.parentSizeAtStart);
+			var freshMinValue = evaluateCSSValue(self.minValueRaw, operation.parentSizeAtStart, operation.handleSize);
 			if(freshMinValue !== null) {
 				operation.effectiveMinValue = Math.max(freshMinValue, 0);
 			}
@@ -472,7 +488,7 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 		// For concurrent resize scenarios, re-evaluate max value if it contains calc()
 		// This ensures we get current values from other panels
 		if(self.maxValueRaw && self.maxValueRaw.indexOf("calc(") !== -1) {
-			var freshMaxValue = evaluateCSSValue(self.maxValueRaw, operation.parentSizeAtStart);
+			var freshMaxValue = evaluateCSSValue(self.maxValueRaw, operation.parentSizeAtStart, operation.handleSize);
 			if(freshMaxValue !== null && freshMaxValue > 0) {
 				operation.effectiveMaxValue = freshMaxValue;
 			}
@@ -600,6 +616,7 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 			// Set variables for the action string
 			self.setVariable("actionValue", actionValue.toString());
 			self.setVariable("actionFormattedValue", formattedValue);
+			self.setVariable("actionHandleSize", operation.handleSize.toString());
 			self.invokeActionString(self.actions, self);
 		}
 	};
@@ -643,6 +660,10 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 		// For now, use simple start position without offset adjustment
 		operation.startX = event.clientX;
 		operation.startY = event.clientY;
+		
+		// Calculate handle size early
+		var handleSize = getHandleSize();
+		operation.handleSize = handleSize;
 		
 		// We'll set up parent size cache after finding target elements
 		
@@ -713,8 +734,8 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 		}
 		
 		// Cache the evaluated min/max values at drag start
-		operation.effectiveMinValue = self.minValueRaw ? evaluateCSSValue(self.minValueRaw, operation.parentSizeAtStart) : null;
-		operation.effectiveMaxValue = self.maxValueRaw ? evaluateCSSValue(self.maxValueRaw, operation.parentSizeAtStart) : null;
+		operation.effectiveMinValue = self.minValueRaw ? evaluateCSSValue(self.minValueRaw, operation.parentSizeAtStart, handleSize) : null;
+		operation.effectiveMaxValue = self.maxValueRaw ? evaluateCSSValue(self.maxValueRaw, operation.parentSizeAtStart, handleSize) : null;
 		
 		// Ensure min/max values are reasonable
 		if(operation.effectiveMinValue !== null) {
@@ -782,7 +803,7 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 						// For calc expressions, we can't easily determine the unit, so default to px
 						operation.startUnits[tiddlerTitle] = "px";
 						// Evaluate the calc expression
-						var pixelValue = evaluateCSSValue(currentValue, operation.parentSizeAtStart);
+						var pixelValue = evaluateCSSValue(currentValue, operation.parentSizeAtStart, handleSize);
 						operation.startValues[tiddlerTitle] = pixelValue;
 					} else {
 						// Get the numeric value and unit
@@ -843,7 +864,7 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 					// For calc expressions, we can't easily determine the unit, so default to px
 					self.unit = "px";
 					// Evaluate the calc expression
-					operation.startValue = evaluateCSSValue(currentValue, operation.parentSizeAtStart);
+					operation.startValue = evaluateCSSValue(currentValue, operation.parentSizeAtStart, handleSize);
 				} else {
 					// Get the numeric value and unit
 					var numericValue = getNumericValue(currentValue);
@@ -860,7 +881,7 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 				operation.startValue = measuredSize;
 			} else {
 				// Evaluate the default value which might be a calc() expression
-				operation.startValue = evaluateCSSValue(self.defaultValue || "200px", operation.parentSizeAtStart);
+				operation.startValue = evaluateCSSValue(self.defaultValue || "200px", operation.parentSizeAtStart, handleSize);
 			}
 		}
 		
@@ -880,6 +901,7 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 			self.setVariable("actionFormattedValue", operation.startValue + (self.unit || "px"));
 			self.setVariable("actionDirection", self.direction);
 			self.setVariable("actionProperty", self.targetProperty);
+			self.setVariable("actionHandleSize", handleSize.toString());
 			self.invokeActionString(self.onResizeStart, self);
 		}
 		
@@ -984,6 +1006,7 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 					self.setVariable("actionProperty", self.targetProperty);
 					self.setVariable("actionDeltaX", deltaX.toString());
 					self.setVariable("actionDeltaY", deltaY.toString());
+					self.setVariable("actionHandleSize", operation.handleSize.toString());
 					self.invokeActionString(self.onResize, self);
 				}
 				
@@ -1133,6 +1156,7 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 			self.setVariable("actionFormattedValue", formattedValue);
 			self.setVariable("actionDirection", self.direction);
 			self.setVariable("actionProperty", self.targetProperty);
+			self.setVariable("actionHandleSize", operation.handleSize.toString());
 			self.invokeActionString(self.onResizeEnd, self);
 		}
 	};

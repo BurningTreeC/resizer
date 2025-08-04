@@ -59,56 +59,54 @@ tags: $:/tags/Global
 </div>
 \end
 
-\function tf.get-three-column-panels-left-max-width() [<rightStateTiddler>get[text]addsuffix[ - ]addsuffix<handleWidth>addsuffix[ - ]addsuffix<minWidth>addprefix[calc(100% - ]addsuffix[)]] :else[<rightWidth>addsuffix[ - ]addsuffix<handleWidth>addsuffix[ - ]addsuffix<minWidth>addprefix[calc(100% - ]addsuffix[)]]
-\function tf.get-three-column-panels-right-max-width() [<leftStateTiddler>get[text]addsuffix[ - ]addsuffix<handleWidth>addsuffix[ - ]addsuffix<minWidth>addprefix[calc(100% - ]addsuffix[)]] :else[<leftWidth>addsuffix[ - ]addsuffix<handleWidth>addsuffix[ - ]addsuffix<minWidth>addprefix[calc(100% - ]addsuffix[)]]
+\function tf.get-three-column-panels-left-max-width() [<rightStateTiddler>get[text]addsuffix[ - handleWidth - handleWidth - ]addsuffix<minWidth>addprefix[calc(100% - ]addsuffix[)]] :else[<rightWidth>addsuffix[ - handleWidth - handleWidth - ]addsuffix<minWidth>addprefix[calc(100% - ]addsuffix[)]]
+\function tf.get-three-column-panels-right-max-width() [<leftStateTiddler>get[text]addsuffix[ - handleWidth - handleWidth - ]addsuffix<minWidth>addprefix[calc(100% - ]addsuffix[)]] :else[<leftWidth>addsuffix[ - handleWidth - handleWidth - ]addsuffix<minWidth>addprefix[calc(100% - ]addsuffix[)]]
 
 \procedure three-column-panels(leftContent:"", centerContent:"", rightContent:"", leftWidth:"10%", rightWidth:"10%", minWidth:"5%", maxWidth:"80%", minHeight:"100%", leftStateTiddler:"$:/state/three-col/left", rightStateTiddler:"$:/state/three-col/right", class:"")
 \whitespace trim
-<$let handleWidth={{{ [[40px]mediaquery[(pointer: coarse)]] :else[[10px]] }}}>
-	<div class={{{ tc-three-column-panels [<class>] +[join[ ]] }}} style.min-height=<<minHeight>> style.max-width="100%">
-		<div class="tc-panel-left" style.width={{{ [<leftStateTiddler>get[text]else<leftWidth>] }}} style.max-height="100%">
-			<%if [<leftContent>is[variable]] %>
-				<$transclude $variable=<<leftContent>> $mode="block"/>
-			<%elseif [<leftContent>is[tiddler]] [<leftContent>is[shadow]] %>
-				<$transclude $tiddler=<<leftContent>> $mode="block"/>
-			<% endif %>
-		</div>
-		<$resizer
-			class="tc-panel-splitter-vertical"
-			direction="horizontal"
-			tiddler=<<leftStateTiddler>>
-			min=<<minWidth>>
-			max=<<tf.get-three-column-panels-left-max-width>>
-			default=<<leftWidth>>
-			unit={{{ [<leftWidth>split[]last[1]match[%]then[%]else[px]] }}}
-		/>
-		<div class="tc-panel-center" style.min-width=<<minWidth>> style.max-height="100%">
-			<%if [<centerContent>is[variable]] %>
-				<$transclude $variable=<<centerContent>> $mode="block"/>
-			<%elseif [<centerContent>is[tiddler]] [<centerContent>is[shadow]] %>
-				<$transclude $tiddler=<<centerContent>> $mode="block"/>
-			<% endif %>
-		</div>
-		<$resizer
-			class="tc-panel-splitter-vertical"
-			direction="horizontal"
-			tiddler=<<rightStateTiddler>>
-			min=<<minWidth>>
-			max=<<tf.get-three-column-panels-right-max-width>>
-			default=<<rightWidth>>
-			unit={{{ [<rightWidth>split[]last[1]match[%]then[%]else[px]] }}}
-			invert="yes"
-			element="nextSibling"
-		/>
-		<div class="tc-panel-right" style.width={{{ [<rightStateTiddler>get[text]else<rightWidth>] }}} style.max-height="100%">
-			<%if [<rightContent>is[variable]] %>
-				<$transclude $variable=<<rightContent>> $mode="block"/>
-			<%elseif [<rightContent>is[tiddler]] [<rightContent>is[shadow]] %>
-				<$transclude $tiddler=<<rightContent>> $mode="block"/>
-			<% endif %>
-		</div>
+<div class={{{ tc-three-column-panels [<class>] +[join[ ]] }}} style.min-height=<<minHeight>> style.max-width="100%">
+	<div class="tc-panel-left" style.width={{{ [<leftStateTiddler>get[text]else<leftWidth>] }}} style.max-height="100%">
+		<%if [<leftContent>is[variable]] %>
+			<$transclude $variable=<<leftContent>> $mode="block"/>
+		<%elseif [<leftContent>is[tiddler]] [<leftContent>is[shadow]] %>
+			<$transclude $tiddler=<<leftContent>> $mode="block"/>
+		<% endif %>
 	</div>
-</$let>
+	<$resizer
+		class="tc-panel-splitter-vertical"
+		direction="horizontal"
+		tiddler=<<leftStateTiddler>>
+		min=<<minWidth>>
+		max=<<tf.get-three-column-panels-left-max-width>>
+		default=<<leftWidth>>
+		unit={{{ [<leftWidth>split[]last[1]match[%]then[%]else[px]] }}}
+	/>
+	<div class="tc-panel-center" style.min-width=<<minWidth>> style.max-height="100%">
+		<%if [<centerContent>is[variable]] %>
+			<$transclude $variable=<<centerContent>> $mode="block"/>
+		<%elseif [<centerContent>is[tiddler]] [<centerContent>is[shadow]] %>
+			<$transclude $tiddler=<<centerContent>> $mode="block"/>
+		<% endif %>
+	</div>
+	<$resizer
+		class="tc-panel-splitter-vertical"
+		direction="horizontal"
+		tiddler=<<rightStateTiddler>>
+		min=<<minWidth>>
+		max=<<tf.get-three-column-panels-right-max-width>>
+		default=<<rightWidth>>
+		unit={{{ [<rightWidth>split[]last[1]match[%]then[%]else[px]] }}}
+		invert="yes"
+		element="nextSibling"
+	/>
+	<div class="tc-panel-right" style.width={{{ [<rightStateTiddler>get[text]else<rightWidth>] }}} style.max-height="100%">
+		<%if [<rightContent>is[variable]] %>
+			<$transclude $variable=<<rightContent>> $mode="block"/>
+		<%elseif [<rightContent>is[tiddler]] [<rightContent>is[shadow]] %>
+			<$transclude $tiddler=<<rightContent>> $mode="block"/>
+		<% endif %>
+	</div>
+</div>
 \end
 
 \procedure collapsible-master-detail-panel(masterContent:"", detailContent:"", collapsed:"no", size:"25%", minSize:"10%", maxSize:"40%", minHeight:"100%" stateTiddler:"$:/state/cmdp/size", collapseStateTiddler:"$:/state/cmdp/collapsed", class:"")
