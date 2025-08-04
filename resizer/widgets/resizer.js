@@ -41,6 +41,8 @@ ResizerWidget.prototype.render = function(parent,nextSibling) {
 	if(this.disable === "yes") {
 		domNode.setAttribute("data-disabled", "true");
 	}
+	// Ensure touch-action is set for touch devices
+	domNode.style.touchAction = "none";
 	// Add event handlers only if not disabled
 	if(this.disable !== "yes") {
 		this.addEventHandlers(domNode);
@@ -866,8 +868,16 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 			self.invokeActionString(self.onResizeStart, self);
 		}
 		
-		// Note: Not using setPointerCapture to allow multi-touch to work properly
-		// The document-level listeners will handle events even when pointer moves outside
+		// Capture the pointer to ensure consistent touch behavior
+		// This prevents the browser from interpreting touch gestures as scrolling
+		if(domNode.setPointerCapture) {
+			try {
+				domNode.setPointerCapture(event.pointerId);
+			} catch(e) {
+				// Fallback if setPointerCapture fails
+				console.warn("Failed to capture pointer:", e);
+			}
+		}
 		
 		// Prevent text selection
 		self.document.body.style.userSelect = "none";
@@ -1041,7 +1051,14 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 			self.document.body.classList.remove("tc-resizing");
 		}
 		
-		// Note: Not using pointer capture, so no need to release
+		// Release pointer capture if we had it
+		if(domNode && domNode.releasePointerCapture) {
+			try {
+				domNode.releasePointerCapture(pointerId);
+			} catch(e) {
+				// Ignore errors when releasing capture
+			}
+		}
 		
 		// Remove the operation from our tracking
 		delete self.activeResizeOperations[pointerId];
@@ -1115,8 +1132,14 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 		self.documentListenersAdded = true;
 	}
 	
-	// Keep lostpointercapture on the element
+	// Handle pointer capture events
 	domNode.addEventListener("lostpointercapture", handlePointerUp);
+	domNode.addEventListener("gotpointercapture", function(event) {
+		// Ensure touch-action is properly set when we get capture
+		if(domNode) {
+			domNode.style.touchAction = "none";
+		}
+	});
 };
 
 /*
