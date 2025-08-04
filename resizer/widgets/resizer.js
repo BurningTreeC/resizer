@@ -75,6 +75,9 @@ Add event handlers to the resizer
 ResizerWidget.prototype.addEventHandlers = function(domNode) {
 	var self = this;
 	
+	// Store domNode reference for cleanup
+	self.domNode = domNode;
+	
 	// Store active resize operations by pointer ID (using object for ES5 compatibility)
 	self.activeResizeOperations = {};
 	// Store shared parent size cache for coordinated resizing
@@ -613,7 +616,8 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 			effectiveMinValue: null,
 			effectiveMaxValue: null,
 			animationFrameId: null,
-			pendingMouseEvent: null
+			pendingMouseEvent: null,
+			hasPointerCapture: false
 		};
 	};
 	
@@ -873,9 +877,12 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 		if(domNode.setPointerCapture) {
 			try {
 				domNode.setPointerCapture(event.pointerId);
+				// Track that we have pointer capture for this operation
+				operation.hasPointerCapture = true;
 			} catch(e) {
 				// Fallback if setPointerCapture fails
 				console.warn("Failed to capture pointer:", e);
+				operation.hasPointerCapture = false;
 			}
 		}
 		
@@ -1052,9 +1059,10 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 		}
 		
 		// Release pointer capture if we had it
-		if(domNode && domNode.releasePointerCapture) {
+		if(operation.hasPointerCapture && self.domNode && self.domNode.releasePointerCapture) {
 			try {
-				domNode.releasePointerCapture(pointerId);
+				self.domNode.releasePointerCapture(pointerId);
+				operation.hasPointerCapture = false;
 			} catch(e) {
 				// Ignore errors when releasing capture
 			}
@@ -1114,10 +1122,19 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 		}
 	};
 	
+	// Create gotpointercapture handler
+	var handleGotPointerCapture = function(event) {
+		// Ensure touch-action is properly set when we get capture
+		if(domNode) {
+			domNode.style.touchAction = "none";
+		}
+	};
+	
 	// Store the event handler reference for cleanup
 	self.handlePointerDownReference = handlePointerDown;
 	self.handlePointerMoveReference = handlePointerMove;
 	self.handlePointerUpReference = handlePointerUp;
+	self.handleGotPointerCaptureReference = handleGotPointerCapture;
 	
 	// Add pointer event listeners
 	// Only pointerdown on the element itself
@@ -1134,12 +1151,7 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 	
 	// Handle pointer capture events
 	domNode.addEventListener("lostpointercapture", handlePointerUp);
-	domNode.addEventListener("gotpointercapture", function(event) {
-		// Ensure touch-action is properly set when we get capture
-		if(domNode) {
-			domNode.style.touchAction = "none";
-		}
-	});
+	domNode.addEventListener("gotpointercapture", handleGotPointerCapture);
 };
 
 /*
@@ -1243,6 +1255,9 @@ ResizerWidget.prototype.destroy = function() {
 		}
 		if(self.handlePointerUpReference) {
 			domNode.removeEventListener("lostpointercapture", self.handlePointerUpReference);
+		}
+		if(self.handleGotPointerCaptureReference) {
+			domNode.removeEventListener("gotpointercapture", self.handleGotPointerCaptureReference);
 		}
 	}
 	// Remove document-level listeners
