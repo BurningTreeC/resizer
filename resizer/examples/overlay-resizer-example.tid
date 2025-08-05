@@ -58,6 +58,7 @@ This example shows a resizable container with overlay handles on multiple sides:
   width: {{!!container-width}};
   height: {{!!container-height}};
   background: #f0f0f0;
+  color: #333333;
   border: 1px solid #ccc;
   overflow: hidden;
 }
@@ -153,7 +154,7 @@ This example demonstrates using actions with overlay resizers:
 }
 </style>
 
-<div style.position="relative" style.width={{!!panel-size}} style.background="#e8f4f8" style.border="2px solid #4a90e2" style.border-radius="8px" style.padding="20px">
+<div style.position="relative" style.width={{!!panel-size}} style.background="#e8f4f8" style.color="#333333" style.border="2px solid #4a90e2" style.border-radius="8px" style.padding="20px">
   <h4>Resizable Panel</h4>
   <p>This panel triggers actions when resized.</p>
   <p>Current size: {{!!panel-size}}</p>
@@ -186,6 +187,7 @@ This example demonstrates using actions with overlay resizers:
   width: {{!!gallery-item-width}};
   height: {{!!gallery-item-width}};
   background: #f5f5f5;
+  color: #333333;
   border: 1px solid #ddd;
   display: flex;
   align-items: center;
