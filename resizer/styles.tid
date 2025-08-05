@@ -211,11 +211,11 @@ body.tc-resizing .tc-resizer {
 .tc-panel-left,
 .tc-panel-top,
 .tc-master-panel,
-.tc-three-column-panels .tc-panel-right {
+.tc-three-column-panels > .tc-panel-right {
 	flex-shrink: 0;
 }
 
-.tc-panel-right:not(.tc-three-column-panels .tc-panel-right),
+.tc-panel-right:not(.tc-three-column-panels > .tc-panel-right),
 .tc-panel-bottom,
 .tc-panel-center,
 .tc-detail-panel {
