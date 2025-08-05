@@ -27,7 +27,7 @@ $:/config/SideBarSegments/Visibility/$(listItem)$
 	filter="$:/themes/tiddlywiki/vanilla/metrics/storyright $:/themes/tiddlywiki/vanilla/metrics/storywidth $:/themes/tiddlywiki/vanilla/metrics/tiddlerwidth"
 	min={{$:/themes/tiddlywiki/vanilla/metrics/storyminwidth}}
 	max={{{ [[calc(100vw - ]addsuffix{$:/themes/tiddlywiki/vanilla/metrics/sidebarminwidth}addsuffix[)]] }}}
-	default="350px"
+	default="calc(100% - 770px)"
 	invert="no"
 	live="yes"
 />
