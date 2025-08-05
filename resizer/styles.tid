@@ -141,6 +141,12 @@ body.tc-resizing .tc-resizer {
 	}
 }
 
+@media (pointer: coarse) {
+	.tc-sidebar-resizer {
+		left: {{{ [{$:/themes/tiddlywiki/vanilla/options/sidebarlayout}match[fluid-fixed]then[6px]] :else[[-36px]] }}};
+	}
+}
+
 /* =================================================================
    EDITOR RESIZER
    Styles for the tiddler editor preview pane resizer
@@ -165,6 +171,12 @@ body.tc-resizing .tc-resizer {
 
 .tc-tiddler-frame .tc-tiddler-editor.tc-tiddler-preview .tc-tiddler-preview-preview {
 	margin-left: 0;
+}
+
+@media (pointer: coarse) {
+	.tc-tiddler-editor-resizer {
+		width: 15px;
+	}
 }
 
 /* =================================================================
