@@ -42,14 +42,15 @@ ResizerWidget.prototype.render = function(parent,nextSibling) {
 		domNode.setAttribute("data-disabled", "true");
 	}
 	// Ensure touch-action is set for touch devices
-	// For vertical resizers, we need to be more specific to prevent scroll interference
-	if(this.direction === "vertical") {
-		domNode.style.touchAction = "none";
-		domNode.style.msTouchAction = "none"; // For older IE/Edge
-		domNode.style.webkitTouchAction = "none"; // For older webkit
-	} else {
-		domNode.style.touchAction = "none";
-	}
+	// Always use "none" to prevent any browser touch gestures
+	domNode.style.touchAction = "none";
+	domNode.style.msTouchAction = "none"; // For older IE/Edge
+	domNode.style.webkitTouchAction = "none"; // For older webkit
+	domNode.style.webkitUserSelect = "none"; // Prevent selection on iOS
+	domNode.style.userSelect = "none";
+	
+	// Ensure the element can receive touch events on iOS
+	domNode.style.webkitTapHighlightColor = "rgba(0,0,0,0)";
 	// Add event handlers only if not disabled
 	if(this.disable !== "yes") {
 		this.addEventHandlers(domNode);
@@ -646,12 +647,27 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 	};
 	
 	var handlePointerDown = function(event) {
-		event.preventDefault();
-		event.stopPropagation();
+		// For touch events, we need to ensure we're handling the primary touch
+		// and prevent default browser touch behaviors immediately
+		if(event.pointerType === "touch") {
+			// Prevent browser touch gestures (like pull-to-refresh, swipe navigation)
+			event.preventDefault();
+			event.stopPropagation();
+			// Also prevent the default touch behavior on the target
+			if(event.target) {
+				event.target.style.touchAction = "none";
+			}
+		} else {
+			event.preventDefault();
+			event.stopPropagation();
+		}
 		
 		// Create a new resize operation for this pointer
 		var operation = createResizeOperation(event.pointerId);
 		self.activeResizeOperations[event.pointerId] = operation;
+		
+		// Store pointer type for debugging
+		operation.pointerType = event.pointerType || "mouse";
 		
 		// Store the actual initial mouse position
 		operation.initialMouseX = event.clientX;
@@ -916,6 +932,40 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 				// Fallback if setPointerCapture fails
 				console.warn("Failed to capture pointer:", e);
 				operation.hasPointerCapture = false;
+				
+				// For touch devices, if pointer capture fails, we need to ensure
+				// touch events are still properly handled
+				if(event.pointerType === "touch") {
+					// Add passive:false to ensure preventDefault works
+					var touchMoveHandler = function(e) {
+						e.preventDefault();
+						// Convert touch event to pointer-like event
+						var touch = e.changedTouches[0];
+						if(touch) {
+							handlePointerMove({
+								pointerId: event.pointerId,
+								clientX: touch.clientX,
+								clientY: touch.clientY,
+								preventDefault: function() {}
+							});
+						}
+					};
+					var touchEndHandler = function(e) {
+						e.preventDefault();
+						self.document.removeEventListener("touchmove", touchMoveHandler, {passive: false});
+						self.document.removeEventListener("touchend", touchEndHandler, {passive: false});
+						self.document.removeEventListener("touchcancel", touchEndHandler, {passive: false});
+						handlePointerUp({pointerId: event.pointerId});
+					};
+					
+					// Store handlers for cleanup
+					operation.touchMoveHandler = touchMoveHandler;
+					operation.touchEndHandler = touchEndHandler;
+					
+					self.document.addEventListener("touchmove", touchMoveHandler, {passive: false});
+					self.document.addEventListener("touchend", touchEndHandler, {passive: false});
+					self.document.addEventListener("touchcancel", touchEndHandler, {passive: false});
+				}
 			}
 		}
 		
@@ -1051,6 +1101,15 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 		
 		operation.isResizing = false;
 		
+		// Clean up touch event handlers if they exist
+		if(operation.touchMoveHandler && operation.touchEndHandler) {
+			self.document.removeEventListener("touchmove", operation.touchMoveHandler, {passive: false});
+			self.document.removeEventListener("touchend", operation.touchEndHandler, {passive: false});
+			self.document.removeEventListener("touchcancel", operation.touchEndHandler, {passive: false});
+			operation.touchMoveHandler = null;
+			operation.touchEndHandler = null;
+		}
+		
 		// Check if this was the last active resize operation and get the cursor from remaining operations
 		var hasActiveOperations = false;
 		var remainingCursor = null;
@@ -1179,14 +1238,34 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 	
 	// Add pointer event listeners
 	// Only pointerdown on the element itself
-	domNode.addEventListener("pointerdown", handlePointerDown);
+	domNode.addEventListener("pointerdown", handlePointerDown, {passive: false});
+	
+	// Also add touchstart as a fallback for devices with poor pointer event support
+	domNode.addEventListener("touchstart", function(e) {
+		// Only handle if pointer events aren't working
+		if(!self.activeResizeOperations || Object.keys(self.activeResizeOperations).length === 0) {
+			e.preventDefault();
+			var touch = e.changedTouches[0];
+			if(touch) {
+				handlePointerDown({
+					pointerId: touch.identifier,
+					pointerType: "touch",
+					clientX: touch.clientX,
+					clientY: touch.clientY,
+					target: e.target,
+					preventDefault: function() {},
+					stopPropagation: function() {}
+				});
+			}
+		}
+	}, {passive: false});
 	
 	// Move and up events on document for multi-touch support
 	// These are only added once per widget instance
 	if(!self.documentListenersAdded) {
-		self.document.addEventListener("pointermove", handlePointerMove);
-		self.document.addEventListener("pointerup", handlePointerUp);
-		self.document.addEventListener("pointercancel", handlePointerUp);
+		self.document.addEventListener("pointermove", handlePointerMove, {passive: false});
+		self.document.addEventListener("pointerup", handlePointerUp, {passive: false});
+		self.document.addEventListener("pointercancel", handlePointerUp, {passive: false});
 		self.documentListenersAdded = true;
 	}
 	
