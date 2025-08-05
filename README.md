@@ -17,7 +17,7 @@ A powerful and flexible resizer widget for TiddlyWiki that enables interactive r
 
 ## Installation
 
-1. Download the plugin from the releases page
+1. Go to burningtreec.github.io/resizer/
 2. Drag and drop the plugin file into your TiddlyWiki
 3. Save and reload your wiki
 
