@@ -421,7 +421,7 @@ body.tc-resizing .tc-resizer {
 	}
 	
 	/* Enhanced touch targets for all resizers */
-	.tc-resizer {
+	.tc-resizer:not(.tc-sidebar-resizer) {
 		position: relative;
 	}
 	
