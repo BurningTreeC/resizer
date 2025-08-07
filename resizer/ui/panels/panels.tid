@@ -112,17 +112,23 @@ tags: $:/tags/Global
 \procedure collapsible-master-detail-panel(masterContent:"", detailContent:"", collapsed:"no", size:"25%", minSize:"10%", maxSize:"40%", minHeight:"100%" stateTiddler:"$:/state/cmdp/size", collapseStateTiddler:"$:/state/cmdp/collapsed", class:"")
 \whitespace trim
 <div class={{{ tc-collapsible-master-detail [<class>] +[join[ ]] }}} style.min-height=<<minHeight>> style.max-width="100%">
-	<%if [<collapseStateTiddler>get[text]else<collapsed>match[no]]%>
-		<div class="tc-master-panel" style.width={{{ [<stateTiddler>get[text]else<size>] }}} style.max-width=<<maxSize>>>
-			<%if [<masterContent>is[variable]] %>
-				<$transclude $variable=<<masterContent>> $mode="block"/>
-			<%elseif [<masterContent>is[tiddler]] [<masterContent>is[shadow]] %>
-				<$transclude $tiddler=<<masterContent>> $mode="block"/>
-			<% endif %>
-			<$button class="tc-btn-invisible tc-panel-collapse-btn" set=<<collapseStateTiddler>> setTo="yes">
-				{{$:/core/images/chevron-left}}
-			</$button>
-		</div>
+	<%if [<collapseStateTiddler>get[text]else<collapsed>match[no]] %>
+		<$button class="tc-btn-invisible tc-panel-collapse-btn" set=<<collapseStateTiddler>> setTo="yes">
+			{{$:/core/images/chevron-left}}
+		</$button>
+	<%elseif [<collapseStateTiddler>get[text]else<collapsed>match[yes]] %>
+		<$button class="tc-btn-invisible tc-panel-expand-btn" set=<<collapseStateTiddler>> setTo="no">
+			{{$:/core/images/chevron-right}}
+		</$button>
+	<% endif %>
+	<div class={{{ [<collapseStateTiddler>get[text]else<collapsed>match[no]then[tc-master-panel]] :else[[tc-master-panel tc-collapsed]] }}} style.width={{{ [<stateTiddler>get[text]else<size>] }}} style.max-width=<<maxSize>> style.margin-left={{{ [<collapseStateTiddler>get[text]else<collapsed>match[yes]then<stateTiddler>get[text]addprefix[-]] :else[<collapseStateTiddler>get[text]else<collapsed>match[yes]then<size>addprefix[-]] :else[[0]] }}}>
+		<%if [<masterContent>is[variable]] %>
+			<$transclude $variable=<<masterContent>> $mode="block"/>
+		<%elseif [<masterContent>is[tiddler]] [<masterContent>is[shadow]] %>
+			<$transclude $tiddler=<<masterContent>> $mode="block"/>
+		<% endif %>
+	</div>
+	<%if [<collapseStateTiddler>get[text]else<collapsed>match[no]] %>
 		<$resizer
 			class="tc-panel-splitter-vertical"
 			direction="horizontal"
@@ -132,18 +138,81 @@ tags: $:/tags/Global
 			default=<<size>>
 			unit={{{ [<size>split[]last[1]match[%]then[%]else[px]] }}}
 		/>
-	<%elseif [<collapseStateTiddler>get[text]else<collapsed>match[yes]] %>
-		<div class="tc-master-panel tc-collapsed">
-			<$button class="tc-btn-invisible tc-panel-expand-btn" set=<<collapseStateTiddler>> setTo="no">
-				{{$:/core/images/chevron-right}}
-			</$button>
-		</div>
 	<% endif %>
-	<div class="tc-detail-panel">
+	<div class={{{ [<collapseStateTiddler>get[text]else<collapsed>match[no]then[tc-detail-panel]] :else[[tc-detail-panel tc-expanded]] }}}>
 		<%if [<detailContent>is[variable]] %>
 			<$transclude $variable=<<detailContent>> $mode="block"/>
 		<%elseif [<detailContent>is[tiddler]] [<detailContent>is[shadow]] %>
 			<$transclude $tiddler=<<detailContent>> $mode="block"/>
+		<% endif %>
+	</div>
+</div>
+\end
+
+\procedure collapsible-three-column-panels(leftContent:"", centerContent:"", rightContent:"", leftWidth:"10%", rightWidth:"10%", minWidth:"5%", maxWidth:"80%", minHeight:"100%", leftStateTiddler:"$:/state/three-col-collapsible/left", rightStateTiddler:"$:/state/three-col-collapsible/right", class:"", collapsedLeft:"no", collapsedRight:"no", collapseStateTiddlerLeft:"$:/state/ctcp/left", collapseStateTiddlerRight:"$:/state/ctcp/right")
+\whitespace trim
+<div class={{{ tc-three-column-panels tc-collapsible-three-column-panels [<class>] +[join[ ]] }}} style.min-height=<<minHeight>> style.max-width="100%">
+	<%if [<collapseStateTiddlerLeft>get[text]else<collapsedLeft>match[no]] %>
+		<$button class="tc-btn-invisible tc-panel-collapse-btn tc-panel-btn-left" set=<<collapseStateTiddlerLeft>> setTo="yes">
+			{{$:/core/images/chevron-left}}
+		</$button>
+	<%elseif [<collapseStateTiddlerLeft>get[text]else<collapsedLeft>match[yes]] %>
+		<$button class="tc-btn-invisible tc-panel-expand-btn tc-panel-btn-left" set=<<collapseStateTiddlerLeft>> setTo="no">
+			{{$:/core/images/chevron-right}}
+		</$button>
+	<% endif %>
+	<%if [<collapseStateTiddlerRight>get[text]else<collapsedRight>match[no]] %>
+		<$button class="tc-btn-invisible tc-panel-collapse-btn tc-panel-btn-right" set=<<collapseStateTiddlerRight>> setTo="yes">
+			{{$:/core/images/chevron-right}}
+		</$button>
+	<%elseif [<collapseStateTiddlerRight>get[text]else<collapsedRight>match[yes]] %>
+		<$button class="tc-btn-invisible tc-panel-expand-btn tc-panel-btn-right" set=<<collapseStateTiddlerRight>> setTo="no">
+			{{$:/core/images/chevron-left}}
+		</$button>
+	<% endif %>
+	<div class="tc-panel-left" style.width={{{ [<leftStateTiddler>get[text]else<leftWidth>] }}} style.max-height="100%" style.margin-left={{{ [<collapseStateTiddlerLeft>get[text]else<collapsedLeft>match[yes]then<leftStateTiddler>get[text]addprefix[-]] :else[<collapseStateTiddlerLeft>get[text]else<collapsedLeft>match[yes]then<leftWidth>addprefix[-]] :else[[0]] }}}>
+		<%if [<leftContent>is[variable]] %>
+			<$transclude $variable=<<leftContent>> $mode="block"/>
+		<%elseif [<leftContent>is[tiddler]] [<leftContent>is[shadow]] %>
+			<$transclude $tiddler=<<leftContent>> $mode="block"/>
+		<% endif %>
+	</div>
+	<%if [<collapseStateTiddlerLeft>get[text]else<collapsedLeft>match[no]] %>
+		<$resizer
+			class="tc-panel-splitter-vertical"
+			direction="horizontal"
+			tiddler=<<leftStateTiddler>>
+			min=<<minWidth>>
+			max=<<tf.get-three-column-panels-left-max-width>>
+			default=<<leftWidth>>
+			unit={{{ [<leftWidth>split[]last[1]match[%]then[%]else[px]] }}}
+		/>
+	<% endif %>
+	<div class="tc-panel-center" style.min-width=<<minWidth>> style.max-height="100%">
+		<%if [<centerContent>is[variable]] %>
+			<$transclude $variable=<<centerContent>> $mode="block"/>
+		<%elseif [<centerContent>is[tiddler]] [<centerContent>is[shadow]] %>
+			<$transclude $tiddler=<<centerContent>> $mode="block"/>
+		<% endif %>
+	</div>
+	<%if [<collapseStateTiddlerRight>get[text]else<collapsedRight>match[no]] %>
+		<$resizer
+			class="tc-panel-splitter-vertical"
+			direction="horizontal"
+			tiddler=<<rightStateTiddler>>
+			min=<<minWidth>>
+			max=<<tf.get-three-column-panels-right-max-width>>
+			default=<<rightWidth>>
+			unit={{{ [<rightWidth>split[]last[1]match[%]then[%]else[px]] }}}
+			invert="yes"
+			element="nextSibling"
+		/>
+	<% endif %>
+	<div class="tc-panel-right" style.width={{{ [<rightStateTiddler>get[text]else<rightWidth>] }}} style.max-height="100%" style.margin-right={{{ [<collapseStateTiddlerRight>get[text]else<collapsedRight>match[yes]then<rightStateTiddler>get[text]addprefix[-]] :else[<collapseStateTiddlerRight>get[text]else<collapsedRight>match[yes]then<rightWidth>addprefix[-]] :else[[0]] }}}>
+		<%if [<rightContent>is[variable]] %>
+			<$transclude $variable=<<rightContent>> $mode="block"/>
+		<%elseif [<rightContent>is[tiddler]] [<rightContent>is[shadow]] %>
+			<$transclude $tiddler=<<rightContent>> $mode="block"/>
 		<% endif %>
 	</div>
 </div>

@@ -1,4 +1,4 @@
-title: $:/plugins/BTC/resizer/styles-complete
+title: $:/plugins/BTC/resizer/styles
 tags: $:/tags/Stylesheet
 
 /* =================================================================
@@ -328,12 +328,19 @@ body.tc-resizing .tc-resizer {
 	position: relative;
 }
 
-.tc-collapsible-master-detail .tc-master-panel:not(body.tc-resizing .tc-collapsible-master-detail .tc-master-panel) {
-	transition: width 0.3s ease;
+.tc-collapsible-master-detail .tc-master-panel {
+	transition: margin-left 0.3s ease;
+}
+
+.tc-collapsible-three-column-panels .tc-panel-left {
+	transition: margin-left 0.3s ease;
+}
+
+.tc-collapsible-three-column-panels .tc-panel-right {
+	transition: margin-right 0.3s ease;
 }
 
 .tc-collapsible-master-detail .tc-master-panel.tc-collapsed {
-	width: 40px !important;
 	flex-shrink: 0;
 }
 
@@ -342,20 +349,17 @@ body.tc-resizing .tc-resizer {
 .tc-panel-expand-btn {
 	position: absolute;
 	top: 10px;
-	right: 10px;
+	left: 10px;
 	padding: 5px;
-	background: <<colour background>>;
 	border: 1px solid <<colour tiddler-border>>;
 	border-radius: 3px;
+	z-index: 1;
 }
 
-.tc-panel-expand-btn {
-	right: 5px;
-}
-
-.tc-panel-collapse-btn:hover,
-.tc-panel-expand-btn:hover {
-	background: <<colour tiddler-background>>;
+.tc-panel-collapse-btn.tc-panel-btn-right,
+.tc-panel-expand-btn.tc-panel-btn-right {
+	left: auto;
+	right: 10px;
 }
 
 /* =================================================================
