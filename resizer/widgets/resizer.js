@@ -13,6 +13,78 @@ Resizer widget for resizing elements
 
 var Widget = require("$:/core/modules/widgets/widget.js").widget;
 
+// Global manager for document-level event listeners shared across all resizer instances
+var GlobalResizerManager = {
+	documentListenersAdded: false,
+	activeWidgets: [],
+	handlePointerMove: null,
+	handlePointerUp: null,
+	
+	addWidget: function(widget) {
+		if(this.activeWidgets.indexOf(widget) === -1) {
+			this.activeWidgets.push(widget);
+		}
+		this.ensureDocumentListeners();
+	},
+	
+	removeWidget: function(widget) {
+		var index = this.activeWidgets.indexOf(widget);
+		if(index > -1) {
+			this.activeWidgets.splice(index, 1);
+		}
+		// Remove document listeners if no widgets are active
+		if(this.activeWidgets.length === 0) {
+			this.removeDocumentListeners();
+		}
+	},
+	
+	ensureDocumentListeners: function() {
+		if(!this.documentListenersAdded && typeof document !== "undefined") {
+			var self = this;
+			
+			this.handlePointerMove = function(event) {
+				// Dispatch to all active widgets
+				for(var i = 0; i < self.activeWidgets.length; i++) {
+					var widget = self.activeWidgets[i];
+					if(widget.handlePointerMoveGlobal) {
+						widget.handlePointerMoveGlobal(event);
+					}
+				}
+			};
+			
+			this.handlePointerUp = function(event) {
+				// Dispatch to all active widgets
+				for(var i = 0; i < self.activeWidgets.length; i++) {
+					var widget = self.activeWidgets[i];
+					if(widget.handlePointerUpGlobal) {
+						widget.handlePointerUpGlobal(event);
+					}
+				}
+			};
+			
+			document.addEventListener("pointermove", this.handlePointerMove, {passive: false});
+			document.addEventListener("pointerup", this.handlePointerUp, {passive: false});
+			document.addEventListener("pointercancel", this.handlePointerUp, {passive: false});
+			this.documentListenersAdded = true;
+		}
+	},
+	
+	removeDocumentListeners: function() {
+		if(this.documentListenersAdded && typeof document !== "undefined") {
+			if(this.handlePointerMove) {
+				document.removeEventListener("pointermove", this.handlePointerMove);
+			}
+			if(this.handlePointerUp) {
+				document.removeEventListener("pointerup", this.handlePointerUp);
+				document.removeEventListener("pointercancel", this.handlePointerUp);
+			}
+			this.documentListenersAdded = false;
+			this.handlePointerMove = null;
+			this.handlePointerUp = null;
+		}
+	}
+};
+
 var ResizerWidget = function(parseTreeNode,options) {
 	this.initialise(parseTreeNode,options);
 };
@@ -1183,7 +1255,8 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 		
 	};
 	
-	var handlePointerMove = function(event) {
+	// Global handler for pointer move (called by GlobalResizerManager)
+	self.handlePointerMoveGlobal = function(event) {
 		// Get the operation for this pointer
 		var operation = self.activeResizeOperations[event.pointerId];
 		if(!operation || !operation.isResizing) return;
@@ -1387,7 +1460,8 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 		}
 	};
 	
-	var handlePointerUp = function(event) {
+	// Global handler for pointer up (called by GlobalResizerManager)
+	self.handlePointerUpGlobal = function(event) {
 		var operation = self.activeResizeOperations[event.pointerId];
 		if(!operation || !operation.isResizing) return;
 		
@@ -1446,8 +1520,6 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 	
 	// Store the event handler reference for cleanup
 	self.handlePointerDownReference = handlePointerDown;
-	self.handlePointerMoveReference = handlePointerMove;
-	self.handlePointerUpReference = handlePointerUp;
 	self.handleGotPointerCaptureReference = handleGotPointerCapture;
 	
 	// Add pointer event listeners
@@ -1475,17 +1547,16 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 	};
 	domNode.addEventListener("touchstart", self.handleTouchStartReference, {passive: false});
 	
-	// Move and up events on document for multi-touch support
-	// These are only added once per widget instance
-	if(!self.documentListenersAdded) {
-		self.document.addEventListener("pointermove", handlePointerMove, {passive: false});
-		self.document.addEventListener("pointerup", handlePointerUp, {passive: false});
-		self.document.addEventListener("pointercancel", handlePointerUp, {passive: false});
-		self.documentListenersAdded = true;
-	}
+	// Register with global manager for document-level events
+	GlobalResizerManager.addWidget(self);
 	
-	// Handle pointer capture events
-	domNode.addEventListener("lostpointercapture", handlePointerUp);
+	// Handle pointer capture events (use global handler for lost capture)
+	self.handleLostPointerCaptureReference = function(event) {
+		if(self.handlePointerUpGlobal) {
+			self.handlePointerUpGlobal(event);
+		}
+	};
+	domNode.addEventListener("lostpointercapture", self.handleLostPointerCaptureReference);
 	domNode.addEventListener("gotpointercapture", handleGotPointerCapture);
 };
 
@@ -1579,10 +1650,40 @@ ResizerWidget.prototype.refresh = function(changedTiddlers) {
 Remove any DOM elements created by this widget
 */
 ResizerWidget.prototype.removeChildDomNodes = function() {
-	// Clean up any active resize operation
-	if(this.cleanupResize) {
-		this.cleanupResize();
+	var self = this;
+	
+	// Immediately clean up all active operations
+	if(self.activeResizeOperations) {
+		for(var pointerId in self.activeResizeOperations) {
+			if(self.activeResizeOperations[pointerId]) {
+				// Clean up the operation
+				if(self.cleanupResize) {
+					self.cleanupResize(pointerId);
+				}
+			}
+		}
+		self.activeResizeOperations = {};
 	}
+	
+	// Clear all timeouts immediately
+	if(self.operationTimeouts) {
+		for(var timeoutId in self.operationTimeouts) {
+			clearTimeout(self.operationTimeouts[timeoutId]);
+		}
+		self.operationTimeouts = {};
+	}
+	
+	// Remove from global manager
+	GlobalResizerManager.removeWidget(self);;
+	
+	// Clear event handler references
+	self.handlePointerMoveGlobal = null;
+	self.handlePointerUpGlobal = null;
+	
+	// Clear caches
+	self.parentSizeCache = {};
+	self.parentSizeCacheOrder = [];
+	
 	// Call parent implementation
 	Widget.prototype.removeChildDomNodes.call(this);
 };
@@ -1598,8 +1699,8 @@ ResizerWidget.prototype.destroy = function() {
 		if(self.handlePointerDownReference) {
 			domNode.removeEventListener("pointerdown", self.handlePointerDownReference);
 		}
-		if(self.handlePointerUpReference) {
-			domNode.removeEventListener("lostpointercapture", self.handlePointerUpReference);
+		if(self.handleLostPointerCaptureReference) {
+			domNode.removeEventListener("lostpointercapture", self.handleLostPointerCaptureReference);
 		}
 		if(self.handleGotPointerCaptureReference) {
 			domNode.removeEventListener("gotpointercapture", self.handleGotPointerCaptureReference);
@@ -1613,13 +1714,8 @@ ResizerWidget.prototype.destroy = function() {
 			domNode.removeEventListener("touchstart", self.handleTouchStartReference);
 		}
 	}
-	// Remove document-level listeners
-	if(self.documentListenersAdded && self.handlePointerMoveReference && self.handlePointerUpReference) {
-		self.document.removeEventListener("pointermove", self.handlePointerMoveReference);
-		self.document.removeEventListener("pointerup", self.handlePointerUpReference);
-		self.document.removeEventListener("pointercancel", self.handlePointerUpReference);
-		self.documentListenersAdded = false;
-	}
+	// Remove from global manager
+	GlobalResizerManager.removeWidget(self);
 	// Clean up any active resize operations
 	if(self.activeResizeOperations && self.cleanupResize) {
 		for(var pointerId in self.activeResizeOperations) {
@@ -1642,6 +1738,14 @@ ResizerWidget.prototype.destroy = function() {
 	self.activeResizeOperations = null;
 	// Clear DOM references
 	self.domNode = null;
+	// Clear all handler references
+	self.handlePointerDownReference = null;
+	self.handleLostPointerCaptureReference = null;
+	self.handleGotPointerCaptureReference = null;
+	self.handleDoubleClickReference = null;
+	self.handleTouchStartReference = null;
+	self.handlePointerMoveGlobal = null;
+	self.handlePointerUpGlobal = null;
 	// Call parent destroy if it exists
 	if(Widget.prototype.destroy) {
 		Widget.prototype.destroy.call(this);
