@@ -733,22 +733,26 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 	
 	// Helper to update the tiddler values based on drag delta (in pixels)
 	var updateValues = function(pixelDelta, operation) {
-		// For concurrent resize scenarios, re-evaluate min value if it contains calc()
-		// This ensures we get current values from other panels
-		if(self.minValueRaw && self.minValueRaw.indexOf("calc(") !== -1) {
-			var freshMinValue = evaluateCSSValue(self.minValueRaw, operation.parentSizeAtStart, operation.handleSize);
-			if(freshMinValue !== null) {
-				operation.effectiveMinValue = Math.max(freshMinValue, 0);
-			}
-		}
+		// Get fresh measurements for accurate calc() evaluation
+		// This ensures that if parent size or handle size changes during resize, we use current values
+		var measureElement = operation.targetElements && operation.targetElements[0] ? operation.targetElements[0] : domNode;
+		var currentParentSize = getParentSize(measureElement);
+		var currentHandleSize = getHandleSize();
 		
-		// For concurrent resize scenarios, re-evaluate max value if it contains calc()
-		// This ensures we get current values from other panels
-		if(self.maxValueRaw && self.maxValueRaw.indexOf("calc(") !== -1) {
-			var freshMaxValue = evaluateCSSValue(self.maxValueRaw, operation.parentSizeAtStart, operation.handleSize);
-			if(freshMaxValue !== null && freshMaxValue > 0) {
-				operation.effectiveMaxValue = freshMaxValue;
-			}
+		// Always re-evaluate min/max values to get the latest from self.minValueRaw and self.maxValueRaw
+		// This ensures that if attributes change during resize, the new values are used immediately
+		// Use fresh measurements instead of cached values from operation
+		var effectiveMinValue = self.minValueRaw ? evaluateCSSValue(self.minValueRaw, currentParentSize, currentHandleSize) : null;
+		var effectiveMaxValue = self.maxValueRaw ? evaluateCSSValue(self.maxValueRaw, currentParentSize, currentHandleSize) : null;
+		
+		// Ensure min/max values are reasonable
+		if(effectiveMinValue !== null) {
+			effectiveMinValue = Math.max(effectiveMinValue, 0);
+		}
+		if(effectiveMaxValue !== null && effectiveMaxValue < 0) {
+			// If max value calculated to negative (can happen with concurrent resize), 
+			// use parent size as a reasonable maximum
+			effectiveMaxValue = operation.parentSizeAtStart * 0.8;
 		}
 		
 		// Pre-calculate clamped delta based on min/max constraints
@@ -760,27 +764,27 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 				if(operation.startValues[tiddlerTitle] !== undefined) {
 					var newPixelValue = operation.startValues[tiddlerTitle] + pixelDelta;
 					// Ensure minimum value is respected (never less than absolute minimum)
-					var absoluteMin = Math.max(operation.effectiveMinValue || 0, 0);
+					var absoluteMin = Math.max(effectiveMinValue || 0, 0);
 					if(newPixelValue < absoluteMin) {
 						// Calculate the maximum negative delta that won't go below min
 						var maxNegativeDelta = absoluteMin - operation.startValues[tiddlerTitle];
 						clampedDelta = Math.max(clampedDelta, maxNegativeDelta);
 					}
-					if(operation.effectiveMaxValue !== null && operation.effectiveMaxValue > 0 && newPixelValue > operation.effectiveMaxValue) {
+					if(effectiveMaxValue !== null && effectiveMaxValue > 0 && newPixelValue > effectiveMaxValue) {
 						// Calculate the maximum positive delta that won't exceed max
-						var maxPositiveDelta = operation.effectiveMaxValue - operation.startValues[tiddlerTitle];
+						var maxPositiveDelta = effectiveMaxValue - operation.startValues[tiddlerTitle];
 						clampedDelta = Math.min(clampedDelta, maxPositiveDelta);
 					}
 				}
 			});
 		} else if(self.targetTiddler) {
 			var newPixelValue = operation.startValue + pixelDelta;
-			var absoluteMin = Math.max(operation.effectiveMinValue || 0, 0);
+			var absoluteMin = Math.max(effectiveMinValue || 0, 0);
 			if(newPixelValue < absoluteMin) {
 				clampedDelta = absoluteMin - operation.startValue;
 			}
-			if(operation.effectiveMaxValue !== null && operation.effectiveMaxValue > 0 && newPixelValue > operation.effectiveMaxValue) {
-				clampedDelta = operation.effectiveMaxValue - operation.startValue;
+			if(effectiveMaxValue !== null && effectiveMaxValue > 0 && newPixelValue > effectiveMaxValue) {
+				clampedDelta = effectiveMaxValue - operation.startValue;
 			}
 		}
 		
@@ -1021,19 +1025,8 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 			operation.parentSizeAtStart = getParentSize(domNode);
 		}
 		
-		// Cache the evaluated min/max values at drag start
-		operation.effectiveMinValue = self.minValueRaw ? evaluateCSSValue(self.minValueRaw, operation.parentSizeAtStart, handleSize) : null;
-		operation.effectiveMaxValue = self.maxValueRaw ? evaluateCSSValue(self.maxValueRaw, operation.parentSizeAtStart, handleSize) : null;
-		
-		// Ensure min/max values are reasonable
-		if(operation.effectiveMinValue !== null) {
-			operation.effectiveMinValue = Math.max(operation.effectiveMinValue, 0);
-		}
-		if(operation.effectiveMaxValue !== null && operation.effectiveMaxValue < 0) {
-			// If max value calculated to negative (can happen with concurrent resize), 
-			// use parent size as a reasonable maximum
-			operation.effectiveMaxValue = operation.parentSizeAtStart * 0.8;
-		}
+		// Note: We no longer cache min/max values at drag start
+		// They are now evaluated fresh on each update to respect attribute changes during resize
 		
 		// Get and store the current value for each tiddler
 		operation.startValues = {}; // Create object when needed
@@ -1345,12 +1338,21 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 					}
 					
 					// Apply min/max constraints to the pixel value
-					var absoluteMin = Math.max(operation.effectiveMinValue || 0, 0);
+					// Get fresh measurements for accurate constraint evaluation
+					var measureElement = operation.targetElements && operation.targetElements[0] ? operation.targetElements[0] : domNode;
+					var currentParentSize = getParentSize(measureElement);
+					var currentHandleSize = getHandleSize();
+					
+					// Re-evaluate min/max to use current attribute values with fresh measurements
+					var currentMinValue = self.minValueRaw ? evaluateCSSValue(self.minValueRaw, currentParentSize, currentHandleSize) : null;
+					var currentMaxValue = self.maxValueRaw ? evaluateCSSValue(self.maxValueRaw, currentParentSize, currentHandleSize) : null;
+					
+					var absoluteMin = Math.max(currentMinValue || 0, 0);
 					if(livePixelValue < absoluteMin) {
 						livePixelValue = absoluteMin;
 					}
-					if(operation.effectiveMaxValue !== null && operation.effectiveMaxValue > 0 && livePixelValue > operation.effectiveMaxValue) {
-						livePixelValue = operation.effectiveMaxValue;
+					if(currentMaxValue !== null && currentMaxValue > 0 && livePixelValue > currentMaxValue) {
+						livePixelValue = currentMaxValue;
 					}
 					
 					// Convert to widget's unit for live resize
@@ -1643,6 +1645,7 @@ ResizerWidget.prototype.refresh = function(changedTiddlers) {
 		}
 		
 		if(onlyMinMaxChanged) {
+			console.log("CHANGED");
 			// Update only the min/max values without full refresh
 			this.minValueRaw = this.getAttribute("min");
 			this.maxValueRaw = this.getAttribute("max");
