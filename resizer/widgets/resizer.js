@@ -89,7 +89,8 @@ Add double-click handler for reset functionality
 ResizerWidget.prototype.addDoubleClickHandler = function(domNode) {
 	var self = this;
 	
-	domNode.addEventListener("dblclick", function(event) {
+	// Store reference for cleanup
+	self.handleDoubleClickReference = function(event) {
 		event.preventDefault();
 		event.stopPropagation();
 		
@@ -155,7 +156,9 @@ ResizerWidget.prototype.addDoubleClickHandler = function(domNode) {
 			self.setVariable("actionDirection", self.direction);
 			self.invokeActionString(self.onReset, self);
 		}
-	});
+	};
+	
+	domNode.addEventListener("dblclick", self.handleDoubleClickReference);
 };
 
 /*
@@ -167,11 +170,32 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 	// Store domNode reference for cleanup
 	self.domNode = domNode;
 	
-	// Store active resize operations by pointer ID (using object for ES5 compatibility)
+	// Store active resize operations by pointer ID with cleanup timeout
 	self.activeResizeOperations = {};
-	// Store shared parent size cache for coordinated resizing
+	self.operationTimeouts = {}; // Track timeouts for stale operation cleanup
+	// Limited parent size cache with LRU eviction to prevent memory growth
 	self.parentSizeCache = {};
+	self.parentSizeCacheOrder = []; // Track access order for LRU
+	self.maxCacheSize = 10; // Limit cache size to prevent unbounded growth
 	var aspectRatioValue = null;
+	
+	// Helper to manage parent size cache with LRU eviction
+	var updateParentSizeCache = function(key, value) {
+		// Remove key from order if it exists
+		var index = self.parentSizeCacheOrder.indexOf(key);
+		if(index > -1) {
+			self.parentSizeCacheOrder.splice(index, 1);
+		}
+		// Add key to end (most recently used)
+		self.parentSizeCacheOrder.push(key);
+		// Store value
+		self.parentSizeCache[key] = value;
+		// Evict oldest if cache is too large
+		if(self.parentSizeCacheOrder.length > self.maxCacheSize) {
+			var oldestKey = self.parentSizeCacheOrder.shift();
+			delete self.parentSizeCache[oldestKey];
+		}
+	};
 	
 	// Parse aspect ratio
 	if(self.aspectRatio) {
@@ -349,7 +373,14 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 	};
 	
 	// Robust calc() expression evaluator with support for nested expressions, parentheses, and all operations
-	var evaluateCalcExpression = function(expression, contextSize, handleSize) {
+	var evaluateCalcExpression = function(expression, contextSize, handleSize, depth) {
+		// Limit recursion depth to prevent stack overflow
+		depth = depth || 0;
+		if(depth > 10) {
+			console.warn("calc() expression too deeply nested, limiting depth");
+			return 0;
+		}
+		
 		// Tokenize the expression
 		var tokens = [];
 		var current = "";
@@ -393,9 +424,9 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 					else if(expression[j] === ")") depth--;
 					j++;
 				}
-				// Recursively evaluate nested calc
+				// Recursively evaluate nested calc with depth tracking
 				var nestedExpr = expression.substring(i + 5, j - 1);
-				var nestedResult = evaluateCalcExpression(nestedExpr, contextSize);
+				var nestedResult = evaluateCalcExpression(nestedExpr, contextSize, handleSize, depth + 1);
 				tokens.push(String(nestedResult));
 				i = j;
 				continue;
@@ -703,7 +734,7 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 		}
 	};
 	
-	// Create a resize operation object for a specific pointer
+	// Create a resize operation object for a specific pointer (optimized for memory)
 	var createResizeOperation = function(pointerId) {
 		return {
 			pointerId: pointerId,
@@ -711,19 +742,17 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 			startX: 0,
 			startY: 0,
 			startValue: 0,
-			startValues: {},
-			startUnits: {},
-			targetElement: null,
-			targetElements: [],
-			initialMouseX: 0,
-			initialMouseY: 0,
+			startValues: null, // Initialize as null, create object only when needed
+			startUnits: null, // Initialize as null, create object only when needed
+			targetElements: null, // Initialize as null, create array only when needed
 			parentSizeAtStart: 0,
 			parentKey: null,
 			effectiveMinValue: null,
 			effectiveMaxValue: null,
 			animationFrameId: null,
 			pendingMouseEvent: null,
-			hasPointerCapture: false
+			hasPointerCapture: false,
+			cursor: null
 		};
 	};
 	
@@ -752,6 +781,19 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 		var operation = createResizeOperation(event.pointerId);
 		self.activeResizeOperations[event.pointerId] = operation;
 		
+		// Set a timeout to clean up stale operations (30 seconds)
+		if(self.operationTimeouts[event.pointerId]) {
+			clearTimeout(self.operationTimeouts[event.pointerId]);
+		}
+		self.operationTimeouts[event.pointerId] = setTimeout(function() {
+			if(self.activeResizeOperations[event.pointerId] && 
+			   self.activeResizeOperations[event.pointerId].isResizing) {
+				console.warn("Cleaning up stale resize operation for pointer", event.pointerId);
+				self.cleanupResize(event.pointerId);
+			}
+			delete self.operationTimeouts[event.pointerId];
+		}, 30000);
+		
 		// Store pointer type for debugging
 		operation.pointerType = event.pointerType || "mouse";
 		
@@ -770,7 +812,7 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 		// We'll set up parent size cache after finding target elements
 		
 		// Find the target element(s) to resize FIRST so we can measure them
-		operation.targetElements = [];
+		operation.targetElements = []; // Initialize array when needed
 		if(self.targetSelector) {
 			if(self.resizeMode === "multiple") {
 				operation.targetElements = Array.from(self.document.querySelectorAll(self.targetSelector));
@@ -827,7 +869,7 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 				operation.parentSizeAtStart = self.parentSizeCache[parentKey];
 			} else {
 				operation.parentSizeAtStart = getParentSize(measureElement);
-				self.parentSizeCache[parentKey] = operation.parentSizeAtStart;
+				updateParentSizeCache(parentKey, operation.parentSizeAtStart);
 			}
 			operation.parentKey = parentKey;
 		} else {
@@ -850,8 +892,8 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 		}
 		
 		// Get and store the current value for each tiddler
-		operation.startValues = {}; // Reset the object
-		operation.startUnits = {}; // Reset the units object
+		operation.startValues = {}; // Create object when needed
+		operation.startUnits = {}; // Create object when needed
 		
 		// Helper to get the actual computed size of an element
 		var getElementSize = function(element) {
@@ -1259,6 +1301,12 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 			}
 		}
 		
+		// Clear any cleanup timeout for this operation
+		if(self.operationTimeouts[pointerId]) {
+			clearTimeout(self.operationTimeouts[pointerId]);
+			delete self.operationTimeouts[pointerId];
+		}
+		
 		// Remove the operation from our tracking
 		delete self.activeResizeOperations[pointerId];
 		
@@ -1343,7 +1391,7 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 	domNode.addEventListener("pointerdown", handlePointerDown, {passive: false});
 	
 	// Also add touchstart as a fallback for devices with poor pointer event support
-	domNode.addEventListener("touchstart", function(e) {
+	self.handleTouchStartReference = function(e) {
 		// Only handle if pointer events aren't working
 		if(!self.activeResizeOperations || Object.keys(self.activeResizeOperations).length === 0) {
 			e.preventDefault();
@@ -1360,7 +1408,8 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 				});
 			}
 		}
-	}, {passive: false});
+	};
+	domNode.addEventListener("touchstart", self.handleTouchStartReference, {passive: false});
 	
 	// Move and up events on document for multi-touch support
 	// These are only added once per widget instance
@@ -1490,6 +1539,14 @@ ResizerWidget.prototype.destroy = function() {
 		if(self.handleGotPointerCaptureReference) {
 			domNode.removeEventListener("gotpointercapture", self.handleGotPointerCaptureReference);
 		}
+		// Remove double-click handler
+		if(self.handleDoubleClickReference) {
+			domNode.removeEventListener("dblclick", self.handleDoubleClickReference);
+		}
+		// Remove touch fallback
+		if(self.handleTouchStartReference) {
+			domNode.removeEventListener("touchstart", self.handleTouchStartReference);
+		}
 	}
 	// Remove document-level listeners
 	if(self.documentListenersAdded && self.handlePointerMoveReference && self.handlePointerUpReference) {
@@ -1501,12 +1558,25 @@ ResizerWidget.prototype.destroy = function() {
 	// Clean up any active resize operations
 	if(self.activeResizeOperations && self.cleanupResize) {
 		for(var pointerId in self.activeResizeOperations) {
-			if(self.activeResizeOperations[pointerId].isResizing) {
+			if(self.activeResizeOperations[pointerId] && self.activeResizeOperations[pointerId].isResizing) {
 				// Call cleanupResize directly
 				self.cleanupResize(pointerId);
 			}
 		}
 	}
+	// Clear all operation timeouts
+	if(self.operationTimeouts) {
+		for(var timeoutId in self.operationTimeouts) {
+			clearTimeout(self.operationTimeouts[timeoutId]);
+		}
+		self.operationTimeouts = null;
+	}
+	// Clear caches to release memory
+	self.parentSizeCache = null;
+	self.parentSizeCacheOrder = null;
+	self.activeResizeOperations = null;
+	// Clear DOM references
+	self.domNode = null;
 	// Call parent destroy if it exists
 	if(Widget.prototype.destroy) {
 		Widget.prototype.destroy.call(this);
