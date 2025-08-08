@@ -84,6 +84,74 @@ ResizerWidget.prototype.render = function(parent,nextSibling) {
 };
 
 /*
+Trigger haptic feedback with fallback support
+*/
+ResizerWidget.prototype.triggerHaptic = function(pattern) {
+	try {
+		// Convert single number to array
+		if(typeof pattern === "number") {
+			pattern = [pattern];
+		}
+		
+		// Debug logging if enabled
+		if(this.hapticDebug === "yes") {
+			console.log("Attempting haptic feedback:", pattern);
+			console.log("Navigator object:", window.navigator);
+			console.log("Vibrate function:", window.navigator && window.navigator.vibrate);
+		}
+		
+		// Try standard Vibration API
+		if(window.navigator && typeof window.navigator.vibrate === "function") {
+			// Some browsers require user gesture and return false if blocked
+			var result = window.navigator.vibrate(pattern);
+			if(this.hapticDebug === "yes") {
+				console.log("Vibrate result:", result);
+			}
+			if(result === false) {
+				console.log("Haptic feedback blocked - user gesture may be required");
+			}
+			return result;
+		}
+		
+		// Try webkit-specific vibrate (older iOS)
+		if(window.navigator && typeof window.navigator.webkitVibrate === "function") {
+			if(this.hapticDebug === "yes") {
+				console.log("Using webkit vibrate");
+			}
+			return window.navigator.webkitVibrate(pattern);
+		}
+		
+		// Try mozilla-specific vibrate (older Firefox)
+		if(window.navigator && typeof window.navigator.mozVibrate === "function") {
+			if(this.hapticDebug === "yes") {
+				console.log("Using mozilla vibrate");
+			}
+			return window.navigator.mozVibrate(pattern);
+		}
+		
+		// Try ms-specific vibrate (older Edge/IE)
+		if(window.navigator && typeof window.navigator.msVibrate === "function") {
+			if(this.hapticDebug === "yes") {
+				console.log("Using MS vibrate");
+			}
+			return window.navigator.msVibrate(pattern);
+		}
+		
+		// No vibration API available
+		if(this.hapticDebug === "yes") {
+			console.log("No vibration API available");
+		}
+		return false;
+	} catch(e) {
+		// Fail silently unless in debug mode
+		if(this.hapticDebug === "yes") {
+			console.error("Haptic feedback error:", e);
+		}
+		return false;
+	}
+};
+
+/*
 Add double-click handler for reset functionality
 */
 ResizerWidget.prototype.addDoubleClickHandler = function(domNode) {
@@ -145,9 +213,8 @@ ResizerWidget.prototype.addDoubleClickHandler = function(domNode) {
 		}
 		
 		// Trigger haptic feedback on mobile
-		if(self.hapticFeedback === "yes" && window.navigator && window.navigator.vibrate) {
-			// Light double pulse for reset
-			window.navigator.vibrate([10, 50, 10]);
+		if(self.hapticFeedback === "yes") {
+			self.triggerHaptic([10, 50, 10]);
 		}
 		
 		// Call reset action if provided
@@ -768,9 +835,8 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 				event.target.style.touchAction = "none";
 			}
 			// Trigger haptic feedback on touch start
-			if(self.hapticFeedback === "yes" && window.navigator && window.navigator.vibrate) {
-				// Short pulse for grab
-				window.navigator.vibrate(5);
+			if(self.hapticFeedback === "yes") {
+				self.triggerHaptic(10); // Slightly longer pulse for better feel
 			}
 		} else {
 			event.preventDefault();
@@ -1326,10 +1392,8 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 		if(!operation || !operation.isResizing) return;
 		
 		// Trigger haptic feedback on release for touch
-		if(operation.pointerType === "touch" && self.hapticFeedback === "yes" && 
-		   window.navigator && window.navigator.vibrate) {
-			// Very short pulse for release
-			window.navigator.vibrate(3);
+		if(operation.pointerType === "touch" && self.hapticFeedback === "yes") {
+			self.triggerHaptic(5); // Short pulse for release
 		}
 		
 		self.cleanupResize(event.pointerId);
@@ -1470,6 +1534,7 @@ ResizerWidget.prototype.execute = function() {
 	this.handleStyle = this.getAttribute("handleStyle", "solid"); // solid, dots, lines, chevron, grip
 	// Haptic feedback
 	this.hapticFeedback = this.getAttribute("hapticFeedback", "yes");
+	this.hapticDebug = this.getAttribute("hapticDebug", "no"); // Debug mode for haptic feedback
 	// Make child widgets
 	this.makeChildWidgets();
 };
