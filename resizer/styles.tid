@@ -116,22 +116,25 @@ body.tc-resizing .tc-resizer {
 }
 
 /* Sidebar resizer grip indicator */
-.tc-sidebar-resizer::before {
+.tc-sidebar-resizer::before,
+.tc-tiddler-editor-resizer::before {
 	content: "";
 	position: absolute;
 	top: 50%;
 	left: 50%;
 	transform: translate(-50%, -50%);
-	opacity: 0.5;
-	width: 1px;
-	height: 30px;
-	background: repeating-linear-gradient(
-		to bottom,
-		<<colour muted-foreground>> 0,
-		<<colour muted-foreground>> 2px,
-		transparent 2px,
-		transparent 4px
-	);
+	width: 3px;
+	height: 40px;
+	background: <<colour primary>>;
+	border-radius: 1.5px;
+	opacity: 1;
+}
+
+.tc-sidebar-resizer:hover::before,
+.tc-sidebar-resizer.tc-resizer-active::before,
+.tc-tiddler-editor-resizer:hover::before,
+.tc-tiddler-editor-resizer.tc-resizer-active::before {
+	background: <<colour muted-foreground>>;
 }
 
 /* Hide sidebar resizer on mobile */
@@ -157,7 +160,7 @@ body.tc-resizing .tc-resizer {
 	width: 5px;
 	cursor: ew-resize;
 	background-color: <<colour muted-foreground>>;
-	opacity: 0.15;
+	opacity: 0.75;
 	transition: opacity 0.2s ease, background-color 0.2s ease;
 	margin: 4px 0 3px 0;
 	position: relative;
@@ -166,7 +169,7 @@ body.tc-resizing .tc-resizer {
 .tc-tiddler-editor-resizer:hover,
 .tc-tiddler-editor-resizer.tc-resizer-active {
 	background-color: <<colour primary>>;
-	opacity: 0.75;
+	opacity: 1;
 }
 
 .tc-tiddler-frame .tc-tiddler-editor.tc-tiddler-preview .tc-tiddler-preview-preview {
@@ -277,31 +280,29 @@ body.tc-resizing .tc-resizer {
 	top: 50%;
 	left: 50%;
 	transform: translate(-50%, -50%);
-	opacity: 0.5;
 }
 
 .tc-panel-splitter-vertical::before {
-	width: 1px;
-	height: 30px;
-	background: repeating-linear-gradient(
-		to bottom,
-		<<colour muted-foreground>> 0,
-		<<colour muted-foreground>> 2px,
-		transparent 2px,
-		transparent 4px
-	);
+	width: 3px;
+	height: 40px;
+	background: <<colour primary>>;
+	border-radius: 1.5px;
+	opacity: 1;
 }
 
 .tc-panel-splitter-horizontal::before {
-	width: 30px;
-	height: 1px;
-	background: repeating-linear-gradient(
-		to right,
-		<<colour muted-foreground>> 0,
-		<<colour muted-foreground>> 2px,
-		transparent 2px,
-		transparent 4px
-	);
+	width: 40px;
+	height: 3px;
+	background: <<colour primary>>;
+	border-radius: 1.5px;
+	opacity: 1;
+}
+
+.tc-panel-splitter-vertical:hover::before,
+.tc-panel-splitter-vertical.tc-resizer-active::before,
+.tc-panel-splitter-horizontal:hover::before,
+.tc-panel-splitter-horizontal.tc-resizer-active::before {
+	background: <<colour muted-foreground>>;
 }
 
 /* =================================================================
@@ -360,6 +361,172 @@ body.tc-resizing .tc-resizer {
 .tc-panel-expand-btn.tc-panel-btn-right {
 	left: auto;
 	right: 10px;
+}
+
+/* =================================================================
+   HANDLE STYLE VARIATIONS
+   Different visual styles for resizer handles
+   ================================================================= */
+
+/* Dots pattern */
+.tc-resizer[data-handle-style="dots"]::before,
+.tc-sidebar-resizer[data-handle-style="dots"]::before,
+.tc-panel-splitter-vertical[data-handle-style="dots"]::before {
+	width: 5px;
+	height: 5px;
+	border-radius: 50%;
+	background: <<colour primary>>;
+	box-shadow: 0 10px 0 <<colour primary>>, 0 20px 0 <<colour primary>>, 0 -10px 0 <<colour primary>>, 0 -20px 0 <<colour primary>>;
+}
+
+.tc-panel-splitter-horizontal[data-handle-style="dots"]::before {
+	width: 5px;
+	height: 5px;
+	border-radius: 50%;
+	background: <<colour primary>>;
+	box-shadow: 10px 0 0 <<colour primary>>, 20px 0 0 <<colour primary>>, -10px 0 0 <<colour primary>>, -20px 0 0 <<colour primary>>;
+}
+
+/* Lines pattern */
+.tc-resizer[data-handle-style="lines"]::before,
+.tc-sidebar-resizer[data-handle-style="lines"]::before,
+.tc-panel-splitter-vertical[data-handle-style="lines"]::before {
+	width: 1px;
+	height: 40px;
+	background: repeating-linear-gradient(
+		to bottom,
+		<<colour primary>> 0,
+		<<colour primary>> 3px,
+		transparent 3px,
+		transparent 6px
+	);
+}
+
+.tc-panel-splitter-horizontal[data-handle-style="lines"]::before {
+	width: 40px;
+	height: 1px;
+	background: repeating-linear-gradient(
+		to right,
+		<<colour primary>> 0,
+		<<colour primary>> 3px,
+		transparent 3px,
+		transparent 6px
+	);
+}
+
+/* Chevron pattern */
+.tc-resizer[data-handle-style="chevron"]::before,
+.tc-sidebar-resizer[data-handle-style="chevron"]::before,
+.tc-panel-splitter-vertical[data-handle-style="chevron"]::before {
+	content: "❯";
+	width: auto;
+	height: auto;
+	background: none;
+	font-size: 12px;
+	color: <<colour primary>>;
+	letter-spacing: -3px;
+	font-weight: bold;
+}
+
+.tc-panel-splitter-horizontal[data-handle-style="chevron"]::before {
+	content: "⌄";
+	width: auto;
+	height: auto;
+	background: none;
+	font-size: 12px;
+	color: <<colour primary>>;
+	letter-spacing: -3px;
+	font-weight: bold;
+}
+
+/* Grip pattern (dots grid) */
+.tc-resizer[data-handle-style="grip"]::before,
+.tc-sidebar-resizer[data-handle-style="grip"]::before,
+.tc-panel-splitter-vertical[data-handle-style="grip"]::before {
+	content: "⋮";
+	width: auto;
+	height: auto;
+	background: none;
+	font-size: 14px;
+	color: <<colour primary>>;
+	letter-spacing: -2px;
+	line-height: 1;
+}
+
+.tc-panel-splitter-horizontal[data-handle-style="grip"]::before {
+	content: "⋯⋯";
+	width: auto;
+	height: auto;
+	background: none;
+	font-size: 14px;
+	color: <<colour primary>>;
+	letter-spacing: -2px;
+	line-height: 1;
+}
+
+/* Hover states for all handle styles */
+.tc-resizer[data-handle-style]:hover::before,
+.tc-sidebar-resizer[data-handle-style]:hover::before,
+.tc-panel-splitter-vertical[data-handle-style]:hover::before,
+.tc-panel-splitter-horizontal[data-handle-style]:hover::before,
+.tc-resizer[data-handle-style].tc-resizer-active::before,
+.tc-sidebar-resizer[data-handle-style].tc-resizer-active::before,
+.tc-panel-splitter-vertical[data-handle-style].tc-resizer-active::before,
+.tc-panel-splitter-horizontal[data-handle-style].tc-resizer-active::before {
+	color: <<colour muted-foreground>>;
+}
+
+.tc-resizer[data-handle-style="dots"]:hover::before,
+.tc-sidebar-resizer[data-handle-style="dots"]:hover::before,
+.tc-panel-splitter-vertical[data-handle-style="dots"]:hover::before,
+.tc-resizer[data-handle-style="dots"].tc-resizer-active::before,
+.tc-sidebar-resizer[data-handle-style="dots"].tc-resizer-active::before,
+.tc-panel-splitter-vertical[data-handle-style="dots"].tc-resizer-active::before {
+	background: <<colour muted-foreground>>;
+	box-shadow: 0 10px 0 <<colour muted-foreground>>, 0 20px 0 <<colour muted-foreground>>, 0 -10px 0 <<colour muted-foreground>>, 0 -20px 0 <<colour muted-foreground>>;
+}
+
+.tc-panel-splitter-horizontal[data-handle-style="dots"]:hover::before,
+.tc-panel-splitter-horizontal[data-handle-style="dots"].tc-resizer-active::before {
+	background: <<colour muted-foreground>>;
+	box-shadow: 10px 0 0 <<colour muted-foreground>>, 20px 0 0 <<colour muted-foreground>>, -10px 0 0 <<colour muted-foreground>>, -20px 0 0 <<colour muted-foreground>>;
+}
+
+.tc-resizer[data-handle-style="lines"]:hover::before,
+.tc-sidebar-resizer[data-handle-style="lines"]:hover::before,
+.tc-panel-splitter-vertical[data-handle-style="lines"]:hover::before,
+.tc-resizer[data-handle-style="lines"].tc-resizer-active::before,
+.tc-sidebar-resizer[data-handle-style="lines"].tc-resizer-active::before,
+.tc-panel-splitter-vertical[data-handle-style="lines"].tc-resizer-active::before {
+	background: repeating-linear-gradient(
+		to bottom,
+		<<colour muted-foreground>> 0,
+		<<colour muted-foreground>> 3px,
+		transparent 3px,
+		transparent 6px
+	);
+}
+
+.tc-panel-splitter-horizontal[data-handle-style="lines"]:hover::before,
+.tc-panel-splitter-horizontal[data-handle-style="lines"].tc-resizer-active::before {
+	background: repeating-linear-gradient(
+		to right,
+		<<colour muted-foreground>> 0,
+		<<colour muted-foreground>> 3px,
+		transparent 3px,
+		transparent 6px
+	);
+}
+
+/* Double-click visual feedback */
+@keyframes resizer-reset-pulse {
+	0% { opacity: 1; }
+	50% { opacity: 0.3; }
+	100% { opacity: 1; }
+}
+
+.tc-resizer:active {
+	animation: resizer-reset-pulse 0.2s ease-out;
 }
 
 /* =================================================================
@@ -456,7 +623,7 @@ body.tc-resizing .tc-resizer {
 		padding: 0 5px;
 	}
 	
-	.tc-tiddler-editor-resizer::after {
+	/*.tc-tiddler-editor-resizer::after {
 		content: "⋮";
 		position: absolute;
 		top: 50%;
@@ -465,7 +632,7 @@ body.tc-resizing .tc-resizer {
 		font-size: 12px;
 		color: <<colour muted-foreground>>;
 		opacity: 0.7;
-	}
+	}*/
 	
 	/* Active state for touch */
 	.tc-resizer.tc-resizer-active {

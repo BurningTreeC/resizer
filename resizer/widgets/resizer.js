@@ -38,6 +38,10 @@ ResizerWidget.prototype.render = function(parent,nextSibling) {
 	domNode.className = "tc-resizer " + (this.resizerClass || "") + (this.disable === "yes" ? " tc-resizer-disabled" : "");
 	domNode.setAttribute("data-direction", this.direction);
 	domNode.setAttribute("data-handle-position", this.handlePosition);
+	// Add handle style attribute for CSS styling
+	if(this.handleStyle) {
+		domNode.setAttribute("data-handle-style", this.handleStyle);
+	}
 	if(this.disable === "yes") {
 		domNode.setAttribute("data-disabled", "true");
 	}
@@ -54,6 +58,8 @@ ResizerWidget.prototype.render = function(parent,nextSibling) {
 	// Add event handlers only if not disabled
 	if(this.disable !== "yes") {
 		this.addEventHandlers(domNode);
+		// Add double-click handler for reset
+		this.addDoubleClickHandler(domNode);
 	}
 	// Insert element based on handle position
 	try {
@@ -75,6 +81,81 @@ ResizerWidget.prototype.render = function(parent,nextSibling) {
 	}
 	this.renderChildren(domNode,null);
 	this.domNodes.push(domNode);
+};
+
+/*
+Add double-click handler for reset functionality
+*/
+ResizerWidget.prototype.addDoubleClickHandler = function(domNode) {
+	var self = this;
+	
+	domNode.addEventListener("dblclick", function(event) {
+		event.preventDefault();
+		event.stopPropagation();
+		
+		// Determine reset value based on resetTo attribute
+		var resetValue;
+		switch(self.resetTo) {
+			case "min":
+				resetValue = (self.minValueRaw || (self.unit === "%" ? "10%" : "50px"));
+				break;
+			case "max":
+				resetValue = (self.maxValueRaw || (self.unit === "%" ? "90%" : "800px"));
+				break;
+			case "custom":
+				resetValue = self.resetValue || self.defaultValue;
+				break;
+			default: // "default"
+				resetValue = self.defaultValue;
+		}
+		
+		// Apply smooth transition if enabled
+		if(self.smoothReset === "yes") {
+			// Find target elements for smooth animation
+			var targetElements = [];
+			if(self.targetSelector) {
+				if(self.resizeMode === "multiple") {
+					targetElements = Array.from(self.document.querySelectorAll(self.targetSelector));
+				} else {
+					var singleElement = self.document.querySelector(self.targetSelector);
+					if(singleElement) targetElements = [singleElement];
+				}
+			} else if(domNode.previousElementSibling) {
+				targetElements = [domNode.previousElementSibling];
+			}
+			
+			// Add transition to elements
+			targetElements.forEach(function(element) {
+				element.style.transition = self.targetProperty + " 0.3s ease-out";
+				// Remove transition after animation
+				setTimeout(function() {
+					element.style.transition = "";
+				}, 300);
+			});
+		}
+		
+		// Update tiddler values
+		if(self.targetTiddlers && self.targetTiddlers.length > 0) {
+			$tw.utils.each(self.targetTiddlers, function(tiddlerTitle) {
+				self.wiki.setText(tiddlerTitle, self.targetField || "text", null, resetValue);
+			});
+		} else if(self.targetTiddler) {
+			self.wiki.setText(self.targetTiddler, self.targetField || "text", null, resetValue);
+		}
+		
+		// Trigger haptic feedback on mobile
+		if(self.hapticFeedback === "yes" && window.navigator && window.navigator.vibrate) {
+			// Light double pulse for reset
+			window.navigator.vibrate([10, 50, 10]);
+		}
+		
+		// Call reset action if provided
+		if(self.onReset) {
+			self.setVariable("actionValue", resetValue);
+			self.setVariable("actionDirection", self.direction);
+			self.invokeActionString(self.onReset, self);
+		}
+	});
 };
 
 /*
@@ -657,6 +738,11 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 			if(event.target) {
 				event.target.style.touchAction = "none";
 			}
+			// Trigger haptic feedback on touch start
+			if(self.hapticFeedback === "yes" && window.navigator && window.navigator.vibrate) {
+				// Short pulse for grab
+				window.navigator.vibrate(5);
+			}
 		} else {
 			event.preventDefault();
 			event.stopPropagation();
@@ -1191,6 +1277,13 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 		var operation = self.activeResizeOperations[event.pointerId];
 		if(!operation || !operation.isResizing) return;
 		
+		// Trigger haptic feedback on release for touch
+		if(operation.pointerType === "touch" && self.hapticFeedback === "yes" && 
+		   window.navigator && window.navigator.vibrate) {
+			// Very short pulse for release
+			window.navigator.vibrate(3);
+		}
+		
 		self.cleanupResize(event.pointerId);
 		
 		// Call resize end callback
@@ -1319,6 +1412,15 @@ ResizerWidget.prototype.execute = function() {
 	this.onResize = this.getAttribute("onResize");
 	this.onResizeEnd = this.getAttribute("onResizeEnd");
 	this.disable = this.getAttribute("disable", "no");
+	// Double-click reset attributes
+	this.resetTo = this.getAttribute("resetTo", "default"); // default, min, max, custom
+	this.resetValue = this.getAttribute("resetValue");
+	this.smoothReset = this.getAttribute("smoothReset", "yes");
+	this.onReset = this.getAttribute("onReset");
+	// Handle style attribute
+	this.handleStyle = this.getAttribute("handleStyle", "solid"); // solid, dots, lines, chevron, grip
+	// Haptic feedback
+	this.hapticFeedback = this.getAttribute("hapticFeedback", "yes");
 	// Make child widgets
 	this.makeChildWidgets();
 };

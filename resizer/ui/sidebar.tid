@@ -18,7 +18,7 @@ $:/config/SideBarSegments/Visibility/$(listItem)$
 	max={{{ [[calc(100vw - ]addsuffix{$:/themes/tiddlywiki/vanilla/metrics/storyminwidth}addsuffix[)]] }}}
 	default="350px"
 	invert="yes"
-	live="yes"
+	smoothReset="yes"
 />
 <%elseif [{$:/themes/tiddlywiki/vanilla/options/sidebarlayout}match[fixed-fluid]] %>
 <$resizer
@@ -29,7 +29,7 @@ $:/config/SideBarSegments/Visibility/$(listItem)$
 	max={{{ [[calc(100vw - ]addsuffix{$:/themes/tiddlywiki/vanilla/metrics/sidebarminwidth}addsuffix[)]] }}}
 	default="calc(100% - 770px)"
 	invert="no"
-	live="yes"
+	smoothReset="yes"
 />
 <% endif %>
 <% endif %>

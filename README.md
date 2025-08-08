@@ -14,6 +14,9 @@ A powerful and flexible resizer widget for TiddlyWiki that enables interactive r
 - **Directional Control**: Supports both horizontal and vertical resizing
 - **Aspect Ratio**: Maintain aspect ratios during resize operations
 - **Touch Support**: Works with both mouse and touch input via pointer events
+- **Double-Click Reset**: Double-click any resizer handle to reset to default/min/max values
+- **Enhanced Handle Styles**: Choose from multiple handle visual styles (solid, dots, lines, chevron, grip)
+- **Haptic Feedback**: Tactile feedback on mobile devices for better user experience
 
 ## Installation
 
@@ -95,7 +98,23 @@ The following variables are available within action strings:
 |-----------|-------------|---------|
 | `class` | Additional CSS classes for the resizer | "" |
 | `handlePosition` | Position of resize handle: "before", "after", "overlay" | "after" |
+| `handleStyle` | Visual style of the handle: "solid", "dots", "lines", "chevron", "grip" | "solid" |
 | `disable` | Disable the resizer: "yes" or "no" | "no" |
+
+### Reset Attributes
+
+| Attribute | Description | Default |
+|-----------|-------------|---------|
+| `resetTo` | What value to reset to on double-click: "default", "min", "max", "custom" | "default" |
+| `resetValue` | Custom value to reset to when resetTo="custom" | - |
+| `smoothReset` | Animate the reset transition: "yes" or "no" | "yes" |
+| `onReset` | Action string to execute when resizer is reset | - |
+
+### Mobile/Touch Attributes
+
+| Attribute | Description | Default |
+|-----------|-------------|---------|
+| `hapticFeedback` | Enable haptic feedback on touch devices: "yes" or "no" | "yes" |
 
 ## Advanced Examples
 
@@ -197,6 +216,92 @@ When disabled:
 - The class `tc-resizer-disabled` is added for styling
 - No resize events or actions are triggered
 - The `data-disabled="true"` attribute is set on the DOM element
+
+### Double-Click Reset
+
+Double-click any resizer handle to reset it to a specified value:
+
+```html
+<!-- Reset to default value -->
+<$resizer
+  direction="horizontal"
+  tiddler="$:/state/panel/width"
+  default="300px"
+  resetTo="default"
+/>
+
+<!-- Reset to minimum value -->
+<$resizer
+  direction="horizontal"
+  tiddler="$:/state/panel/width"
+  min="200px"
+  resetTo="min"
+/>
+
+<!-- Reset to custom value with action -->
+<$resizer
+  direction="horizontal"
+  tiddler="$:/state/panel/width"
+  resetTo="custom"
+  resetValue="400px"
+  onReset="""
+    <$action-log message="Panel reset to 400px"/>
+  """
+/>
+
+<!-- Disable smooth animation on reset -->
+<$resizer
+  direction="horizontal"
+  tiddler="$:/state/panel/width"
+  smoothReset="no"
+/>
+```
+
+### Handle Styles
+
+Choose from different visual styles for the resizer handle:
+
+```html
+<!-- Default solid bar -->
+<$resizer handleStyle="solid" />
+
+<!-- Dots pattern -->
+<$resizer handleStyle="dots" />
+
+<!-- Dashed lines -->
+<$resizer handleStyle="lines" />
+
+<!-- Chevron arrows (❯❯ for horizontal, ⌄⌄ for vertical) -->
+<$resizer handleStyle="chevron" />
+
+<!-- Grip dots (⋮⋮ for horizontal, ⋯⋯ for vertical) -->
+<$resizer handleStyle="grip" />
+```
+
+### Mobile Experience
+
+The resizer includes enhanced support for touch devices:
+
+```html
+<!-- Enable haptic feedback (default) -->
+<$resizer
+  direction="horizontal"
+  tiddler="$:/state/panel/width"
+  hapticFeedback="yes"
+/>
+
+<!-- Disable haptic feedback -->
+<$resizer
+  direction="horizontal"
+  tiddler="$:/state/panel/width"
+  hapticFeedback="no"
+/>
+```
+
+Haptic feedback provides:
+- 5ms vibration on touch start (grab)
+- 3ms vibration on touch end (release)
+- Double pulse (10-50-10ms) on double-click reset
 
 ### Real-World Example
 

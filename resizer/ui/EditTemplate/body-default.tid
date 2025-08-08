@@ -36,6 +36,8 @@ $:/config/EditorToolbarButtons/Visibility/$(currentTiddler)$
 	max="80%"
 	default="50%"
 	unit="%"
+	smoothReset="yes"
+	handleStyle="solid"
 />
 
 <div class="tc-tiddler-preview-preview" data-tiddler-title={{!!draft.title}} data-tags={{!!tags}}>
