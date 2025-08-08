@@ -1,0 +1,7 @@
+title: $:/plugins/BTC/resizer/styles-compat
+tags: $:/tags/flibbles/graph/FullscreenStylesheet
+type: text/css
+
+.tc-resizer {
+    z-index: -1 !important;
+}
