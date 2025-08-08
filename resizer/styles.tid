@@ -106,7 +106,7 @@ body.tc-resizing .tc-resizer {
 	background-color: <<colour muted-foreground>>;
 	opacity: 0.75;
 	transition: opacity 0.2s ease, background-color 0.2s ease;
-	z-index: 10;
+	z-index: 1;
 }
 
 .tc-sidebar-resizer:hover,

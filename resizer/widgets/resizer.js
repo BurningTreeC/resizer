@@ -1068,6 +1068,15 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 						livePixelValue = operation.startValues[self.targetTiddlers[0]] + pixelDelta;
 					}
 					
+					// Apply min/max constraints to the pixel value
+					var absoluteMin = Math.max(operation.effectiveMinValue || 0, 0);
+					if(livePixelValue < absoluteMin) {
+						livePixelValue = absoluteMin;
+					}
+					if(operation.effectiveMaxValue !== null && operation.effectiveMaxValue > 0 && livePixelValue > operation.effectiveMaxValue) {
+						livePixelValue = operation.effectiveMaxValue;
+					}
+					
 					// Convert to widget's unit for live resize
 					var liveValue = convertFromPixels(livePixelValue, self.unit, domNode);
 					
