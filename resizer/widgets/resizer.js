@@ -19,10 +19,12 @@ var GlobalResizerManager = {
 	activeWidgets: [],
 	handlePointerMove: null,
 	handlePointerUp: null,
+	referenceCount: 0,
 	
 	addWidget: function(widget) {
 		if(this.activeWidgets.indexOf(widget) === -1) {
 			this.activeWidgets.push(widget);
+			this.referenceCount++;
 		}
 		this.ensureDocumentListeners();
 	},
@@ -31,9 +33,12 @@ var GlobalResizerManager = {
 		var index = this.activeWidgets.indexOf(widget);
 		if(index > -1) {
 			this.activeWidgets.splice(index, 1);
+			this.referenceCount--;
 		}
 		// Remove document listeners if no widgets are active
-		if(this.activeWidgets.length === 0) {
+		if(this.referenceCount <= 0) {
+			this.referenceCount = 0;
+			this.activeWidgets = [];
 			this.removeDocumentListeners();
 		}
 	},
@@ -878,6 +883,7 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 		return {
 			pointerId: pointerId,
 			isResizing: true,
+			timestamp: Date.now(), // Add timestamp for stale detection
 			startX: 0,
 			startY: 0,
 			startValue: 0,
@@ -1257,6 +1263,9 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 	
 	// Global handler for pointer move (called by GlobalResizerManager)
 	self.handlePointerMoveGlobal = function(event) {
+		// Defensive null check - widget might be destroyed
+		if(!self || !self.activeResizeOperations) return;
+		
 		// Get the operation for this pointer
 		var operation = self.activeResizeOperations[event.pointerId];
 		if(!operation || !operation.isResizing) return;
@@ -1372,6 +1381,9 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 	
 	// Cleanup function to stop resize operation for a specific pointer
 	self.cleanupResize = function(pointerId) {
+		// Defensive null check
+		if(!self || !self.activeResizeOperations) return;
+		
 		var operation = self.activeResizeOperations[pointerId];
 		if(!operation || !operation.isResizing) return;
 		
@@ -1462,6 +1474,9 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 	
 	// Global handler for pointer up (called by GlobalResizerManager)
 	self.handlePointerUpGlobal = function(event) {
+		// Defensive null check - widget might be destroyed
+		if(!self || !self.activeResizeOperations) return;
+		
 		var operation = self.activeResizeOperations[event.pointerId];
 		if(!operation || !operation.isResizing) return;
 		
@@ -1552,7 +1567,8 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 	
 	// Handle pointer capture events (use global handler for lost capture)
 	self.handleLostPointerCaptureReference = function(event) {
-		if(self.handlePointerUpGlobal) {
+		// Defensive null check
+		if(self && self.handlePointerUpGlobal) {
 			self.handlePointerUpGlobal(event);
 		}
 	};
@@ -1652,100 +1668,274 @@ Remove any DOM elements created by this widget
 ResizerWidget.prototype.removeChildDomNodes = function() {
 	var self = this;
 	
-	// Immediately clean up all active operations
+	// === COMPREHENSIVE CLEANUP (ES5-compatible) ===
+	
+	// 1. Clean up all active operations with full detail
 	if(self.activeResizeOperations) {
 		for(var pointerId in self.activeResizeOperations) {
-			if(self.activeResizeOperations[pointerId]) {
-				// Clean up the operation
+			if(self.activeResizeOperations.hasOwnProperty(pointerId)) {
+				var operation = self.activeResizeOperations[pointerId];
+				if(operation) {
+					// Cancel any pending animation frame
+					if(operation.animationFrameId) {
+						cancelAnimationFrame(operation.animationFrameId);
+						operation.animationFrameId = null;
+					}
+					// Clear pending events
+					operation.pendingMouseEvent = null;
+					// Clear DOM references in operation
+					if(operation.targetElements) {
+						operation.targetElements = null;
+					}
+					operation.targetElement = null;
+					// Clear cursor reference
+					operation.cursor = null;
+					// Release pointer capture if held
+					if(operation.hasPointerCapture && self.domNode && self.domNode.releasePointerCapture) {
+						try {
+							self.domNode.releasePointerCapture(pointerId);
+						} catch(e) {
+							// Ignore errors
+						}
+					}
+				}
+				// Call cleanup
 				if(self.cleanupResize) {
 					self.cleanupResize(pointerId);
 				}
 			}
 		}
+		// Clear the operations object completely
 		self.activeResizeOperations = {};
 	}
 	
-	// Clear all timeouts immediately
+	// 2. Clear all timeouts immediately
 	if(self.operationTimeouts) {
 		for(var timeoutId in self.operationTimeouts) {
-			clearTimeout(self.operationTimeouts[timeoutId]);
+			if(self.operationTimeouts.hasOwnProperty(timeoutId)) {
+				clearTimeout(self.operationTimeouts[timeoutId]);
+			}
 		}
 		self.operationTimeouts = {};
 	}
 	
-	// Remove from global manager
-	GlobalResizerManager.removeWidget(self);;
+	// 3. Remove all event listeners from DOM elements
+	if(self.domNodes && self.domNodes[0]) {
+		var domNode = self.domNodes[0];
+		
+		// Remove all event listeners with stored references
+		var listeners = [
+			{ref: 'handlePointerDownReference', event: 'pointerdown'},
+			{ref: 'handleLostPointerCaptureReference', event: 'lostpointercapture'},
+			{ref: 'handleGotPointerCaptureReference', event: 'gotpointercapture'},
+			{ref: 'handleDoubleClickReference', event: 'dblclick'},
+			{ref: 'handleTouchStartReference', event: 'touchstart'}
+		];
+		
+		for(var i = 0; i < listeners.length; i++) {
+			if(self[listeners[i].ref]) {
+				domNode.removeEventListener(listeners[i].event, self[listeners[i].ref]);
+				self[listeners[i].ref] = null; // Clear reference
+			}
+		}
+		
+		// Force release all pointer captures (defensive)
+		if(domNode.releasePointerCapture) {
+			try {
+				// Try to release captures for pointer IDs 0-10
+				for(var ptr = 0; ptr < 10; ptr++) {
+					domNode.releasePointerCapture(ptr);
+				}
+			} catch(e) {
+				// Ignore errors
+			}
+		}
+	}
 	
-	// Clear event handler references
+	// 4. Remove from global manager
+	if(typeof GlobalResizerManager !== "undefined") {
+		GlobalResizerManager.removeWidget(self);
+	}
+	
+	// 5. Clear all function references to break closure chains
 	self.handlePointerMoveGlobal = null;
 	self.handlePointerUpGlobal = null;
+	self.handlePointerDownReference = null;
+	self.handleLostPointerCaptureReference = null;
+	self.handleGotPointerCaptureReference = null;
+	self.handleDoubleClickReference = null;
+	self.handleTouchStartReference = null;
+	self.triggerHaptic = null;
+	self.cleanupResize = null;
 	
-	// Clear caches
+	// 6. Clear caches and data structures
 	self.parentSizeCache = {};
 	self.parentSizeCacheOrder = [];
+	
+	// 7. Clear DOM references
+	self.domNode = null;
+	self.parentDomNode = null;
+	
+	// 8. Clear all attribute values to free memory
+	self.actions = null;
+	self.onResizeStart = null;
+	self.onResize = null;
+	self.onResizeEnd = null;
+	self.onReset = null;
 	
 	// Call parent implementation
 	Widget.prototype.removeChildDomNodes.call(this);
 };
 
 /*
-Destroy the widget and clean up resources
+Destroy the widget and clean up resources - For future TiddlyWiki versions
 */
 ResizerWidget.prototype.destroy = function() {
 	var self = this;
-	// Remove event listeners
-	if(self.domNodes && self.domNodes[0]) {
-		var domNode = self.domNodes[0];
-		if(self.handlePointerDownReference) {
-			domNode.removeEventListener("pointerdown", self.handlePointerDownReference);
-		}
-		if(self.handleLostPointerCaptureReference) {
-			domNode.removeEventListener("lostpointercapture", self.handleLostPointerCaptureReference);
-		}
-		if(self.handleGotPointerCaptureReference) {
-			domNode.removeEventListener("gotpointercapture", self.handleGotPointerCaptureReference);
-		}
-		// Remove double-click handler
-		if(self.handleDoubleClickReference) {
-			domNode.removeEventListener("dblclick", self.handleDoubleClickReference);
-		}
-		// Remove touch fallback
-		if(self.handleTouchStartReference) {
-			domNode.removeEventListener("touchstart", self.handleTouchStartReference);
-		}
-	}
-	// Remove from global manager
-	GlobalResizerManager.removeWidget(self);
-	// Clean up any active resize operations
-	if(self.activeResizeOperations && self.cleanupResize) {
+	
+	// === COMPREHENSIVE CLEANUP (ES5-compatible) - Same as removeChildDomNodes ===
+	
+	// 1. Clean up all active operations with full detail
+	if(self.activeResizeOperations) {
 		for(var pointerId in self.activeResizeOperations) {
-			if(self.activeResizeOperations[pointerId] && self.activeResizeOperations[pointerId].isResizing) {
-				// Call cleanupResize directly
-				self.cleanupResize(pointerId);
+			if(self.activeResizeOperations.hasOwnProperty(pointerId)) {
+				var operation = self.activeResizeOperations[pointerId];
+				if(operation) {
+					// Cancel any pending animation frame
+					if(operation.animationFrameId) {
+						cancelAnimationFrame(operation.animationFrameId);
+						operation.animationFrameId = null;
+					}
+					// Clear pending events
+					operation.pendingMouseEvent = null;
+					// Clear DOM references in operation
+					if(operation.targetElements) {
+						operation.targetElements = null;
+					}
+					operation.targetElement = null;
+					// Clear cursor reference
+					operation.cursor = null;
+					// Release pointer capture if held
+					if(operation.hasPointerCapture && self.domNode && self.domNode.releasePointerCapture) {
+						try {
+							self.domNode.releasePointerCapture(pointerId);
+						} catch(e) {
+							// Ignore errors
+						}
+					}
+				}
+				// Call cleanup
+				if(self.cleanupResize) {
+					self.cleanupResize(pointerId);
+				}
 			}
 		}
+		// Null out the operations object completely
+		self.activeResizeOperations = null;
 	}
-	// Clear all operation timeouts
+	
+	// 2. Clear all timeouts immediately
 	if(self.operationTimeouts) {
 		for(var timeoutId in self.operationTimeouts) {
-			clearTimeout(self.operationTimeouts[timeoutId]);
+			if(self.operationTimeouts.hasOwnProperty(timeoutId)) {
+				clearTimeout(self.operationTimeouts[timeoutId]);
+			}
 		}
 		self.operationTimeouts = null;
 	}
-	// Clear caches to release memory
-	self.parentSizeCache = null;
-	self.parentSizeCacheOrder = null;
-	self.activeResizeOperations = null;
-	// Clear DOM references
-	self.domNode = null;
-	// Clear all handler references
+	
+	// 3. Remove all event listeners from DOM elements
+	if(self.domNodes && self.domNodes[0]) {
+		var domNode = self.domNodes[0];
+		
+		// Remove all event listeners with stored references
+		var listeners = [
+			{ref: 'handlePointerDownReference', event: 'pointerdown'},
+			{ref: 'handleLostPointerCaptureReference', event: 'lostpointercapture'},
+			{ref: 'handleGotPointerCaptureReference', event: 'gotpointercapture'},
+			{ref: 'handleDoubleClickReference', event: 'dblclick'},
+			{ref: 'handleTouchStartReference', event: 'touchstart'}
+		];
+		
+		for(var i = 0; i < listeners.length; i++) {
+			if(self[listeners[i].ref]) {
+				domNode.removeEventListener(listeners[i].event, self[listeners[i].ref]);
+			}
+		}
+		
+		// Force release all pointer captures (defensive)
+		if(domNode.releasePointerCapture) {
+			try {
+				// Try to release captures for pointer IDs 0-10
+				for(var ptr = 0; ptr < 10; ptr++) {
+					domNode.releasePointerCapture(ptr);
+				}
+			} catch(e) {
+				// Ignore errors
+			}
+		}
+	}
+	
+	// 4. Remove from global manager
+	if(typeof GlobalResizerManager !== "undefined") {
+		GlobalResizerManager.removeWidget(self);
+	}
+	
+	// 5. Clear all function references to break closure chains
+	self.handlePointerMoveGlobal = null;
+	self.handlePointerUpGlobal = null;
 	self.handlePointerDownReference = null;
 	self.handleLostPointerCaptureReference = null;
 	self.handleGotPointerCaptureReference = null;
 	self.handleDoubleClickReference = null;
 	self.handleTouchStartReference = null;
-	self.handlePointerMoveGlobal = null;
-	self.handlePointerUpGlobal = null;
+	self.triggerHaptic = null;
+	self.cleanupResize = null;
+	
+	// 6. Clear caches and data structures
+	self.parentSizeCache = null;
+	self.parentSizeCacheOrder = null;
+	
+	// 7. Clear DOM references
+	self.domNode = null;
+	self.parentDomNode = null;
+	self.domNodes = null;
+	
+	// 8. Clear all attribute values to free memory
+	self.actions = null;
+	self.onResizeStart = null;
+	self.onResize = null;
+	self.onResizeEnd = null;
+	self.onReset = null;
+	self.direction = null;
+	self.targetTiddler = null;
+	self.targetFilter = null;
+	self.targetTiddlers = null;
+	self.targetField = null;
+	self.targetSelector = null;
+	self.targetElement = null;
+	self.targetProperty = null;
+	self.unit = null;
+	self.position = null;
+	self.defaultValue = null;
+	self.minValueRaw = null;
+	self.maxValueRaw = null;
+	self.minValue = null;
+	self.maxValue = null;
+	self.invertDirection = null;
+	self.liveResize = null;
+	self.resizerClass = null;
+	self.aspectRatio = null;
+	self.resizeMode = null;
+	self.handlePosition = null;
+	self.disable = null;
+	self.resetTo = null;
+	self.resetValue = null;
+	self.smoothReset = null;
+	self.handleStyle = null;
+	self.hapticFeedback = null;
+	self.hapticDebug = null;
+	
 	// Call parent destroy if it exists
 	if(Widget.prototype.destroy) {
 		Widget.prototype.destroy.call(this);
