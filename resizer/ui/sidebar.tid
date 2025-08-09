@@ -6,6 +6,14 @@ tags: $:/tags/PageTemplate
 $:/config/SideBarSegments/Visibility/$(listItem)$
 \end
 
+\procedure on-resize-start-action-fluid-fixed() <$action-setfield $tiddler="$:/themes/tiddlywiki/vanilla/metrics/sidebarwidth" throttle.refresh="yes"/>
+
+\procedure on-resize-start-action-fixed-fluid()
+<$list filter="storyright storywidth tiddlerwidth" variable="suffix">
+<$action-setfield $tiddler={{{ [[$:/themes/tiddlywiki/vanilla/metrics/]addsuffix<suffix>] }}} throttle.refresh="yes"/>
+</$list>
+\end
+
 <div class="tc-sidebar-scrollable-wrapper">
 
 <%if [{$:/state/sidebar}!match[no]] %>
@@ -19,6 +27,7 @@ $:/config/SideBarSegments/Visibility/$(listItem)$
 	default="350px"
 	invert="yes"
 	smoothReset="yes"
+	onResizeStart=<<on-resize-start-action-fluid-fixed>>
 />
 <%elseif [{$:/themes/tiddlywiki/vanilla/options/sidebarlayout}match[fixed-fluid]] %>
 <$resizer
@@ -30,6 +39,7 @@ $:/config/SideBarSegments/Visibility/$(listItem)$
 	default="calc(100% - 770px)"
 	invert="no"
 	smoothReset="yes"
+	onResizeStart=<<on-resize-start-action-fixed-fluid>>
 />
 <% endif %>
 <% endif %>
