@@ -1062,6 +1062,29 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 		var getElementSize = function(element) {
 			if(!element) return null;
 			var rect = element.getBoundingClientRect();
+			
+			// If visiblePortion is enabled, calculate only the visible portion
+			if(self.visiblePortion === "yes") {
+				var viewportWidth = self.document.documentElement.clientWidth || self.document.body.clientWidth;
+				var viewportHeight = self.document.documentElement.clientHeight || self.document.body.clientHeight;
+				
+				if(self.direction === "horizontal") {
+					// Calculate visible width
+					var leftVisible = Math.max(0, rect.left);
+					var rightVisible = Math.min(viewportWidth, rect.right);
+					// If element is completely outside viewport, return 0
+					if(leftVisible >= rightVisible) return 0;
+					return rightVisible - leftVisible;
+				} else {
+					// Calculate visible height
+					var topVisible = Math.max(0, rect.top);
+					var bottomVisible = Math.min(viewportHeight, rect.bottom);
+					// If element is completely outside viewport, return 0
+					if(topVisible >= bottomVisible) return 0;
+					return bottomVisible - topVisible;
+				}
+			}
+			
 			return self.direction === "horizontal" ? rect.width : rect.height;
 		};
 		
@@ -1401,6 +1424,42 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 						livePixelValue = operation.startValues[self.targetTiddlers[0]] + pixelDelta;
 					}
 					
+					// If visiblePortion is enabled, adjust the pixel delta based on visible portion
+					if(self.visiblePortion === "yes" && operation.targetElements[0]) {
+						var element = operation.targetElements[0];
+						var rect = element.getBoundingClientRect();
+						var viewportWidth = self.document.documentElement.clientWidth || self.document.body.clientWidth;
+						var viewportHeight = self.document.documentElement.clientHeight || self.document.body.clientHeight;
+						
+						if(self.direction === "horizontal") {
+							// Check if element extends beyond viewport
+							if(rect.right > viewportWidth || rect.left < 0) {
+								// Calculate the actual visible width change needed
+								var currentVisibleWidth = Math.min(viewportWidth, rect.right) - Math.max(0, rect.left);
+								var targetVisibleWidth = operation.startValue + pixelDelta;
+								// Adjust the live pixel value to account for the clipped portion
+								var totalWidth = rect.width;
+								var visibleRatio = currentVisibleWidth / totalWidth;
+								if(visibleRatio > 0 && visibleRatio < 1) {
+									// Scale up the change to account for hidden portion
+									livePixelValue = operation.startValue + (pixelDelta / visibleRatio);
+								}
+							}
+						} else {
+							// Check if element extends beyond viewport vertically
+							if(rect.bottom > viewportHeight || rect.top < 0) {
+								var currentVisibleHeight = Math.min(viewportHeight, rect.bottom) - Math.max(0, rect.top);
+								var targetVisibleHeight = operation.startValue + pixelDelta;
+								var totalHeight = rect.height;
+								var visibleRatio = currentVisibleHeight / totalHeight;
+								if(visibleRatio > 0 && visibleRatio < 1) {
+									// Scale up the change to account for hidden portion
+									livePixelValue = operation.startValue + (pixelDelta / visibleRatio);
+								}
+							}
+						}
+					}
+					
 					// Apply min/max constraints to the pixel value
 					// Get fresh measurements for accurate constraint evaluation
 					var measureElement = operation.targetElements && operation.targetElements[0] ? operation.targetElements[0] : domNode;
@@ -1690,6 +1749,8 @@ ResizerWidget.prototype.execute = function() {
 	// Haptic feedback
 	this.hapticFeedback = this.getAttribute("hapticFeedback", "yes");
 	this.hapticDebug = this.getAttribute("hapticDebug", "no"); // Debug mode for haptic feedback
+	// Only visible portion option
+	this.visiblePortion = this.getAttribute("visiblePortion", "no");
 	// Make child widgets
 	this.makeChildWidgets();
 };
@@ -1867,6 +1928,7 @@ ResizerWidget.prototype.removeChildDomNodes = function() {
 	self.onResize = null;
 	self.onResizeEnd = null;
 	self.onReset = null;
+	self.visiblePortion = null;
 	
 	// Call parent implementation
 	Widget.prototype.removeChildDomNodes.call(this);
@@ -2020,6 +2082,7 @@ ResizerWidget.prototype.destroy = function() {
 	self.handleStyle = null;
 	self.hapticFeedback = null;
 	self.hapticDebug = null;
+	self.visiblePortion = null;
 	
 	// Call parent destroy if it exists
 	if(Widget.prototype.destroy) {
