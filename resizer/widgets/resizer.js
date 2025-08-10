@@ -1187,11 +1187,46 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 		// Prevent touch scrolling during resize
 		self.document.body.style.touchAction = "none";
 		
+		// Call onBeforeResizeStart callback first
+		if(self.onBeforeResizeStart) {
+			// Convert pixel value to the widget's unit
+			var referenceElement = operation.targetElements && operation.targetElements[0] ? operation.targetElements[0] : domNode;
+			var convertedValue = convertFromPixels(operation.startValue, self.unit, referenceElement);
+			var formattedValue;
+			if(self.unit === "%") {
+				formattedValue = convertedValue.toFixed(1) + "%";
+			} else if(self.unit === "em" || self.unit === "rem") {
+				formattedValue = convertedValue.toFixed(2) + self.unit;
+			} else {
+				formattedValue = Math.round(convertedValue) + (self.unit || "px");
+			}
+			
+			// Set variables for the action string
+			self.setVariable("actionValue", convertedValue.toString());
+			self.setVariable("actionFormattedValue", formattedValue);
+			self.setVariable("actionDirection", self.direction);
+			self.setVariable("actionProperty", self.targetProperty);
+			self.setVariable("actionHandleSize", handleSize.toString());
+			self.invokeActionString(self.onBeforeResizeStart, self);
+		}
+		
 		// Call resize start callback
 		if(self.onResizeStart) {
+			// Convert pixel value to the widget's unit
+			var referenceElement = operation.targetElements && operation.targetElements[0] ? operation.targetElements[0] : domNode;
+			var convertedValue = convertFromPixels(operation.startValue, self.unit, referenceElement);
+			var formattedValue;
+			if(self.unit === "%") {
+				formattedValue = convertedValue.toFixed(1) + "%";
+			} else if(self.unit === "em" || self.unit === "rem") {
+				formattedValue = convertedValue.toFixed(2) + self.unit;
+			} else {
+				formattedValue = Math.round(convertedValue) + (self.unit || "px");
+			}
+			
 			// Set variables for the action string
-			self.setVariable("actionValue", operation.startValue.toString());
-			self.setVariable("actionFormattedValue", operation.startValue + (self.unit || "px"));
+			self.setVariable("actionValue", convertedValue.toString());
+			self.setVariable("actionFormattedValue", formattedValue);
 			self.setVariable("actionDirection", self.direction);
 			self.setVariable("actionProperty", self.targetProperty);
 			self.setVariable("actionHandleSize", handleSize.toString());
@@ -1622,6 +1657,7 @@ ResizerWidget.prototype.execute = function() {
 	this.aspectRatio = this.getAttribute("aspectRatio"); // e.g., "16:9" or "1.5"
 	this.resizeMode = this.getAttribute("mode", "single"); // single or multiple
 	this.handlePosition = this.getAttribute("handlePosition", "after"); // before, after, overlay
+	this.onBeforeResizeStart = this.getAttribute("onBeforeResizeStart");
 	this.onResizeStart = this.getAttribute("onResizeStart");
 	this.onResize = this.getAttribute("onResize");
 	this.onResizeEnd = this.getAttribute("onResizeEnd");
