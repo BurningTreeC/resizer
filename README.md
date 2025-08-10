@@ -102,6 +102,7 @@ The following variables are available within action strings:
 | `handlePosition` | Position of resize handle: "before", "after", "overlay" | "after" |
 | `handleStyle` | Visual style of the handle: "solid", "dots", "lines", "chevron", "grip" | "solid" |
 | `disable` | Disable the resizer: "yes" or "no" | "no" |
+| `visiblePortion` | Calculate resize based only on visible portion when element is clipped: "yes" or "no" | "no" |
 
 ### Reset Attributes
 
@@ -279,6 +280,31 @@ Choose from different visual styles for the resizer handle:
 <!-- Grip dots (⋮⋮ for horizontal, ⋯⋯ for vertical) -->
 <$resizer handleStyle="grip" />
 ```
+
+### Visible Portion Mode
+
+The `visiblePortion` attribute allows the resizer to work correctly with elements that are partially clipped outside the viewport:
+
+```html
+<!-- Enable visible portion mode for clipped elements -->
+<$resizer
+  direction="horizontal"
+  tiddler="$:/state/panel/width"
+  visiblePortion="yes"
+/>
+```
+
+When enabled, this mode:
+- Calculates resize operations based only on the visible portion of the element
+- Automatically adjusts the resize ratio when elements extend beyond viewport boundaries
+- Ensures consistent resizing behavior for partially visible elements
+- Useful for panels that slide off-screen or are clipped by viewport edges
+
+This is particularly helpful when working with:
+- Off-canvas navigation panels
+- Sliding drawers that extend beyond viewport
+- Elements with negative margins or transforms
+- Overflow-hidden containers with content outside bounds
 
 ### Mobile Experience
 
