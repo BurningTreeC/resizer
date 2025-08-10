@@ -320,7 +320,10 @@ ResizerWidget.prototype.addDoubleClickHandler = function(domNode) {
 					parentSize = self.direction === "horizontal" ? parentRect.width : parentRect.height;
 				}
 			}
+			// Calculate pixel value for reset
+			var resetPixelValue = convertToPixels(getNumericValue(resetValue), getUnit(resetValue), targetElement);
 			self.setVariable("actionValue", resetValue);
+			self.setVariable("actionValuePixels", resetPixelValue.toString());
 			self.setVariable("actionDirection", self.direction);
 			self.setVariable("actionParentSize", parentSize.toString());
 			self.invokeActionString(self.onReset, self);
@@ -901,6 +904,7 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 			}
 			// Set variables for the action string
 			self.setVariable("actionValue", actionValue.toString());
+			self.setVariable("actionValuePixels", actionPixelValue.toString());
 			self.setVariable("actionFormattedValue", formattedValue);
 			self.setVariable("actionHandleSize", operation.handleSize.toString());
 			self.setVariable("actionParentSize", operation.parentSizeAtStart.toString());
@@ -1240,6 +1244,7 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 			
 			// Set variables for the action string
 			self.setVariable("actionValue", convertedValue.toString());
+			self.setVariable("actionValuePixels", operation.startValue.toString());
 			self.setVariable("actionFormattedValue", formattedValue);
 			self.setVariable("actionDirection", self.direction);
 			self.setVariable("actionProperty", self.targetProperty);
@@ -1264,6 +1269,7 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 			
 			// Set variables for the action string
 			self.setVariable("actionValue", convertedValue.toString());
+			self.setVariable("actionValuePixels", operation.startValue.toString());
 			self.setVariable("actionFormattedValue", formattedValue);
 			self.setVariable("actionDirection", self.direction);
 			self.setVariable("actionProperty", self.targetProperty);
@@ -1406,6 +1412,7 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 					
 					// Set variables for the action string
 					self.setVariable("actionValue", callbackValue.toString());
+					self.setVariable("actionValuePixels", callbackPixelValue.toString());
 					self.setVariable("actionFormattedValue", formattedValue);
 					self.setVariable("actionDirection", self.direction);
 					self.setVariable("actionProperty", self.targetProperty);
@@ -1616,6 +1623,7 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 		if(self.onResizeEnd) {
 			// Get final value from tiddler or current state
 			var finalValue = operation.startValue;
+			var finalPixelValue = operation.startValue;
 			if(self.targetTiddlers && self.targetTiddlers.length > 0) {
 				var firstTiddler = self.targetTiddlers[0];
 				var tiddler = self.wiki.getTiddler(firstTiddler);
@@ -1626,6 +1634,10 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 					currentValue = self.wiki.getTiddlerText(firstTiddler, self.defaultValue || "200px");
 				}
 				finalValue = getNumericValue(currentValue);
+				// Calculate pixel value
+				var currentUnit = getUnit(currentValue);
+				var referenceElement = operation.targetElements && operation.targetElements[0] ? operation.targetElements[0] : domNode;
+				finalPixelValue = convertToPixels(finalValue, currentUnit, referenceElement);
 			} else if(self.targetTiddler) {
 				var tiddler = self.wiki.getTiddler(self.targetTiddler);
 				var currentValue;
@@ -1635,11 +1647,16 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 					currentValue = self.wiki.getTiddlerText(self.targetTiddler, self.defaultValue || "200px");
 				}
 				finalValue = getNumericValue(currentValue);
+				// Calculate pixel value
+				var currentUnit = getUnit(currentValue);
+				var referenceElement = operation.targetElements && operation.targetElements[0] ? operation.targetElements[0] : domNode;
+				finalPixelValue = convertToPixels(finalValue, currentUnit, referenceElement);
 			}
 			
 			var formattedValue = self.unit === "%" ? finalValue.toFixed(1) + "%" : Math.round(finalValue) + (self.unit || "px");
 			// Set variables for the action string
 			self.setVariable("actionValue", finalValue.toString());
+			self.setVariable("actionValuePixels", finalPixelValue.toString());
 			self.setVariable("actionFormattedValue", formattedValue);
 			self.setVariable("actionDirection", self.direction);
 			self.setVariable("actionProperty", self.targetProperty);

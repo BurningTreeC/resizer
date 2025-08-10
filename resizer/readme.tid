@@ -74,7 +74,8 @@ A powerful and flexible resizer widget that enables interactive resizing of UI e
 The following variables are available within action strings:
 
 |!Variable |!Description |!Available In |
-|`<<actionValue>>` |The numeric value without unit |All actions |
+|`<<actionValue>>` |The numeric value in the widget's unit |All actions |
+|`<<actionValuePixels>>` |The value in pixels (always pixels regardless of unit) |All actions |
 |`<<actionFormattedValue>>` |The value with unit (e.g., "350px", "50%") |All actions |
 |`<<actionDirection>>` |The resize direction ("horizontal" or "vertical") |All actions |
 |`<<actionProperty>>` |The CSS property being modified |All actions |
