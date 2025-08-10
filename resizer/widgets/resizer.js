@@ -104,6 +104,16 @@ ResizerWidget.prototype = new Widget();
 Render this widget into the DOM
 */
 ResizerWidget.prototype.render = function(parent,nextSibling) {
+	// Check if parent exists - if not, mark for retry on next refresh
+	if(!parent) {
+		console.warn("ResizerWidget.render: parent is null, will retry on next refresh");
+		this.parentDomNode = null;
+		this.domNodes = [];
+		this.needsRenderRetry = true;
+		return;
+	}
+	// Clear retry flag if we successfully have a parent
+	this.needsRenderRetry = false;
 	// Save the parent dom node
 	this.parentDomNode = parent;
 	// Compute our attributes
@@ -154,7 +164,9 @@ ResizerWidget.prototype.render = function(parent,nextSibling) {
 	} catch(e) {
 		// Fallback to default insertion if custom insertion fails
 		console.error("Error inserting resizer element:", e);
-		parent.insertBefore(domNode,nextSibling);
+		if(parent) {
+			parent.insertBefore(domNode,nextSibling);
+		}
 	}
 	this.renderChildren(domNode,null);
 	this.domNodes.push(domNode);
@@ -1632,28 +1644,44 @@ ResizerWidget.prototype.execute = function() {
 Selectively refreshes the widget if needed. Returns true if the widget or any of its children needed re-rendering
 */
 ResizerWidget.prototype.refresh = function(changedTiddlers) {
+	// Check if we need to retry rendering due to previously null parent
+	if(this.needsRenderRetry) {
+		// Try to get parent from the DOM if we have a reference
+		var parent = this.parentDomNode || (this.domNodes && this.domNodes[0] && this.domNodes[0].parentNode);
+		if(parent) {
+			console.log("ResizerWidget: Retrying render after parent became available");
+			this.refreshSelf();
+			return true;
+		}
+	}
+	
 	var changedAttributes = this.computeAttributes();
 	if(Object.keys(changedAttributes).length) {
-		// Check if only min/max values changed
-		var onlyMinMaxChanged = true;
+		// Check if only min/max/default values changed
+		var onlyValueChanged = true;
 		var attributeNames = Object.keys(changedAttributes);
 		for(var i = 0; i < attributeNames.length; i++) {
-			if(attributeNames[i] !== "min" && attributeNames[i] !== "max") {
-				onlyMinMaxChanged = false;
+			if(attributeNames[i] !== "min" && attributeNames[i] !== "max" && attributeNames[i] !== "default") {
+				onlyValueChanged = false;
 				break;
 			}
 		}
 		
-		if(onlyMinMaxChanged) {
-			console.log("CHANGED");
-			// Update only the min/max values without full refresh
-			this.minValueRaw = this.getAttribute("min");
-			this.maxValueRaw = this.getAttribute("max");
-			// Parse min/max values - defaults depend on unit type
-			var minDefault = this.unit === "%" ? "10" : "50";
-			var maxDefault = this.unit === "%" ? "90" : "800";
-			this.minValue = this.minValueRaw ? parseFloat(this.minValueRaw) : parseFloat(minDefault);
-			this.maxValue = this.maxValueRaw ? parseFloat(this.maxValueRaw) : parseFloat(maxDefault);
+		if(onlyValueChanged) {
+			// Update only the min/max/default values without full refresh
+			if(changedAttributes.min !== undefined) {
+				this.minValueRaw = this.getAttribute("min");
+				var minDefault = this.unit === "%" ? "10" : "50";
+				this.minValue = this.minValueRaw ? parseFloat(this.minValueRaw) : parseFloat(minDefault);
+			}
+			if(changedAttributes.max !== undefined) {
+				this.maxValueRaw = this.getAttribute("max");
+				var maxDefault = this.unit === "%" ? "90" : "800";
+				this.maxValue = this.maxValueRaw ? parseFloat(this.maxValueRaw) : parseFloat(maxDefault);
+			}
+			if(changedAttributes.default !== undefined) {
+				this.defaultValue = this.getAttribute("default", this.unit === "%" ? "50%" : "200px");
+			}
 			// Return false since we handled the update without re-rendering
 			return false;
 		} else {
