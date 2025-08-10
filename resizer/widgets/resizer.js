@@ -308,8 +308,21 @@ ResizerWidget.prototype.addDoubleClickHandler = function(domNode) {
 		
 		// Call reset action if provided
 		if(self.onReset) {
+			// Get parent size for the target element
+			var targetElement = domNode.previousElementSibling || domNode.parentElement;
+			var parentSize = 0;
+			if(targetElement && targetElement.parentElement) {
+				var parentElement = targetElement.parentElement;
+				if(self.position === "relative") {
+					parentSize = self.direction === "horizontal" ? parentElement.offsetWidth : parentElement.offsetHeight;
+				} else {
+					var parentRect = parentElement.getBoundingClientRect();
+					parentSize = self.direction === "horizontal" ? parentRect.width : parentRect.height;
+				}
+			}
 			self.setVariable("actionValue", resetValue);
 			self.setVariable("actionDirection", self.direction);
+			self.setVariable("actionParentSize", parentSize.toString());
 			self.invokeActionString(self.onReset, self);
 		}
 	};
@@ -890,6 +903,7 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 			self.setVariable("actionValue", actionValue.toString());
 			self.setVariable("actionFormattedValue", formattedValue);
 			self.setVariable("actionHandleSize", operation.handleSize.toString());
+			self.setVariable("actionParentSize", operation.parentSizeAtStart.toString());
 			self.invokeActionString(self.actions, self);
 		}
 	};
@@ -1207,6 +1221,7 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 			self.setVariable("actionDirection", self.direction);
 			self.setVariable("actionProperty", self.targetProperty);
 			self.setVariable("actionHandleSize", handleSize.toString());
+			self.setVariable("actionParentSize", operation.parentSizeAtStart.toString());
 			self.invokeActionString(self.onBeforeResizeStart, self);
 		}
 		
@@ -1230,6 +1245,7 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 			self.setVariable("actionDirection", self.direction);
 			self.setVariable("actionProperty", self.targetProperty);
 			self.setVariable("actionHandleSize", handleSize.toString());
+			self.setVariable("actionParentSize", operation.parentSizeAtStart.toString());
 			self.invokeActionString(self.onResizeStart, self);
 		}
 		
@@ -1373,6 +1389,7 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 					self.setVariable("actionDeltaX", deltaX.toString());
 					self.setVariable("actionDeltaY", deltaY.toString());
 					self.setVariable("actionHandleSize", operation.handleSize.toString());
+					self.setVariable("actionParentSize", operation.parentSizeAtStart.toString());
 					self.invokeActionString(self.onResize, self);
 				}
 				
@@ -1568,6 +1585,7 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 			self.setVariable("actionDirection", self.direction);
 			self.setVariable("actionProperty", self.targetProperty);
 			self.setVariable("actionHandleSize", operation.handleSize.toString());
+			self.setVariable("actionParentSize", operation.parentSizeAtStart.toString());
 			self.invokeActionString(self.onResizeEnd, self);
 		}
 	};

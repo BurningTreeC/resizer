@@ -74,6 +74,7 @@ A powerful and flexible resizer widget for TiddlyWiki that enables interactive r
 | Attribute | Description |
 |-----------|-------------|
 | `actions` | Action string to execute on value change |
+| `onBeforeResizeStart` | Actions to execute before resize starts (useful for setup) |
 | `onResizeStart` | Actions to execute when resize starts |
 | `onResize` | Actions to execute during resize |
 | `onResizeEnd` | Actions to execute when resize ends |
@@ -89,6 +90,7 @@ The following variables are available within action strings:
 | `<<actionDirection>>` | The resize direction ("horizontal" or "vertical") | All actions |
 | `<<actionProperty>>` | The CSS property being modified | All actions |
 | `<<actionHandleSize>>` | The computed size of the resize handle in pixels | All actions |
+| `<<actionParentSize>>` | The parent container width (horizontal) or height (vertical) in pixels | All actions |
 | `<<actionDeltaX>>` | The horizontal mouse movement delta | `onResize` only |
 | `<<actionDeltaY>>` | The vertical mouse movement delta | `onResize` only |
 
