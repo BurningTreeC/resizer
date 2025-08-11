@@ -1,5 +1,6 @@
 title: $:/plugins/BTC/resizer/procedures/panels
 tags: $:/tags/Global
+code-body: yes
 
 \procedure horizontal-split-panel(leftContent:"", rightContent:"", width:"50%", minHeight:"100%", minWidth:"5%", maxWidth:"80%", stateTiddler:"$:/state/hsplit/width", class:"", leftClass:"", rightClass:"", splitterClass:"")
 \whitespace trim

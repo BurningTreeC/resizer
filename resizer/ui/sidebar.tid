@@ -1,5 +1,6 @@
 title: $:/core/ui/PageTemplate/sidebar
 tags: $:/tags/PageTemplate
+code-body: yes
 
 \whitespace trim
 \define config-title()
