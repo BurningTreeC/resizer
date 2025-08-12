@@ -1,0 +1,5 @@
+title: $:/plugins/BTC/resizer/config/EditTemplateBodyFilter
+tags: $:/tags/EditTemplateBodyFilter
+list-before: $:/config/EditTemplateBodyFilters/default
+
+[[$:/plugins/BTC/resizer/ui/EditTemplate/body/default]]
