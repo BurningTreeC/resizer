@@ -36,8 +36,8 @@ $:/config/SideBarSegments/Visibility/$(listItem)$
 	direction="horizontal"
 	filter="$:/themes/tiddlywiki/vanilla/metrics/storyright $:/themes/tiddlywiki/vanilla/metrics/storywidth $:/themes/tiddlywiki/vanilla/metrics/tiddlerwidth"
 	min={{$:/themes/tiddlywiki/vanilla/metrics/storyminwidth}}
-	max={{{ [[calc(100vw - ]addsuffix{$:/themes/tiddlywiki/vanilla/metrics/sidebarminwidth}addsuffix[)]] }}}
-	default="calc(100% - 770px)"
+	max={{{ [[calc(100vw - ]addsuffix{$:/themes/tiddlywiki/vanilla/metrics/sidebarminwidth}addsuffix[ - ]addsuffix{$:/themes/tiddlywiki/vanilla/metrics/storyleft}addsuffix[)]] }}}
+	default="770px"
 	invert="no"
 	smoothReset="yes"
 	onResizeStart=<<on-resize-start-action-fixed-fluid>>

@@ -99,6 +99,374 @@ Inherit from the base widget class
 */
 ResizerWidget.prototype = new Widget();
 
+/*
+Shared utility methods for all resizer instances
+*/
+
+// Get viewport dimensions
+ResizerWidget.prototype.getViewportDimensions = function() {
+	var win = this.document.defaultView || this.document.parentWindow || {};
+	return {
+		width: win.innerWidth || this.document.documentElement.clientWidth,
+		height: win.innerHeight || this.document.documentElement.clientHeight,
+		get vmin() { return Math.min(this.width, this.height); },
+		get vmax() { return Math.max(this.width, this.height); }
+	};
+};
+
+// Get computed font size for an element
+ResizerWidget.prototype.getComputedFontSize = function(element, isRoot) {
+	try {
+		var targetElement = isRoot ? this.document.documentElement : (element || this.domNodes[0]);
+		if(targetElement) {
+			return parseFloat(this.document.defaultView.getComputedStyle(targetElement).fontSize) || 16;
+		}
+	} catch(e) {
+		// Use default if getComputedStyle fails
+	}
+	return 16;
+};
+
+// Convert any CSS unit to pixels
+ResizerWidget.prototype.convertToPixels = function(value, unit, contextSize, element) {
+	var numericValue = parseFloat(value);
+	if(isNaN(numericValue)) return 0;
+	
+	switch(unit) {
+		case "px":
+			return numericValue;
+		case "%":
+			return (numericValue / 100) * contextSize;
+		case "em":
+			return numericValue * this.getComputedFontSize(element, false);
+		case "rem":
+			return numericValue * this.getComputedFontSize(element, true);
+		case "vh":
+			return numericValue * (this.getViewportDimensions().height / 100);
+		case "vw":
+			return numericValue * (this.getViewportDimensions().width / 100);
+		case "vmin":
+			return numericValue * (this.getViewportDimensions().vmin / 100);
+		case "vmax":
+			return numericValue * (this.getViewportDimensions().vmax / 100);
+		default:
+			return numericValue;
+	}
+};
+
+// Convert pixels back to the original unit
+ResizerWidget.prototype.convertFromPixels = function(pixelValue, unit, contextSize, element) {
+	switch(unit) {
+		case "px":
+			return pixelValue;
+		case "%":
+			return contextSize > 0 ? Math.max((pixelValue / contextSize) * 100, 0) : 0;
+		case "em":
+			var fontSize = this.getComputedFontSize(element, false);
+			return fontSize > 0 ? pixelValue / fontSize : 0;
+		case "rem":
+			var rootFontSize = this.getComputedFontSize(element, true);
+			return rootFontSize > 0 ? pixelValue / rootFontSize : 0;
+		case "vh":
+			var viewportHeight = this.getViewportDimensions().height;
+			return (pixelValue / viewportHeight) * 100;
+		case "vw":
+			var viewportWidth = this.getViewportDimensions().width;
+			return (pixelValue / viewportWidth) * 100;
+		case "vmin":
+			var vmin = this.getViewportDimensions().vmin;
+			return (pixelValue / vmin) * 100;
+		case "vmax":
+			var vmax = this.getViewportDimensions().vmax;
+			return (pixelValue / vmax) * 100;
+		default:
+			return pixelValue;
+	}
+};
+
+// Detect the unit of a value
+ResizerWidget.prototype.getUnit = function(value) {
+	if(typeof value !== "string") return "px";
+	// Handle calc() expressions - default to px
+	if(value.startsWith("calc(") && value.endsWith(")")) return "px";
+	var units = ["px", "%", "em", "rem", "vh", "vw", "vmin", "vmax"];
+	for(var i = 0; i < units.length; i++) {
+		if(value.endsWith(units[i])) return units[i];
+	}
+	// If no unit specified, assume pixels
+	return "px";
+};
+
+// Robust calc() expression evaluator with support for nested expressions, parentheses, and all operations
+ResizerWidget.prototype.evaluateCalcExpression = function(expression, contextSize, handleSize, depth) {
+	var self = this;
+	// Limit recursion depth to prevent stack overflow
+	depth = depth || 0;
+	if(depth > 10) {
+		console.warn("calc() expression too deeply nested, limiting depth");
+		return 0;
+	}
+	
+	// Tokenize the expression
+	var tokens = [];
+	var current = "";
+	var i = 0;
+	
+	while(i < expression.length) {
+		var char = expression[i];
+		
+		// Handle whitespace
+		if(/\s/.test(char)) {
+			if(current) {
+				tokens.push(current);
+				current = "";
+			}
+			i++;
+			continue;
+		}
+		
+		// Handle operators and parentheses
+		if("+-*/()".indexOf(char) !== -1) {
+			if(current) {
+				tokens.push(current);
+				current = "";
+			}
+			tokens.push(char);
+			i++;
+			continue;
+		}
+		
+		// Handle nested calc()
+		if(expression.substr(i, 5) === "calc(") {
+			if(current) {
+				tokens.push(current);
+				current = "";
+			}
+			// Find matching closing parenthesis
+			var nestedDepth = 1;
+			var j = i + 5;
+			while(j < expression.length && nestedDepth > 0) {
+				if(expression[j] === "(") nestedDepth++;
+				else if(expression[j] === ")") nestedDepth--;
+				j++;
+			}
+			// Recursively evaluate nested calc with depth tracking
+			var nestedExpr = expression.substring(i + 5, j - 1);
+			var nestedResult = self.evaluateCalcExpression(nestedExpr, contextSize, handleSize, depth + 1);
+			tokens.push(String(nestedResult));
+			i = j;
+			continue;
+		}
+		
+		// Build current token
+		current += char;
+		i++;
+	}
+	
+	if(current) {
+		tokens.push(current);
+	}
+	
+	// Convert tokens to values
+	var values = [];
+	var operators = [];
+	
+	for(var t = 0; t < tokens.length; t++) {
+		var token = tokens[t];
+		
+		if("+-*/".indexOf(token) !== -1) {
+			// Process higher precedence operators first
+			while(operators.length > 0 && operators[operators.length - 1] !== "(" &&
+				  getPrecedence(operators[operators.length - 1]) >= getPrecedence(token)) {
+				processOperator(values, operators);
+			}
+			operators.push(token);
+		} else if(token === "(") {
+			operators.push(token);
+		} else if(token === ")") {
+			// Process until matching opening parenthesis
+			while(operators.length > 0 && operators[operators.length - 1] !== "(") {
+				processOperator(values, operators);
+			}
+			operators.pop(); // Remove the "("
+		} else {
+			// It's a value - convert to pixels
+			values.push(convertToPixelsCalc(token, contextSize));
+		}
+	}
+	
+	// Process remaining operators
+	while(operators.length > 0) {
+		processOperator(values, operators);
+	}
+	
+	return values[0] || 0;
+	
+	// Helper functions
+	function getPrecedence(op) {
+		if(op === "+" || op === "-") return 1;
+		if(op === "*" || op === "/") return 2;
+		return 0;
+	}
+	
+	function processOperator(values, operators) {
+		var op = operators.pop();
+		var b = values.pop();
+		var a = values.pop();
+		
+		if(a === undefined || b === undefined) {
+			values.push(0);
+			return;
+		}
+		
+		switch(op) {
+			case "+": values.push(a + b); break;
+			case "-": values.push(a - b); break;
+			case "*": values.push(a * b); break;
+			case "/": values.push(b !== 0 ? a / b : 0); break;
+		}
+	}
+	
+	function convertToPixelsCalc(value, contextSize) {
+		// Handle special variables
+		if(value === "handleSize" || value === "handleWidth" || value === "handleHeight") {
+			return handleSize || 0;
+		}
+		
+		// If already a number, return it
+		var num = parseFloat(value);
+		if(!isNaN(num) && value === String(num)) {
+			return num;
+		}
+		
+		// Get viewport dimensions
+		var viewport = self.getViewportDimensions();
+		
+		// Handle different units
+		if(value.endsWith("px")) {
+			return parseFloat(value);
+		} else if(value.endsWith("vw")) {
+			return (parseFloat(value) / 100) * viewport.width;
+		} else if(value.endsWith("vh")) {
+			return (parseFloat(value) / 100) * viewport.height;
+		} else if(value.endsWith("vmin")) {
+			return (parseFloat(value) / 100) * viewport.vmin;
+		} else if(value.endsWith("vmax")) {
+			return (parseFloat(value) / 100) * viewport.vmax;
+		} else if(value.endsWith("%")) {
+			return (parseFloat(value) / 100) * contextSize;
+		} else if(value.endsWith("em") || value.endsWith("rem")) {
+			var fontSize = self.getComputedFontSize(self.domNodes[0], value.endsWith("rem"));
+			return parseFloat(value) * fontSize;
+		} else {
+			// Try to parse as number (treat as pixels)
+			return parseFloat(value) || 0;
+		}
+	}
+};
+
+// Format a numeric value with the appropriate unit and precision
+ResizerWidget.prototype.formatValueWithUnit = function(value, unit) {
+	unit = unit || this.unit || "px";
+	if(unit === "%") {
+		return value.toFixed(1) + "%";
+	} else if(unit === "em" || unit === "rem") {
+		return value.toFixed(2) + unit;
+	} else {
+		return Math.round(value) + unit;
+	}
+};
+
+// Get target elements based on widget configuration
+ResizerWidget.prototype.getTargetElements = function(domNode) {
+	var targetElements = [];
+	if(this.targetSelector) {
+		if(this.resizeMode === "multiple") {
+			targetElements = Array.from(this.document.querySelectorAll(this.targetSelector));
+		} else {
+			var singleElement = this.document.querySelector(this.targetSelector);
+			if(singleElement) targetElements = [singleElement];
+		}
+	} else if(this.targetElement === "parent") {
+		targetElements = [domNode.parentElement];
+	} else if(this.targetElement === "previousSibling") {
+		if(domNode.previousElementSibling) targetElements = [domNode.previousElementSibling];
+	} else if(this.targetElement === "nextSibling") {
+		if(domNode.nextElementSibling) targetElements = [domNode.nextElementSibling];
+	} else {
+		// Default behavior depends on handle position
+		if(this.handlePosition === "overlay") {
+			// For overlay mode, target the parent element
+			targetElements = [domNode.parentElement];
+		} else {
+			// For non-overlay mode: default to previous sibling
+			if(domNode.previousElementSibling) targetElements = [domNode.previousElementSibling];
+		}
+	}
+	return targetElements;
+};
+
+// Read a value from a tiddler with proper field handling
+ResizerWidget.prototype.getTiddlerValue = function(tiddlerTitle, defaultValue) {
+	var tiddler = this.wiki.getTiddler(tiddlerTitle);
+	var value;
+	if(tiddler && this.targetField && this.targetField !== "text") {
+		value = tiddler.fields[this.targetField] || defaultValue || this.defaultValue || "200px";
+	} else {
+		value = this.wiki.getTiddlerText(tiddlerTitle, defaultValue || this.defaultValue || "200px");
+	}
+	// If the value is empty or just whitespace, use the default value
+	if(!value || value.trim() === "") {
+		value = defaultValue || this.defaultValue || "200px";
+	}
+	return value;
+};
+
+// Apply min/max constraints to a value
+ResizerWidget.prototype.applyConstraints = function(value, minValue, maxValue) {
+	if(minValue !== null && minValue !== undefined && value < minValue) {
+		return minValue;
+	}
+	if(maxValue !== null && maxValue !== undefined && value > maxValue) {
+		return maxValue;
+	}
+	return value;
+};
+
+// Helper to evaluate calc() expressions and other CSS values
+ResizerWidget.prototype.evaluateCSSValue = function(value, contextSize, handleSize) {
+	if(typeof value !== "string") return value;
+	
+	// Clean up the value by trimming and removing trailing semicolons
+	value = value.trim();
+	if(value.endsWith(";")) {
+		value = value.substring(0, value.length - 1).trim();
+	}
+	
+	// If it's already a number, return it
+	var numericValue = parseFloat(value);
+	if(!isNaN(numericValue) && value === String(numericValue)) {
+		return numericValue;
+	}
+	
+	// Handle simple units
+	if(value.endsWith("%")) {
+		return (parseFloat(value) / 100) * contextSize;
+	}
+	if(value.endsWith("px")) {
+		return parseFloat(value);
+	}
+	
+	// Handle calc() expressions
+	if(value.startsWith("calc(") && value.endsWith(")")) {
+		var expression = value.substring(5, value.length - 1).trim();
+		return this.evaluateCalcExpression(expression, contextSize, handleSize);
+	}
+	
+	// If we can't evaluate it, try to parse as a number
+	return parseFloat(value) || 0;
+};
+
 
 /*
 Render this widget into the DOM
@@ -251,36 +619,80 @@ ResizerWidget.prototype.addDoubleClickHandler = function(domNode) {
 		event.preventDefault();
 		event.stopPropagation();
 		
+		// Helper to get the handle width/height
+		var getHandleSize = function() {
+			// Get the computed size of the handle
+			var computedStyle = self.document.defaultView.getComputedStyle(domNode);
+			if(self.direction === "horizontal") {
+				return parseFloat(computedStyle.width) || 0;
+			} else {
+				return parseFloat(computedStyle.height) || 0;
+			}
+		};
+		
+		// Helper to get numeric value from a string with units
+		var getNumericValue = function(value) {
+			return parseFloat(value) || 0;
+		};
+		
+		// Get measurements for calc() evaluation
+		var targetElement = domNode.previousElementSibling || domNode.parentElement;
+		var parentSize = 0;
+		var handleSize = getHandleSize();
+		if(targetElement && targetElement.parentElement) {
+			var parentElement = targetElement.parentElement;
+			if(self.position === "relative") {
+				parentSize = self.direction === "horizontal" ? parentElement.offsetWidth : parentElement.offsetHeight;
+			} else {
+				var parentRect = parentElement.getBoundingClientRect();
+				parentSize = self.direction === "horizontal" ? parentRect.width : parentRect.height;
+			}
+		}
+		
 		// Determine reset value based on resetTo attribute
 		var resetValue;
+		var resetPixelValue;
 		switch(self.resetTo) {
 			case "min":
-				resetValue = (self.minValueRaw || (self.unit === "%" ? "10%" : "50px"));
+				var minRawValue = self.minValueRaw || (self.unit === "%" ? "10%" : "50px");
+				// Evaluate to pixels (handles calc() expressions)
+				resetPixelValue = self.evaluateCSSValue(minRawValue, parentSize, handleSize);
+				// Convert to widget's unit
+				var minConvertedValue = self.convertFromPixels(resetPixelValue, self.unit, parentSize, targetElement);
+				// Format with appropriate unit
+				resetValue = self.formatValueWithUnit(minConvertedValue);
 				break;
 			case "max":
-				resetValue = (self.maxValueRaw || (self.unit === "%" ? "90%" : "800px"));
+				var maxRawValue = self.maxValueRaw || (self.unit === "%" ? "90%" : "800px");
+				// Evaluate to pixels (handles calc() expressions)
+				resetPixelValue = self.evaluateCSSValue(maxRawValue, parentSize, handleSize);
+				// Convert to widget's unit
+				var maxConvertedValue = self.convertFromPixels(resetPixelValue, self.unit, parentSize, targetElement);
+				// Format with appropriate unit
+				resetValue = self.formatValueWithUnit(maxConvertedValue);
 				break;
 			case "custom":
-				resetValue = self.resetValue || self.defaultValue;
+				var customRawValue = self.resetValue || self.defaultValue;
+				// Evaluate to pixels (handles calc() expressions)
+				resetPixelValue = self.evaluateCSSValue(customRawValue, parentSize, handleSize);
+				// Convert to widget's unit
+				var customConvertedValue = self.convertFromPixels(resetPixelValue, self.unit, parentSize, targetElement);
+				// Format with appropriate unit
+				resetValue = self.formatValueWithUnit(customConvertedValue);
 				break;
 			default: // "default"
-				resetValue = self.defaultValue;
+				// Evaluate default value to pixels (handles calc() expressions)
+				resetPixelValue = self.evaluateCSSValue(self.defaultValue, parentSize, handleSize);
+				// Convert to widget's unit
+				var defaultConvertedValue = self.convertFromPixels(resetPixelValue, self.unit, parentSize, targetElement);
+				// Format with appropriate unit
+				resetValue = self.formatValueWithUnit(defaultConvertedValue);
 		}
 		
 		// Apply smooth transition if enabled
 		if(self.smoothReset === "yes") {
 			// Find target elements for smooth animation
-			var targetElements = [];
-			if(self.targetSelector) {
-				if(self.resizeMode === "multiple") {
-					targetElements = Array.from(self.document.querySelectorAll(self.targetSelector));
-				} else {
-					var singleElement = self.document.querySelector(self.targetSelector);
-					if(singleElement) targetElements = [singleElement];
-				}
-			} else if(domNode.previousElementSibling) {
-				targetElements = [domNode.previousElementSibling];
-			}
+			var targetElements = self.getTargetElements(domNode);
 			
 			// Add transition to elements
 			targetElements.forEach(function(element) {
@@ -308,20 +720,8 @@ ResizerWidget.prototype.addDoubleClickHandler = function(domNode) {
 		
 		// Call reset action if provided
 		if(self.onReset) {
-			// Get parent size for the target element
-			var targetElement = domNode.previousElementSibling || domNode.parentElement;
-			var parentSize = 0;
-			if(targetElement && targetElement.parentElement) {
-				var parentElement = targetElement.parentElement;
-				if(self.position === "relative") {
-					parentSize = self.direction === "horizontal" ? parentElement.offsetWidth : parentElement.offsetHeight;
-				} else {
-					var parentRect = parentElement.getBoundingClientRect();
-					parentSize = self.direction === "horizontal" ? parentRect.width : parentRect.height;
-				}
-			}
-			// Calculate pixel value for reset
-			var resetPixelValue = convertToPixels(getNumericValue(resetValue), getUnit(resetValue), targetElement);
+			// resetPixelValue was already calculated above based on resetTo setting
+			// parentSize was also already calculated above
 			self.setVariable("actionValue", resetValue);
 			self.setVariable("actionValuePixels", resetPixelValue.toString());
 			self.setVariable("actionDirection", self.direction);
@@ -384,23 +784,6 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 		return parseFloat(value) || 0;
 	};
 	
-	// Helper to detect the unit of a value
-	var getUnit = function(value) {
-		if(typeof value !== "string") return "px";
-		// Handle calc() expressions - default to px
-		if(value.startsWith("calc(") && value.endsWith(")")) return "px";
-		if(value.endsWith("%")) return "%";
-		if(value.endsWith("px")) return "px";
-		if(value.endsWith("em")) return "em";
-		if(value.endsWith("rem")) return "rem";
-		if(value.endsWith("vh")) return "vh";
-		if(value.endsWith("vw")) return "vw";
-		if(value.endsWith("vmin")) return "vmin";
-		if(value.endsWith("vmax")) return "vmax";
-		// If no unit specified, assume pixels
-		return "px";
-	};
-	
 	// Helper to get the handle width/height
 	var getHandleSize = function() {
 		// Get the computed size of the handle
@@ -411,12 +794,6 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 			return parseFloat(computedStyle.height) || 0;
 		}
 	};
-	
-	// Helper to convert percentage to pixels based on parent size
-	var convertPercentageToPixels = function(percentValue, parentSize) {
-		return (percentValue / 100) * parentSize;
-	};
-	
 	// Helper to get parent size for percentage calculations
 	var getParentSize = function(element, forceFreshMeasurement) {
 		if(!element || !element.parentElement) return 0;
@@ -436,328 +813,6 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 		}
 	};
 	
-	// Convert any CSS unit to pixels
-	var convertToPixels = function(value, unit, element) {
-		var numericValue = parseFloat(value);
-		if(isNaN(numericValue)) return 0;
-		
-		switch(unit) {
-			case "px":
-				return numericValue;
-			case "%":
-				return convertPercentageToPixels(numericValue, getParentSize(element || domNode));
-			case "em":
-				// em is relative to font-size of the element
-				var fontSize = 16; // default fallback
-				try {
-					fontSize = parseFloat(self.document.defaultView.getComputedStyle(element || domNode).fontSize) || 16;
-				} catch(e) {
-					// Use default if getComputedStyle fails
-				}
-				return numericValue * fontSize;
-			case "rem":
-				// rem is relative to font-size of the root element
-				var rootFontSize = 16; // default fallback
-				try {
-					rootFontSize = parseFloat(self.document.defaultView.getComputedStyle(self.document.documentElement).fontSize) || 16;
-				} catch(e) {
-					// Use default if getComputedStyle fails
-				}
-				return numericValue * rootFontSize;
-			case "vh":
-				// vh is 1% of viewport height
-				var viewportHeight = (self.document.defaultView || self.document.parentWindow || {}).innerHeight || self.document.documentElement.clientHeight;
-				return numericValue * (viewportHeight / 100);
-			case "vw":
-				// vw is 1% of viewport width
-				var viewportWidth = (self.document.defaultView || self.document.parentWindow || {}).innerWidth || self.document.documentElement.clientWidth;
-				return numericValue * (viewportWidth / 100);
-			case "vmin":
-				// vmin is 1% of viewport's smaller dimension
-				var vw = (self.document.defaultView || self.document.parentWindow || {}).innerWidth || self.document.documentElement.clientWidth;
-				var vh = (self.document.defaultView || self.document.parentWindow || {}).innerHeight || self.document.documentElement.clientHeight;
-				var vmin = Math.min(vw, vh);
-				return numericValue * (vmin / 100);
-			case "vmax":
-				// vmax is 1% of viewport's larger dimension
-				var vw2 = (self.document.defaultView || self.document.parentWindow || {}).innerWidth || self.document.documentElement.clientWidth;
-				var vh2 = (self.document.defaultView || self.document.parentWindow || {}).innerHeight || self.document.documentElement.clientHeight;
-				var vmax = Math.max(vw2, vh2);
-				return numericValue * (vmax / 100);
-			default:
-				// Unknown unit, treat as pixels
-				return numericValue;
-		}
-	};
-	
-	// Convert pixels back to the original unit
-	var convertFromPixels = function(pixelValue, unit, element) {
-		switch(unit) {
-			case "px":
-				return pixelValue;
-			case "%":
-				// For percentage calculations, we need the parent of the element being resized,
-				// not the parent of the resizer widget itself
-				var targetElement = element || domNode;
-				var parentSize = getParentSize(targetElement);
-				// If parent size is 0 or invalid during concurrent resize, try to get fresh measurement
-				if(parentSize <= 0) {
-					// Force fresh measurement
-					parentSize = getParentSize(targetElement, true);
-				}
-				// Ensure we never return negative percentages or divide by zero
-				return parentSize > 0 ? Math.max((pixelValue / parentSize) * 100, 0) : 0;
-			case "em":
-				var fontSize = 16; // default fallback
-				try {
-					fontSize = parseFloat(self.document.defaultView.getComputedStyle(element || domNode).fontSize) || 16;
-				} catch(e) {
-					// Use default if getComputedStyle fails
-				}
-				return fontSize > 0 ? pixelValue / fontSize : 0;
-			case "rem":
-				var rootFontSize = 16; // default fallback
-				try {
-					rootFontSize = parseFloat(self.document.defaultView.getComputedStyle(self.document.documentElement).fontSize) || 16;
-				} catch(e) {
-					// Use default if getComputedStyle fails
-				}
-				return rootFontSize > 0 ? pixelValue / rootFontSize : 0;
-			case "vh":
-				var viewportHeight = (self.document.defaultView || self.document.parentWindow || {}).innerHeight || self.document.documentElement.clientHeight;
-				return (pixelValue / viewportHeight) * 100;
-			case "vw":
-				var viewportWidth = (self.document.defaultView || self.document.parentWindow || {}).innerWidth || self.document.documentElement.clientWidth;
-				return (pixelValue / viewportWidth) * 100;
-			case "vmin":
-				var vw = (self.document.defaultView || self.document.parentWindow || {}).innerWidth || self.document.documentElement.clientWidth;
-				var vh = (self.document.defaultView || self.document.parentWindow || {}).innerHeight || self.document.documentElement.clientHeight;
-				var vmin = Math.min(vw, vh);
-				return (pixelValue / vmin) * 100;
-			case "vmax":
-				var vw2 = (self.document.defaultView || self.document.parentWindow || {}).innerWidth || self.document.documentElement.clientWidth;
-				var vh2 = (self.document.defaultView || self.document.parentWindow || {}).innerHeight || self.document.documentElement.clientHeight;
-				var vmax = Math.max(vw2, vh2);
-				return (pixelValue / vmax) * 100;
-			default:
-				return pixelValue;
-		}
-	};
-	
-	// Robust calc() expression evaluator with support for nested expressions, parentheses, and all operations
-	var evaluateCalcExpression = function(expression, contextSize, handleSize, depth) {
-		// Limit recursion depth to prevent stack overflow
-		depth = depth || 0;
-		if(depth > 10) {
-			console.warn("calc() expression too deeply nested, limiting depth");
-			return 0;
-		}
-		
-		// Tokenize the expression
-		var tokens = [];
-		var current = "";
-		var i = 0;
-		
-		while(i < expression.length) {
-			var char = expression[i];
-			
-			// Handle whitespace
-			if(/\s/.test(char)) {
-				if(current) {
-					tokens.push(current);
-					current = "";
-				}
-				i++;
-				continue;
-			}
-			
-			// Handle operators and parentheses
-			if("+-*/()".indexOf(char) !== -1) {
-				if(current) {
-					tokens.push(current);
-					current = "";
-				}
-				tokens.push(char);
-				i++;
-				continue;
-			}
-			
-			// Handle nested calc()
-			if(expression.substr(i, 5) === "calc(") {
-				if(current) {
-					tokens.push(current);
-					current = "";
-				}
-				// Find matching closing parenthesis
-				var depth = 1;
-				var j = i + 5;
-				while(j < expression.length && depth > 0) {
-					if(expression[j] === "(") depth++;
-					else if(expression[j] === ")") depth--;
-					j++;
-				}
-				// Recursively evaluate nested calc with depth tracking
-				var nestedExpr = expression.substring(i + 5, j - 1);
-				var nestedResult = evaluateCalcExpression(nestedExpr, contextSize, handleSize, depth + 1);
-				tokens.push(String(nestedResult));
-				i = j;
-				continue;
-			}
-			
-			// Build current token
-			current += char;
-			i++;
-		}
-		
-		if(current) {
-			tokens.push(current);
-		}
-		
-		// Convert tokens to values
-		var values = [];
-		var operators = [];
-		
-		for(var t = 0; t < tokens.length; t++) {
-			var token = tokens[t];
-			
-			if("+-*/".indexOf(token) !== -1) {
-				// Process higher precedence operators first
-				while(operators.length > 0 && operators[operators.length - 1] !== "(" &&
-					  getPrecedence(operators[operators.length - 1]) >= getPrecedence(token)) {
-					processOperator(values, operators);
-				}
-				operators.push(token);
-			} else if(token === "(") {
-				operators.push(token);
-			} else if(token === ")") {
-				// Process until matching opening parenthesis
-				while(operators.length > 0 && operators[operators.length - 1] !== "(") {
-					processOperator(values, operators);
-				}
-				operators.pop(); // Remove the "("
-			} else {
-				// It's a value - convert to pixels
-				values.push(convertToPixels(token, contextSize));
-			}
-		}
-		
-		// Process remaining operators
-		while(operators.length > 0) {
-			processOperator(values, operators);
-		}
-		
-		return values[0] || 0;
-		
-		// Helper functions
-		function getPrecedence(op) {
-			if(op === "+" || op === "-") return 1;
-			if(op === "*" || op === "/") return 2;
-			return 0;
-		}
-		
-		function processOperator(values, operators) {
-			var op = operators.pop();
-			var b = values.pop();
-			var a = values.pop();
-			
-			if(a === undefined || b === undefined) {
-				values.push(0);
-				return;
-			}
-			
-			switch(op) {
-				case "+": values.push(a + b); break;
-				case "-": values.push(a - b); break;
-				case "*": values.push(a * b); break;
-				case "/": values.push(b !== 0 ? a / b : 0); break;
-			}
-		}
-		
-		function convertToPixels(value, contextSize) {
-			// Handle special variables
-			if(value === "handleSize" || value === "handleWidth" || value === "handleHeight") {
-				return handleSize || 0;
-			}
-			
-			// If already a number, return it
-			var num = parseFloat(value);
-			if(!isNaN(num) && value === String(num)) {
-				return num;
-			}
-			
-			// Get viewport dimensions
-			var viewportWidth = (self.document.defaultView || self.document.parentWindow || {}).innerWidth || self.document.documentElement.clientWidth;
-			var viewportHeight = (self.document.defaultView || self.document.parentWindow || {}).innerHeight || self.document.documentElement.clientHeight;
-			var vmin = Math.min(viewportWidth, viewportHeight);
-			var vmax = Math.max(viewportWidth, viewportHeight);
-			
-			// Handle different units
-			if(value.endsWith("px")) {
-				return parseFloat(value);
-			} else if(value.endsWith("vw")) {
-				return (parseFloat(value) / 100) * viewportWidth;
-			} else if(value.endsWith("vh")) {
-				return (parseFloat(value) / 100) * viewportHeight;
-			} else if(value.endsWith("vmin")) {
-				return (parseFloat(value) / 100) * vmin;
-			} else if(value.endsWith("vmax")) {
-				return (parseFloat(value) / 100) * vmax;
-			} else if(value.endsWith("%")) {
-				return (parseFloat(value) / 100) * contextSize;
-			} else if(value.endsWith("em") || value.endsWith("rem")) {
-				// For em/rem, we need to get the computed font size
-				// Default to 16px if we can't determine it
-				var fontSize = 16;
-				try {
-					if(value.endsWith("rem")) {
-						fontSize = parseFloat(getComputedStyle(self.document.documentElement).fontSize) || 16;
-					} else if(self.domNodes && self.domNodes[0]) {
-						fontSize = parseFloat(getComputedStyle(self.domNodes[0]).fontSize) || 16;
-					}
-				} catch(e) {
-					// Fallback to default
-				}
-				return parseFloat(value) * fontSize;
-			} else {
-				// Try to parse as number (treat as pixels)
-				return parseFloat(value) || 0;
-			}
-		}
-	};
-	
-	// Helper to evaluate calc() expressions and other CSS values
-	var evaluateCSSValue = function(value, contextSize, handleSize) {
-		if(typeof value !== "string") return value;
-		
-		// Clean up the value by trimming and removing trailing semicolons
-		value = value.trim();
-		if(value.endsWith(";")) {
-			value = value.substring(0, value.length - 1).trim();
-		}
-		
-		// If it's already a number, return it
-		var numericValue = parseFloat(value);
-		if(!isNaN(numericValue) && value === String(numericValue)) {
-			return numericValue;
-		}
-		
-		// Handle simple units
-		if(value.endsWith("%")) {
-			return (parseFloat(value) / 100) * contextSize;
-		}
-		if(value.endsWith("px")) {
-			return parseFloat(value);
-		}
-		
-		// Handle calc() expressions
-		if(value.startsWith("calc(") && value.endsWith(")")) {
-			var expression = value.substring(5, value.length - 1).trim();
-			return evaluateCalcExpression(expression, contextSize, handleSize);
-		}
-		
-		// If we can't evaluate it, try to parse as a number
-		return parseFloat(value) || 0;
-	};
 	
 	// Helper to update the tiddler values based on drag delta (in pixels)
 	var updateValues = function(pixelDelta, operation) {
@@ -770,8 +825,8 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 		// Always re-evaluate min/max values to get the latest from self.minValueRaw and self.maxValueRaw
 		// This ensures that if attributes change during resize, the new values are used immediately
 		// Use fresh measurements instead of cached values from operation
-		var effectiveMinValue = self.minValueRaw ? evaluateCSSValue(self.minValueRaw, currentParentSize, currentHandleSize) : null;
-		var effectiveMaxValue = self.maxValueRaw ? evaluateCSSValue(self.maxValueRaw, currentParentSize, currentHandleSize) : null;
+		var effectiveMinValue = self.minValueRaw ? self.evaluateCSSValue(self.minValueRaw, currentParentSize, currentHandleSize) : null;
+		var effectiveMaxValue = self.maxValueRaw ? self.evaluateCSSValue(self.maxValueRaw, currentParentSize, currentHandleSize) : null;
 		
 		// Ensure min/max values are reasonable
 		if(effectiveMinValue !== null) {
@@ -826,29 +881,16 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 					// Convert back to the original unit
 					// Use the first target element for percentage calculations if available
 					var referenceElement = operation.targetElements && operation.targetElements[0] ? operation.targetElements[0] : domNode;
-					var convertedValue = convertFromPixels(newPixelValue, originalUnit, referenceElement);
+					var convertedValue = self.convertFromPixels(newPixelValue, originalUnit, getParentSize(referenceElement), referenceElement);
 					
 					// Ensure the converted value never goes below the minimum
 					if(operation.effectiveMinValue !== null) {
-						var minInOriginalUnit = convertFromPixels(Math.max(operation.effectiveMinValue, 0), originalUnit, referenceElement);
+						var minInOriginalUnit = self.convertFromPixels(Math.max(operation.effectiveMinValue, 0), originalUnit, getParentSize(referenceElement), referenceElement);
 						convertedValue = Math.max(convertedValue, minInOriginalUnit);
 					}
 					
 					// Format the value based on the original unit type
-					var formattedValue;
-					if(originalUnit === "%") {
-						// For percentages, round to 1 decimal place
-						formattedValue = convertedValue.toFixed(1) + "%";
-					} else if(originalUnit === "em" || originalUnit === "rem") {
-						// For em/rem, round to 2 decimal places
-						formattedValue = convertedValue.toFixed(2) + originalUnit;
-					} else if(originalUnit === "px") {
-						// For pixels, round to integer
-						formattedValue = Math.round(convertedValue) + "px";
-					} else {
-						// For other units (vh, vw, etc.), round to 1 decimal place
-						formattedValue = convertedValue.toFixed(1) + originalUnit;
-					}
+					var formattedValue = self.formatValueWithUnit(convertedValue, originalUnit);
 					
 					self.wiki.setText(tiddlerTitle, self.targetField || "text", null, formattedValue);
 				}
@@ -860,26 +902,16 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 			// Use widget's unit for single tiddler mode
 			// Use the first target element for percentage calculations if available
 			var referenceElement = operation.targetElements && operation.targetElements[0] ? operation.targetElements[0] : domNode;
-			var convertedValue = convertFromPixels(newPixelValue, self.unit, referenceElement);
+			var convertedValue = self.convertFromPixels(newPixelValue, self.unit, getParentSize(referenceElement), referenceElement);
 			
 			// Ensure the converted value never goes below the minimum
 			if(operation.effectiveMinValue !== null) {
-				var minInOriginalUnit = convertFromPixels(Math.max(operation.effectiveMinValue, 0), self.unit, referenceElement);
+				var minInOriginalUnit = self.convertFromPixels(Math.max(operation.effectiveMinValue, 0), self.unit, getParentSize(referenceElement), referenceElement);
 				convertedValue = Math.max(convertedValue, minInOriginalUnit);
 			}
 			
 			// Format the value based on the unit type
-			var formattedValue;
-			if(self.unit === "%") {
-				// For percentages, round to 1 decimal place
-				formattedValue = convertedValue.toFixed(1) + "%";
-			} else if(self.unit === "em" || self.unit === "rem") {
-				// For em/rem, round to 2 decimal places
-				formattedValue = convertedValue.toFixed(2) + self.unit;
-			} else {
-				// For pixels and other units, round to integer
-				formattedValue = Math.round(convertedValue) + (self.unit || "px");
-			}
+			var formattedValue = self.formatValueWithUnit(convertedValue);
 			
 			self.wiki.setText(self.targetTiddler, self.targetField || "text", null, formattedValue);
 		}
@@ -893,7 +925,7 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 			}
 			
 			// Convert to widget's unit for the action
-			var actionValue = convertFromPixels(actionPixelValue, self.unit, domNode);
+			var actionValue = self.convertFromPixels(actionPixelValue, self.unit, getParentSize(domNode), domNode);
 			var formattedValue;
 			if(self.unit === "%") {
 				formattedValue = actionValue.toFixed(1) + "%";
@@ -990,34 +1022,7 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 		// We'll set up parent size cache after finding target elements
 		
 		// Find the target element(s) to resize FIRST so we can measure them
-		operation.targetElements = []; // Initialize array when needed
-		if(self.targetSelector) {
-			if(self.resizeMode === "multiple") {
-				operation.targetElements = Array.from(self.document.querySelectorAll(self.targetSelector));
-			} else {
-				var singleElement = self.document.querySelector(self.targetSelector);
-				if(singleElement) operation.targetElements = [singleElement];
-			}
-		} else if(self.targetElement === "parent") {
-			operation.targetElements = [domNode.parentElement];
-		} else if(self.targetElement === "previousSibling") {
-			if(domNode.previousElementSibling) operation.targetElements = [domNode.previousElementSibling];
-		} else if(self.targetElement === "nextSibling") {
-			if(domNode.nextElementSibling) operation.targetElements = [domNode.nextElementSibling];
-		} else {
-			// Default behavior depends on handle position
-			if(self.handlePosition === "overlay") {
-				// For overlay mode, target the parent element
-				operation.targetElements = [domNode.parentElement];
-			} else {
-				// For non-overlay mode: for vertical resizers, target previous sibling; for horizontal, target previous sibling
-				if(self.direction === "vertical") {
-					if(domNode.previousElementSibling) operation.targetElements = [domNode.previousElementSibling];
-				} else {
-					if(domNode.previousElementSibling) operation.targetElements = [domNode.previousElementSibling];
-				}
-			}
-		}
+		operation.targetElements = self.getTargetElements(domNode);
 		operation.targetElement = operation.targetElements[0]; // Keep for backward compatibility
 		
 		// Now that we have target elements, set up parent size cache
@@ -1105,50 +1110,29 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 				if(index === 0 && measuredSize !== null) {
 					operation.startValues[tiddlerTitle] = measuredSize;
 					// Detect the unit from the tiddler value for later conversion
-					var tiddler = self.wiki.getTiddler(tiddlerTitle);
-					var storedValue;
-					if(tiddler && self.targetField && self.targetField !== "text") {
-						storedValue = tiddler.fields[self.targetField] || self.defaultValue || "200px";
-					} else {
-						storedValue = self.wiki.getTiddlerText(tiddlerTitle, self.defaultValue || "200px");
-					}
-					// If the stored value is empty or just whitespace, use the default value
-					if(!storedValue || storedValue.trim() === "") {
-						storedValue = self.defaultValue || "200px";
-					}
-					operation.startUnits[tiddlerTitle] = getUnit(storedValue);
+					var storedValue = self.getTiddlerValue(tiddlerTitle);
+					operation.startUnits[tiddlerTitle] = self.getUnit(storedValue);
 				} else {
 					// For other tiddlers or if no element to measure, fall back to stored value
-					var tiddler = self.wiki.getTiddler(tiddlerTitle);
-					var currentValue;
-					if(tiddler && self.targetField && self.targetField !== "text") {
-						currentValue = tiddler.fields[self.targetField] || self.defaultValue || "200px";
-					} else {
-						currentValue = self.wiki.getTiddlerText(tiddlerTitle, self.defaultValue || "200px");
-					}
-					
-					// If the current value is empty or just whitespace, use the default value
-					if(!currentValue || currentValue.trim() === "") {
-						currentValue = self.defaultValue || "200px";
-					}
+					var currentValue = self.getTiddlerValue(tiddlerTitle);
 					
 					// Check if it's a calc() expression
 					if(currentValue.startsWith("calc(") && currentValue.endsWith(")")) {
 						// For calc expressions, we can't easily determine the unit, so default to px
 						operation.startUnits[tiddlerTitle] = "px";
 						// Evaluate the calc expression
-						var pixelValue = evaluateCSSValue(currentValue, operation.parentSizeAtStart, handleSize);
+						var pixelValue = self.evaluateCSSValue(currentValue, operation.parentSizeAtStart, handleSize);
 						operation.startValues[tiddlerTitle] = pixelValue;
 					} else {
 						// Get the numeric value and unit
 						var numericValue = getNumericValue(currentValue);
-						var valueUnit = getUnit(currentValue);
+						var valueUnit = self.getUnit(currentValue);
 						
 						// Store the original unit for this tiddler
 						operation.startUnits[tiddlerTitle] = valueUnit;
 						
 						// Convert to pixels for internal calculations
-						var pixelValue = convertToPixels(numericValue, valueUnit, domNode);
+						var pixelValue = self.convertToPixels(numericValue, valueUnit, getParentSize(domNode), domNode);
 						operation.startValues[tiddlerTitle] = pixelValue;
 					}
 				}
@@ -1161,52 +1145,31 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 				// Use the measured size from the actual element
 				operation.startValue = measuredSize;
 				// Get the unit from the stored value
-				var tiddler = self.wiki.getTiddler(self.targetTiddler);
-				var storedValue;
-				if(tiddler && self.targetField && self.targetField !== "text") {
-					storedValue = tiddler.fields[self.targetField] || self.defaultValue || "200px";
-				} else {
-					storedValue = self.wiki.getTiddlerText(self.targetTiddler, self.defaultValue || "200px");
-				}
-				// If the stored value is empty or just whitespace, use the default value
-				if(!storedValue || storedValue.trim() === "") {
-					storedValue = self.defaultValue || "200px";
-				}
+				var storedValue = self.getTiddlerValue(self.targetTiddler);
 				// For calc expressions, default to px unit
 				if(storedValue.startsWith("calc(") && storedValue.endsWith(")")) {
 					self.unit = "px";
 				} else {
-					self.unit = getUnit(storedValue);
+					self.unit = self.getUnit(storedValue);
 				}
 			} else {
 				// No element to measure, fall back to stored value
-				var tiddler = self.wiki.getTiddler(self.targetTiddler);
-				var currentValue;
-				if(tiddler && self.targetField && self.targetField !== "text") {
-					currentValue = tiddler.fields[self.targetField] || self.defaultValue || "200px";
-				} else {
-					currentValue = self.wiki.getTiddlerText(self.targetTiddler, self.defaultValue || "200px");
-				}
-				
-				// If the current value is empty or just whitespace, use the default value
-				if(!currentValue || currentValue.trim() === "") {
-					currentValue = self.defaultValue || "200px";
-				}
+				var currentValue = self.getTiddlerValue(self.targetTiddler);
 				
 				// Check if it's a calc() expression
 				if(currentValue.startsWith("calc(") && currentValue.endsWith(")")) {
 					// For calc expressions, we can't easily determine the unit, so default to px
 					self.unit = "px";
 					// Evaluate the calc expression
-					operation.startValue = evaluateCSSValue(currentValue, operation.parentSizeAtStart, handleSize);
+					operation.startValue = self.evaluateCSSValue(currentValue, operation.parentSizeAtStart, handleSize);
 				} else {
 					// Get the numeric value and unit
 					var numericValue = getNumericValue(currentValue);
-					var valueUnit = getUnit(currentValue);
+					var valueUnit = self.getUnit(currentValue);
 					self.unit = valueUnit;
 					
 					// Convert to pixels for internal calculations
-					operation.startValue = convertToPixels(numericValue, valueUnit, domNode);
+					operation.startValue = self.convertToPixels(numericValue, valueUnit, getParentSize(domNode), domNode);
 				}
 			}
 		} else {
@@ -1215,7 +1178,7 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 				operation.startValue = measuredSize;
 			} else {
 				// Evaluate the default value which might be a calc() expression
-				operation.startValue = evaluateCSSValue(self.defaultValue || "200px", operation.parentSizeAtStart, handleSize);
+				operation.startValue = self.evaluateCSSValue(self.defaultValue || "200px", operation.parentSizeAtStart, handleSize);
 			}
 		}
 		
@@ -1232,7 +1195,7 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 		if(self.onBeforeResizeStart) {
 			// Convert pixel value to the widget's unit
 			var referenceElement = operation.targetElements && operation.targetElements[0] ? operation.targetElements[0] : domNode;
-			var convertedValue = convertFromPixels(operation.startValue, self.unit, referenceElement);
+			var convertedValue = self.convertFromPixels(operation.startValue, self.unit, getParentSize(referenceElement), referenceElement);
 			var formattedValue;
 			if(self.unit === "%") {
 				formattedValue = convertedValue.toFixed(1) + "%";
@@ -1257,7 +1220,7 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 		if(self.onResizeStart) {
 			// Convert pixel value to the widget's unit
 			var referenceElement = operation.targetElements && operation.targetElements[0] ? operation.targetElements[0] : domNode;
-			var convertedValue = convertFromPixels(operation.startValue, self.unit, referenceElement);
+			var convertedValue = self.convertFromPixels(operation.startValue, self.unit, getParentSize(referenceElement), referenceElement);
 			var formattedValue;
 			if(self.unit === "%") {
 				formattedValue = convertedValue.toFixed(1) + "%";
@@ -1400,7 +1363,7 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 					}
 					
 					// Convert to widget's unit for the callback
-					var callbackValue = convertFromPixels(callbackPixelValue, self.unit, domNode);
+					var callbackValue = self.convertFromPixels(callbackPixelValue, self.unit, getParentSize(domNode), domNode);
 					var formattedValue;
 					if(self.unit === "%") {
 						formattedValue = callbackValue.toFixed(1) + "%";
@@ -1474,8 +1437,8 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 					var currentHandleSize = getHandleSize();
 					
 					// Re-evaluate min/max to use current attribute values with fresh measurements
-					var currentMinValue = self.minValueRaw ? evaluateCSSValue(self.minValueRaw, currentParentSize, currentHandleSize) : null;
-					var currentMaxValue = self.maxValueRaw ? evaluateCSSValue(self.maxValueRaw, currentParentSize, currentHandleSize) : null;
+					var currentMinValue = self.minValueRaw ? self.evaluateCSSValue(self.minValueRaw, currentParentSize, currentHandleSize) : null;
+					var currentMaxValue = self.maxValueRaw ? self.evaluateCSSValue(self.maxValueRaw, currentParentSize, currentHandleSize) : null;
 					
 					var absoluteMin = Math.max(currentMinValue || 0, 0);
 					if(livePixelValue < absoluteMin) {
@@ -1773,6 +1736,157 @@ ResizerWidget.prototype.execute = function() {
 };
 
 /*
+Common cleanup logic shared between removeChildDomNodes and destroy
+*/
+ResizerWidget.prototype.performCleanup = function() {
+	var self = this;
+	
+	// 1. Clean up all active operations with full detail
+	if(self.activeResizeOperations) {
+		for(var pointerId in self.activeResizeOperations) {
+			if(self.activeResizeOperations.hasOwnProperty(pointerId)) {
+				var operation = self.activeResizeOperations[pointerId];
+				if(operation) {
+					// Cancel any pending animation frame
+					if(operation.animationFrameId) {
+						cancelAnimationFrame(operation.animationFrameId);
+						operation.animationFrameId = null;
+					}
+					// Clear pending events
+					operation.pendingMouseEvent = null;
+					// Clear DOM references in operation
+					if(operation.targetElements) {
+						operation.targetElements = null;
+					}
+					operation.targetElement = null;
+					// Clear cursor reference
+					operation.cursor = null;
+					// Release pointer capture if held
+					if(operation.hasPointerCapture && self.domNode && self.domNode.releasePointerCapture) {
+						try {
+							self.domNode.releasePointerCapture(pointerId);
+						} catch(e) {
+							// Ignore errors
+						}
+					}
+				}
+				// Call cleanup
+				if(self.cleanupResize) {
+					self.cleanupResize(pointerId);
+				}
+			}
+		}
+		// Clear the operations object
+		self.activeResizeOperations = {};
+	}
+	
+	// 2. Clear all timeouts immediately
+	if(self.operationTimeouts) {
+		for(var timeoutId in self.operationTimeouts) {
+			if(self.operationTimeouts.hasOwnProperty(timeoutId)) {
+				clearTimeout(self.operationTimeouts[timeoutId]);
+			}
+		}
+		self.operationTimeouts = {};
+	}
+	
+	// 3. Remove all event listeners from DOM elements
+	if(self.domNodes && self.domNodes[0]) {
+		var domNode = self.domNodes[0];
+		
+		// Remove all event listeners with stored references
+		var listeners = [
+			{ref: 'handlePointerDownReference', event: 'pointerdown'},
+			{ref: 'handleLostPointerCaptureReference', event: 'lostpointercapture'},
+			{ref: 'handleGotPointerCaptureReference', event: 'gotpointercapture'},
+			{ref: 'handleDoubleClickReference', event: 'dblclick'},
+			{ref: 'handleTouchStartReference', event: 'touchstart'}
+		];
+		
+		for(var i = 0; i < listeners.length; i++) {
+			if(self[listeners[i].ref]) {
+				domNode.removeEventListener(listeners[i].event, self[listeners[i].ref]);
+				self[listeners[i].ref] = null;
+			}
+		}
+		
+		// Force release all pointer captures (defensive)
+		if(domNode.releasePointerCapture) {
+			try {
+				// Try to release captures for pointer IDs 0-10
+				for(var ptr = 0; ptr < 10; ptr++) {
+					domNode.releasePointerCapture(ptr);
+				}
+			} catch(e) {
+				// Ignore errors
+			}
+		}
+	}
+	
+	// 4. Remove from global manager
+	if(typeof GlobalResizerManager !== "undefined") {
+		GlobalResizerManager.removeWidget(self);
+	}
+	
+	// 5. Clear all function references to break closure chains
+	self.handlePointerMoveGlobal = null;
+	self.handlePointerUpGlobal = null;
+	self.handlePointerDownReference = null;
+	self.handleLostPointerCaptureReference = null;
+	self.handleGotPointerCaptureReference = null;
+	self.handleDoubleClickReference = null;
+	self.handleTouchStartReference = null;
+	self.triggerHaptic = null;
+	self.cleanupResize = null;
+	
+	// 6. Clear caches and data structures
+	self.parentSizeCache = {};
+	self.parentSizeCacheOrder = [];
+	
+	// 7. Clear DOM references (but keep widget framework properties intact)
+	self.domNode = null;
+	// Note: parentDomNode and domNodes are managed by the base Widget class
+	// Don't null them as the parent class expects them to exist
+	
+	// 8. Clear all attribute values to free memory
+	// Clear all properties in both cases to prevent memory leaks
+	self.actions = null;
+	self.onResizeStart = null;
+	self.onResize = null;
+	self.onResizeEnd = null;
+	self.onReset = null;
+	self.direction = null;
+	self.targetTiddler = null;
+	self.targetFilter = null;
+	self.targetTiddlers = null;
+	self.targetField = null;
+	self.targetSelector = null;
+	self.targetElement = null;
+	self.targetProperty = null;
+	self.unit = null;
+	self.position = null;
+	self.defaultValue = null;
+	self.minValueRaw = null;
+	self.maxValueRaw = null;
+	self.minValue = null;
+	self.maxValue = null;
+	self.invertDirection = null;
+	self.liveResize = null;
+	self.resizerClass = null;
+	self.aspectRatio = null;
+	self.resizeMode = null;
+	self.handlePosition = null;
+	self.disable = null;
+	self.resetTo = null;
+	self.resetValue = null;
+	self.smoothReset = null;
+	self.handleStyle = null;
+	self.hapticFeedback = null;
+	self.hapticDebug = null;
+	self.visiblePortion = null;
+};
+
+/*
 Selectively refreshes the widget if needed. Returns true if the widget or any of its children needed re-rendering
 */
 ResizerWidget.prototype.refresh = function(changedTiddlers) {
@@ -1829,123 +1943,8 @@ ResizerWidget.prototype.refresh = function(changedTiddlers) {
 Remove any DOM elements created by this widget
 */
 ResizerWidget.prototype.removeChildDomNodes = function() {
-	var self = this;
-	
-	// === COMPREHENSIVE CLEANUP (ES5-compatible) ===
-	
-	// 1. Clean up all active operations with full detail
-	if(self.activeResizeOperations) {
-		for(var pointerId in self.activeResizeOperations) {
-			if(self.activeResizeOperations.hasOwnProperty(pointerId)) {
-				var operation = self.activeResizeOperations[pointerId];
-				if(operation) {
-					// Cancel any pending animation frame
-					if(operation.animationFrameId) {
-						cancelAnimationFrame(operation.animationFrameId);
-						operation.animationFrameId = null;
-					}
-					// Clear pending events
-					operation.pendingMouseEvent = null;
-					// Clear DOM references in operation
-					if(operation.targetElements) {
-						operation.targetElements = null;
-					}
-					operation.targetElement = null;
-					// Clear cursor reference
-					operation.cursor = null;
-					// Release pointer capture if held
-					if(operation.hasPointerCapture && self.domNode && self.domNode.releasePointerCapture) {
-						try {
-							self.domNode.releasePointerCapture(pointerId);
-						} catch(e) {
-							// Ignore errors
-						}
-					}
-				}
-				// Call cleanup
-				if(self.cleanupResize) {
-					self.cleanupResize(pointerId);
-				}
-			}
-		}
-		// Clear the operations object completely
-		self.activeResizeOperations = {};
-	}
-	
-	// 2. Clear all timeouts immediately
-	if(self.operationTimeouts) {
-		for(var timeoutId in self.operationTimeouts) {
-			if(self.operationTimeouts.hasOwnProperty(timeoutId)) {
-				clearTimeout(self.operationTimeouts[timeoutId]);
-			}
-		}
-		self.operationTimeouts = {};
-	}
-	
-	// 3. Remove all event listeners from DOM elements
-	if(self.domNodes && self.domNodes[0]) {
-		var domNode = self.domNodes[0];
-		
-		// Remove all event listeners with stored references
-		var listeners = [
-			{ref: 'handlePointerDownReference', event: 'pointerdown'},
-			{ref: 'handleLostPointerCaptureReference', event: 'lostpointercapture'},
-			{ref: 'handleGotPointerCaptureReference', event: 'gotpointercapture'},
-			{ref: 'handleDoubleClickReference', event: 'dblclick'},
-			{ref: 'handleTouchStartReference', event: 'touchstart'}
-		];
-		
-		for(var i = 0; i < listeners.length; i++) {
-			if(self[listeners[i].ref]) {
-				domNode.removeEventListener(listeners[i].event, self[listeners[i].ref]);
-				self[listeners[i].ref] = null; // Clear reference
-			}
-		}
-		
-		// Force release all pointer captures (defensive)
-		if(domNode.releasePointerCapture) {
-			try {
-				// Try to release captures for pointer IDs 0-10
-				for(var ptr = 0; ptr < 10; ptr++) {
-					domNode.releasePointerCapture(ptr);
-				}
-			} catch(e) {
-				// Ignore errors
-			}
-		}
-	}
-	
-	// 4. Remove from global manager
-	if(typeof GlobalResizerManager !== "undefined") {
-		GlobalResizerManager.removeWidget(self);
-	}
-	
-	// 5. Clear all function references to break closure chains
-	self.handlePointerMoveGlobal = null;
-	self.handlePointerUpGlobal = null;
-	self.handlePointerDownReference = null;
-	self.handleLostPointerCaptureReference = null;
-	self.handleGotPointerCaptureReference = null;
-	self.handleDoubleClickReference = null;
-	self.handleTouchStartReference = null;
-	self.triggerHaptic = null;
-	self.cleanupResize = null;
-	
-	// 6. Clear caches and data structures
-	self.parentSizeCache = {};
-	self.parentSizeCacheOrder = [];
-	
-	// 7. Clear DOM references
-	self.domNode = null;
-	self.parentDomNode = null;
-	
-	// 8. Clear all attribute values to free memory
-	self.actions = null;
-	self.onResizeStart = null;
-	self.onResize = null;
-	self.onResizeEnd = null;
-	self.onReset = null;
-	self.visiblePortion = null;
+	// Use shared cleanup logic
+	this.performCleanup();
 	
 	// Call parent implementation
 	Widget.prototype.removeChildDomNodes.call(this);
@@ -1955,151 +1954,8 @@ ResizerWidget.prototype.removeChildDomNodes = function() {
 Destroy the widget and clean up resources - For future TiddlyWiki versions
 */
 ResizerWidget.prototype.destroy = function() {
-	var self = this;
-	
-	// === COMPREHENSIVE CLEANUP (ES5-compatible) - Same as removeChildDomNodes ===
-	
-	// 1. Clean up all active operations with full detail
-	if(self.activeResizeOperations) {
-		for(var pointerId in self.activeResizeOperations) {
-			if(self.activeResizeOperations.hasOwnProperty(pointerId)) {
-				var operation = self.activeResizeOperations[pointerId];
-				if(operation) {
-					// Cancel any pending animation frame
-					if(operation.animationFrameId) {
-						cancelAnimationFrame(operation.animationFrameId);
-						operation.animationFrameId = null;
-					}
-					// Clear pending events
-					operation.pendingMouseEvent = null;
-					// Clear DOM references in operation
-					if(operation.targetElements) {
-						operation.targetElements = null;
-					}
-					operation.targetElement = null;
-					// Clear cursor reference
-					operation.cursor = null;
-					// Release pointer capture if held
-					if(operation.hasPointerCapture && self.domNode && self.domNode.releasePointerCapture) {
-						try {
-							self.domNode.releasePointerCapture(pointerId);
-						} catch(e) {
-							// Ignore errors
-						}
-					}
-				}
-				// Call cleanup
-				if(self.cleanupResize) {
-					self.cleanupResize(pointerId);
-				}
-			}
-		}
-		// Null out the operations object completely
-		self.activeResizeOperations = null;
-	}
-	
-	// 2. Clear all timeouts immediately
-	if(self.operationTimeouts) {
-		for(var timeoutId in self.operationTimeouts) {
-			if(self.operationTimeouts.hasOwnProperty(timeoutId)) {
-				clearTimeout(self.operationTimeouts[timeoutId]);
-			}
-		}
-		self.operationTimeouts = null;
-	}
-	
-	// 3. Remove all event listeners from DOM elements
-	if(self.domNodes && self.domNodes[0]) {
-		var domNode = self.domNodes[0];
-		
-		// Remove all event listeners with stored references
-		var listeners = [
-			{ref: 'handlePointerDownReference', event: 'pointerdown'},
-			{ref: 'handleLostPointerCaptureReference', event: 'lostpointercapture'},
-			{ref: 'handleGotPointerCaptureReference', event: 'gotpointercapture'},
-			{ref: 'handleDoubleClickReference', event: 'dblclick'},
-			{ref: 'handleTouchStartReference', event: 'touchstart'}
-		];
-		
-		for(var i = 0; i < listeners.length; i++) {
-			if(self[listeners[i].ref]) {
-				domNode.removeEventListener(listeners[i].event, self[listeners[i].ref]);
-			}
-		}
-		
-		// Force release all pointer captures (defensive)
-		if(domNode.releasePointerCapture) {
-			try {
-				// Try to release captures for pointer IDs 0-10
-				for(var ptr = 0; ptr < 10; ptr++) {
-					domNode.releasePointerCapture(ptr);
-				}
-			} catch(e) {
-				// Ignore errors
-			}
-		}
-	}
-	
-	// 4. Remove from global manager
-	if(typeof GlobalResizerManager !== "undefined") {
-		GlobalResizerManager.removeWidget(self);
-	}
-	
-	// 5. Clear all function references to break closure chains
-	self.handlePointerMoveGlobal = null;
-	self.handlePointerUpGlobal = null;
-	self.handlePointerDownReference = null;
-	self.handleLostPointerCaptureReference = null;
-	self.handleGotPointerCaptureReference = null;
-	self.handleDoubleClickReference = null;
-	self.handleTouchStartReference = null;
-	self.triggerHaptic = null;
-	self.cleanupResize = null;
-	
-	// 6. Clear caches and data structures
-	self.parentSizeCache = null;
-	self.parentSizeCacheOrder = null;
-	
-	// 7. Clear DOM references
-	self.domNode = null;
-	self.parentDomNode = null;
-	self.domNodes = null;
-	
-	// 8. Clear all attribute values to free memory
-	self.actions = null;
-	self.onResizeStart = null;
-	self.onResize = null;
-	self.onResizeEnd = null;
-	self.onReset = null;
-	self.direction = null;
-	self.targetTiddler = null;
-	self.targetFilter = null;
-	self.targetTiddlers = null;
-	self.targetField = null;
-	self.targetSelector = null;
-	self.targetElement = null;
-	self.targetProperty = null;
-	self.unit = null;
-	self.position = null;
-	self.defaultValue = null;
-	self.minValueRaw = null;
-	self.maxValueRaw = null;
-	self.minValue = null;
-	self.maxValue = null;
-	self.invertDirection = null;
-	self.liveResize = null;
-	self.resizerClass = null;
-	self.aspectRatio = null;
-	self.resizeMode = null;
-	self.handlePosition = null;
-	self.disable = null;
-	self.resetTo = null;
-	self.resetValue = null;
-	self.smoothReset = null;
-	self.handleStyle = null;
-	self.hapticFeedback = null;
-	self.hapticDebug = null;
-	self.visiblePortion = null;
+	// Use shared cleanup logic
+	this.performCleanup();
 	
 	// Call parent destroy if it exists
 	if(Widget.prototype.destroy) {
