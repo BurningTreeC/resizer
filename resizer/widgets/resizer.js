@@ -1598,7 +1598,7 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 				}
 				finalValue = getNumericValue(currentValue);
 				// Calculate pixel value
-				var currentUnit = getUnit(currentValue);
+				var currentUnit = self.getUnit(currentValue);
 				var referenceElement = operation.targetElements && operation.targetElements[0] ? operation.targetElements[0] : domNode;
 				finalPixelValue = convertToPixels(finalValue, currentUnit, referenceElement);
 			} else if(self.targetTiddler) {
@@ -1611,7 +1611,7 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 				}
 				finalValue = getNumericValue(currentValue);
 				// Calculate pixel value
-				var currentUnit = getUnit(currentValue);
+				var currentUnit = self.getUnit(currentValue);
 				var referenceElement = operation.targetElements && operation.targetElements[0] ? operation.targetElements[0] : domNode;
 				finalPixelValue = convertToPixels(finalValue, currentUnit, referenceElement);
 			}
