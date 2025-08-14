@@ -15,6 +15,14 @@ $:/config/SideBarSegments/Visibility/$(listItem)$
 </$list>
 \end
 
+\procedure fluid-fixed-dblclick-actions()
+<$action-deletetiddler $tiddler="$:/themes/tiddlywiki/vanilla/metrics/sidebarwidth"/>
+\end
+
+\procedure fixed-fluid-dblclick-actions()
+<$action-deletetiddler $filter="$:/themes/tiddlywiki/vanilla/metrics/storyright $:/themes/tiddlywiki/vanilla/metrics/storywidth $:/themes/tiddlywiki/vanilla/metrics/tiddlerwidth"/>
+\end
+
 <div class="tc-sidebar-scrollable-wrapper">
 
 <%if [{$:/state/sidebar}!match[no]] %>
@@ -27,7 +35,7 @@ $:/config/SideBarSegments/Visibility/$(listItem)$
 	max={{{ [[calc(100vw - ]addsuffix{$:/themes/tiddlywiki/vanilla/metrics/storyminwidth}addsuffix[)]] }}}
 	default="350px"
 	invert="yes"
-	smoothReset="yes"
+	dblClickActions=<<fluid-fixed-dblclick-actions>>
 	onResizeStart=<<on-resize-start-action-fluid-fixed>>
 />
 <%elseif [{$:/themes/tiddlywiki/vanilla/options/sidebarlayout}match[fixed-fluid]] %>
@@ -39,7 +47,7 @@ $:/config/SideBarSegments/Visibility/$(listItem)$
 	max={{{ [[calc(100vw - ]addsuffix{$:/themes/tiddlywiki/vanilla/metrics/sidebarminwidth}addsuffix[ - ]addsuffix{$:/themes/tiddlywiki/vanilla/metrics/storyleft}addsuffix[)]] }}}
 	default="770px"
 	invert="no"
-	smoothReset="yes"
+	dblClickActions=<<fixed-fluid-dblclick-actions>>
 	onResizeStart=<<on-resize-start-action-fixed-fluid>>
 />
 <% endif %>

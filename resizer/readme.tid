@@ -68,6 +68,7 @@ A powerful and flexible resizer widget that enables interactive resizing of UI e
 |onResizeStart |Actions to execute when resize starts |
 |onResize |Actions to execute during resize |
 |onResizeEnd |Actions to execute when resize ends |
+|dblClickActions |Custom actions to execute on double-click (overrides reset behavior) |
 
 !!!! Available Action Variables
 
@@ -96,10 +97,10 @@ The following variables are available within action strings:
 !!! Reset Attributes
 
 |!Attribute |!Description |!Default |
-|resetTo |What value to reset to on double-click: "default", "min", "max", "custom" |"default" |
-|resetValue |Custom value to reset to when resetTo="custom" |– |
-|smoothReset |Animate the reset transition: "yes" or "no" |"yes" |
-|onReset |Action string to execute when resizer is reset |– |
+|resetTo |What value to reset to on double-click: "default", "min", "max", "custom" (ignored if `dblClickActions` is set) |"default" |
+|resetValue |Custom value to reset to when resetTo="custom" (ignored if `dblClickActions` is set) |– |
+|smoothReset |Animate the reset transition: "yes" or "no" (ignored if `dblClickActions` is set) |"yes" |
+|onReset |Action string to execute when resizer is reset (ignored if `dblClickActions` is set) |– |
 
 !!! Mobile/Touch Attributes
 
@@ -246,7 +247,25 @@ Double-click any resizer handle to reset it to a specified value:
   tiddler="$:/state/panel/width"
   smoothReset="no"
 />
+
+<!-- Custom double-click actions (overrides reset behavior) -->
+<$resizer
+  direction="horizontal"
+  tiddler="$:/state/panel/width"
+  dblClickActions="""
+    <$action-sendmessage $message="tm-modal" $param="$:/core/ui/ControlPanel/Settings"/>
+    <$action-log message="Panel width on double-click" value=<<actionValue>>/>
+  """
+/>
 ```
+
+When using `dblClickActions`, the following variables are available:
+
+* `<<actionValue>>` - The current value with unit
+* `<<actionValuePixels>>` - The current value in pixels
+* `<<actionDirection>>` - The resize direction
+* `<<actionParentSize>>` - The parent container size in pixels
+* `<<actionHandleSize>>` - The handle size in pixels
 
 !!! Handle Styles
 

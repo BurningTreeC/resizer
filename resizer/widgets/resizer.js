@@ -619,6 +619,73 @@ ResizerWidget.prototype.addDoubleClickHandler = function(domNode) {
 		event.preventDefault();
 		event.stopPropagation();
 		
+		// Check if custom dblClickActions are defined
+		if(self.dblClickActions) {
+			// Get current value and parent size for action variables
+			var targetElement = domNode.previousElementSibling || domNode.parentElement;
+			var parentSize = 0;
+			var handleSize = 0;
+			
+			// Get the handle size
+			var computedStyle = self.document.defaultView.getComputedStyle(domNode);
+			if(self.direction === "horizontal") {
+				handleSize = parseFloat(computedStyle.width) || 0;
+			} else {
+				handleSize = parseFloat(computedStyle.height) || 0;
+			}
+			
+			// Get parent size
+			if(targetElement && targetElement.parentElement) {
+				var parentElement = targetElement.parentElement;
+				if(self.position === "relative") {
+					parentSize = self.direction === "horizontal" ? parentElement.offsetWidth : parentElement.offsetHeight;
+				} else {
+					var parentRect = parentElement.getBoundingClientRect();
+					parentSize = self.direction === "horizontal" ? parentRect.width : parentRect.height;
+				}
+			}
+			
+			// Get current value from tiddler
+			var currentValue = self.defaultValue;
+			var currentPixelValue = 0;
+			if(self.targetTiddlers && self.targetTiddlers.length > 0) {
+				var firstTiddler = self.targetTiddlers[0];
+				var tiddler = self.wiki.getTiddler(firstTiddler);
+				if(tiddler && self.targetField && self.targetField !== "text") {
+					currentValue = tiddler.fields[self.targetField] || self.defaultValue;
+				} else {
+					currentValue = self.wiki.getTiddlerText(firstTiddler, self.defaultValue);
+				}
+			} else if(self.targetTiddler) {
+				var tiddler = self.wiki.getTiddler(self.targetTiddler);
+				if(tiddler && self.targetField && self.targetField !== "text") {
+					currentValue = tiddler.fields[self.targetField] || self.defaultValue;
+				} else {
+					currentValue = self.wiki.getTiddlerText(self.targetTiddler, self.defaultValue);
+				}
+			}
+			
+			// Calculate pixel value of current value
+			currentPixelValue = self.evaluateCSSValue(currentValue, parentSize, handleSize);
+			
+			// Set variables for the action string
+			self.setVariable("actionValue", currentValue);
+			self.setVariable("actionValuePixels", currentPixelValue.toString());
+			self.setVariable("actionDirection", self.direction);
+			self.setVariable("actionParentSize", parentSize.toString());
+			self.setVariable("actionHandleSize", handleSize.toString());
+			
+			// Trigger haptic feedback on mobile
+			if(self.hapticFeedback === "yes") {
+				self.triggerHaptic([10, 50, 10]);
+			}
+			
+			// Execute the custom double-click actions
+			self.invokeActionString(self.dblClickActions, self);
+			return;
+		}
+		
+		// If no custom actions, proceed with reset behavior
 		// Helper to get the handle width/height
 		var getHandleSize = function() {
 			// Get the computed size of the handle
@@ -1600,7 +1667,7 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 				// Calculate pixel value
 				var currentUnit = self.getUnit(currentValue);
 				var referenceElement = operation.targetElements && operation.targetElements[0] ? operation.targetElements[0] : domNode;
-				finalPixelValue = convertToPixels(finalValue, currentUnit, referenceElement);
+				finalPixelValue = self.convertToPixels(finalValue, currentUnit, referenceElement);
 			} else if(self.targetTiddler) {
 				var tiddler = self.wiki.getTiddler(self.targetTiddler);
 				var currentValue;
@@ -1613,7 +1680,7 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 				// Calculate pixel value
 				var currentUnit = self.getUnit(currentValue);
 				var referenceElement = operation.targetElements && operation.targetElements[0] ? operation.targetElements[0] : domNode;
-				finalPixelValue = convertToPixels(finalValue, currentUnit, referenceElement);
+				finalPixelValue = self.convertToPixels(finalValue, currentUnit, referenceElement);
 			}
 			
 			var formattedValue = self.unit === "%" ? finalValue.toFixed(1) + "%" : Math.round(finalValue) + (self.unit || "px");
@@ -1724,6 +1791,7 @@ ResizerWidget.prototype.execute = function() {
 	this.resetValue = this.getAttribute("resetValue");
 	this.smoothReset = this.getAttribute("smoothReset", "yes");
 	this.onReset = this.getAttribute("onReset");
+	this.dblClickActions = this.getAttribute("dblClickActions");
 	// Handle style attribute
 	this.handleStyle = this.getAttribute("handleStyle", "solid"); // solid, dots, lines, chevron, grip
 	// Haptic feedback
