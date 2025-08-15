@@ -218,3 +218,78 @@ code-body: yes
 	</div>
 </div>
 \end
+
+\function tf.get-three-column-panels-top-max-height() [<bottomStateTiddler>get[text]addsuffix[ - handleHeight - handleHeight - ]addsuffix<minHeight>addprefix[ - ]addprefix<overallHeight>addprefix[calc(]addsuffix[)]] :else[<bottomHeight>addsuffix[ - handleHeight - handleHeight - ]addsuffix<minHeight>addprefix[ - ]addprefix<overallHeight>addprefix[calc(]addsuffix[)]]
+\function tf.get-three-column-panels-bottom-max-height() [<topStateTiddler>get[text]addsuffix[ - handleHeight - handleHeight - ]addsuffix<minHeight>addprefix[ - ]addprefix<overallHeight>addprefix[calc(]addsuffix[)]] :else[<topHeight>addsuffix[ - handleHeight - handleHeight - ]addsuffix<minHeight>addprefix[ - ]addprefix<overallHeight>addprefix[calc(]addsuffix[)]]
+
+\procedure collapsible-three-column-panels-vertical(topContent:"", centerContent:"", bottomContent:"", topHeight:"10vh", bottomHeight:"10vh", minHeight:"5vh", maxHeight:"55vh", width:"100%", overallHeight:"75vh", topStateTiddler:"$:/state/three-col-collapsible-vertical/top", bottomStateTiddler:"$:/state/three-col-collapsible-vertical/bottom", class:"", collapsedTop:"no", collapsedBottom:"no", collapseStateTiddlerTop:"$:/state/ctcpv/top", collapseStateTiddlerBottom:"$:/state/ctcpv/bottom")
+\whitespace trim
+<div class={{{ tc-three-column-panels-vertical tc-collapsible-three-column-panels-vertical [<class>] +[join[ ]] }}} style.min-width=<<width>> style.max-width=<<width>> style.height=<<overallHeight>> style.max-height=<<overallHeight>>>
+	<%if [<collapseStateTiddlerTop>get[text]else<collapsedTop>match[no]] %>
+		<$button class="tc-btn-invisible tc-panel-collapse-btn tc-panel-btn-top" set=<<collapseStateTiddlerTop>> setTo="yes">
+			{{$:/core/images/chevron-left}}
+		</$button>
+	<%elseif [<collapseStateTiddlerTop>get[text]else<collapsedTop>match[yes]] %>
+		<$button class="tc-btn-invisible tc-panel-expand-btn tc-panel-btn-top" set=<<collapseStateTiddlerTop>> setTo="no">
+			{{$:/core/images/chevron-right}}
+		</$button>
+	<% endif %>
+	<%if [<collapseStateTiddlerBottom>get[text]else<collapsedBottom>match[no]] %>
+		<$button class="tc-btn-invisible tc-panel-collapse-btn tc-panel-btn-bottom" set=<<collapseStateTiddlerBottom>> setTo="yes">
+			{{$:/core/images/chevron-right}}
+		</$button>
+	<%elseif [<collapseStateTiddlerBottom>get[text]else<collapsedBottom>match[yes]] %>
+		<$button class="tc-btn-invisible tc-panel-expand-btn tc-panel-btn-bottom" set=<<collapseStateTiddlerBottom>> setTo="no">
+			{{$:/core/images/chevron-left}}
+		</$button>
+	<% endif %>
+	<div class="tc-panel-top" style.height={{{ [<topStateTiddler>get[text]else<topHeight>] }}} style.max-width="100%" style.margin-top={{{ [<collapseStateTiddlerTop>get[text]else<collapsedTop>match[yes]then<topStateTiddler>get[text]addprefix[-]] :else[<collapseStateTiddlerTop>get[text]else<collapsedTop>match[yes]then<topHeight>addprefix[-]] :else[[0]] }}}>
+		<%if [<topContent>is[variable]] %>
+			<$transclude $variable=<<topContent>> $mode="block"/>
+		<%elseif [<topContent>is[tiddler]] [<topContent>is[shadow]] %>
+			<$transclude $tiddler=<<topContent>> $mode="block"/>
+		<% endif %>
+	</div>
+	<%if [<collapseStateTiddlerTop>get[text]else<collapsedTop>match[no]] %>
+		<$resizer
+			class="tc-panel-splitter-horizontal"
+			direction="vertical"
+			tiddler=<<topStateTiddler>>
+			min=<<minHeight>>
+			max=<<tf.get-three-column-panels-top-max-height>>
+			default=<<topHeight>>
+			unit={{{ [<topHeight>split[]last[1]match[%]then[%]else[px]] }}}
+			element="previousSibling"
+		/>
+	<% endif %>
+	<div class="tc-panel-center-vertical" style.min-height=<<minHeight>> style.max-width="100%">
+		<div style.height="100%" style.display="flex" style.justify-content="center">
+			<%if [<centerContent>is[variable]] %>
+				<$transclude $variable=<<centerContent>> $mode="block"/>
+			<%elseif [<centerContent>is[tiddler]] [<centerContent>is[shadow]] %>
+				<$transclude $tiddler=<<centerContent>> $mode="block"/>
+			<% endif %>
+		</div>
+	</div>
+	<%if [<collapseStateTiddlerBottom>get[text]else<collapsedBottom>match[no]] %>
+		<$resizer
+			class="tc-panel-splitter-horizontal"
+			direction="vertical"
+			tiddler=<<bottomStateTiddler>>
+			min=<<minHeight>>
+			max=<<tf.get-three-column-panels-bottom-max-height>>
+			default=<<bottomHeight>>
+			unit={{{ [<bottomHeight>split[]last[1]match[%]then[%]else[px]] }}}
+			invert="yes"
+			element="nextSibling"
+		/>
+	<% endif %>
+	<div class="tc-panel-bottom" style.height={{{ [<bottomStateTiddler>get[text]else<bottomHeight>] }}} style.max-width="100%" style.margin-bottom={{{ [<collapseStateTiddlerBottom>get[text]else<collapsedBottom>match[yes]then<bottomStateTiddler>get[text]addprefix[-]] :else[<collapseStateTiddlerBottom>get[text]else<collapsedBottom>match[yes]then<bottomHeight>addprefix[-]] :else[[0]] }}}>
+		<%if [<bottomContent>is[variable]] %>
+			<$transclude $variable=<<bottomContent>> $mode="block"/>
+		<%elseif [<bottomContent>is[tiddler]] [<bottomContent>is[shadow]] %>
+			<$transclude $tiddler=<<bottomContent>> $mode="block"/>
+		<% endif %>
+	</div>
+</div>
+\end
