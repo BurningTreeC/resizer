@@ -1593,7 +1593,7 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 					}
 					
 					// Convert to widget's unit for live resize
-					var liveValue = convertFromPixels(livePixelValue, self.unit, domNode);
+					var liveValue = self.convertFromPixels(livePixelValue, self.unit, getParentSize(domNode), domNode);
 					
 					$tw.utils.each(operation.targetElements, function(element) {
 						if(element) {
@@ -1744,7 +1744,8 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 				// Calculate pixel value
 				var currentUnit = self.getUnit(currentValue);
 				var referenceElement = operation.targetElements && operation.targetElements[0] ? operation.targetElements[0] : domNode;
-				finalPixelValue = self.convertToPixels(finalValue, currentUnit, referenceElement);
+				var parentSize = getParentSize(referenceElement);
+				finalPixelValue = self.convertToPixels(finalValue, currentUnit, parentSize, referenceElement);
 			} else if(self.targetTiddler) {
 				var tiddler = self.wiki.getTiddler(self.targetTiddler);
 				var currentValue;
@@ -1757,7 +1758,8 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 				// Calculate pixel value
 				var currentUnit = self.getUnit(currentValue);
 				var referenceElement = operation.targetElements && operation.targetElements[0] ? operation.targetElements[0] : domNode;
-				finalPixelValue = self.convertToPixels(finalValue, currentUnit, referenceElement);
+				var parentSize = getParentSize(referenceElement);
+				finalPixelValue = self.convertToPixels(finalValue, currentUnit, parentSize, referenceElement);
 			}
 			
 			var formattedValue = self.unit === "%" ? finalValue.toFixed(1) + "%" : Math.round(finalValue) + (self.unit || "px");
