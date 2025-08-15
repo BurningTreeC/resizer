@@ -75,15 +75,15 @@ A powerful and flexible resizer widget that enables interactive resizing of UI e
 The following variables are available within action strings:
 
 |!Variable |!Description |!Available In |
-|`<<actionValue>>` |The numeric value in the widget's unit |All actions |
-|`<<actionValuePixels>>` |The value in pixels (always pixels regardless of unit) |All actions |
-|`<<actionFormattedValue>>` |The value with unit (e.g., "350px", "50%") |All actions |
-|`<<actionDirection>>` |The resize direction ("horizontal" or "vertical") |All actions |
-|`<<actionProperty>>` |The CSS property being modified |All actions |
-|`<<actionHandleSize>>` |The computed size of the resize handle in pixels |All actions |
-|`<<actionParentSize>>` |The parent container width (horizontal) or height (vertical) in pixels |All actions |
-|`<<actionDeltaX>>` |The horizontal mouse movement delta |`onResize` only |
-|`<<actionDeltaY>>` |The vertical mouse movement delta |`onResize` only |
+|`<<tv-action-value>>` |The numeric value in the widget's unit |All actions |
+|`<<tv-action-value-pixels>>` |The value in pixels (always pixels regardless of unit) |All actions |
+|`<<tv-action-formatted-value>>` |The value with unit (e.g., "350px", "50%") |All actions |
+|`<<tv-action-direction>>` |The resize direction ("horizontal" or "vertical") |All actions |
+|`<<tv-action-property>>` |The CSS property being modified |All actions |
+|`<<tv-action-handle-size>>` |The computed size of the resize handle in pixels |All actions |
+|`<<tv-action-parent-size>>` |The parent container width (horizontal) or height (vertical) in pixels |All actions |
+|`<<tv-action-delta-x>>` |The horizontal mouse movement delta |`onResize` only |
+|`<<tv-action-delta-y>>` |The vertical mouse movement delta |`onResize` only |
 
 !!! Styling Attributes
 
@@ -254,18 +254,18 @@ Double-click any resizer handle to reset it to a specified value:
   tiddler="$:/state/panel/width"
   dblClickActions="""
     <$action-sendmessage $message="tm-modal" $param="$:/core/ui/ControlPanel/Settings"/>
-    <$action-log message="Panel width on double-click" value=<<actionValue>>/>
+    <$action-log message="Panel width on double-click" value=<<tv-action-value>>/>
   """
 />
 ```
 
 When using `dblClickActions`, the following variables are available:
 
-* `<<actionValue>>` - The current value with unit
-* `<<actionValuePixels>>` - The current value in pixels
-* `<<actionDirection>>` - The resize direction
-* `<<actionParentSize>>` - The parent container size in pixels
-* `<<actionHandleSize>>` - The handle size in pixels
+* `<<tv-action-value>>` - The current value with unit
+* `<<tv-action-value-pixels>>` - The current value in pixels
+* `<<tv-action-direction>>` - The resize direction
+* `<<tv-action-parent-size>>` - The parent container size in pixels
+* `<<tv-action-handle-size>>` - The handle size in pixels
 
 !!! Handle Styles
 

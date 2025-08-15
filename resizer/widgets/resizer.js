@@ -746,11 +746,11 @@ ResizerWidget.prototype.addDoubleClickHandler = function(domNode) {
 			currentPixelValue = self.evaluateCSSValue(currentValue, parentSize, handleSize);
 			
 			// Set variables for the action string
-			self.setVariable("actionValue", currentValue);
-			self.setVariable("actionValuePixels", currentPixelValue.toString());
-			self.setVariable("actionDirection", self.direction);
-			self.setVariable("actionParentSize", parentSize.toString());
-			self.setVariable("actionHandleSize", handleSize.toString());
+			self.setVariable("tv-action-value", currentValue);
+			self.setVariable("tv-action-value-pixels", currentPixelValue.toString());
+			self.setVariable("tv-action-direction", self.direction);
+			self.setVariable("tv-action-parent-size", parentSize.toString());
+			self.setVariable("tv-action-handle-size", handleSize.toString());
 			
 			// Trigger haptic feedback on mobile
 			if(self.hapticFeedback === "yes") {
@@ -866,10 +866,10 @@ ResizerWidget.prototype.addDoubleClickHandler = function(domNode) {
 		if(self.onReset) {
 			// resetPixelValue was already calculated above based on resetTo setting
 			// parentSize was also already calculated above
-			self.setVariable("actionValue", resetValue);
-			self.setVariable("actionValuePixels", resetPixelValue.toString());
-			self.setVariable("actionDirection", self.direction);
-			self.setVariable("actionParentSize", parentSize.toString());
+			self.setVariable("tv-action-value", resetValue);
+			self.setVariable("tv-action-value-pixels", resetPixelValue.toString());
+			self.setVariable("tv-action-direction", self.direction);
+			self.setVariable("tv-action-parent-size", parentSize.toString());
 			self.invokeActionString(self.onReset, self);
 		}
 	};
@@ -1079,11 +1079,11 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 				formattedValue = Math.round(actionValue) + (self.unit || "px");
 			}
 			// Set variables for the action string
-			self.setVariable("actionValue", actionValue.toString());
-			self.setVariable("actionValuePixels", actionPixelValue.toString());
-			self.setVariable("actionFormattedValue", formattedValue);
-			self.setVariable("actionHandleSize", operation.handleSize.toString());
-			self.setVariable("actionParentSize", operation.parentSizeAtStart.toString());
+			self.setVariable("tv-action-value", actionValue.toString());
+			self.setVariable("tv-action-value-pixels", actionPixelValue.toString());
+			self.setVariable("tv-action-formatted-value", formattedValue);
+			self.setVariable("tv-action-handle-size", operation.handleSize.toString());
+			self.setVariable("tv-action-parent-size", operation.parentSizeAtStart.toString());
 			self.invokeActionString(self.actions, self);
 		}
 	};
@@ -1350,13 +1350,13 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 			}
 			
 			// Set variables for the action string
-			self.setVariable("actionValue", convertedValue.toString());
-			self.setVariable("actionValuePixels", operation.startValue.toString());
-			self.setVariable("actionFormattedValue", formattedValue);
-			self.setVariable("actionDirection", self.direction);
-			self.setVariable("actionProperty", self.targetProperty);
-			self.setVariable("actionHandleSize", handleSize.toString());
-			self.setVariable("actionParentSize", operation.parentSizeAtStart.toString());
+			self.setVariable("tv-action-value", convertedValue.toString());
+			self.setVariable("tv-action-value-pixels", operation.startValue.toString());
+			self.setVariable("tv-action-formatted-value", formattedValue);
+			self.setVariable("tv-action-direction", self.direction);
+			self.setVariable("tv-action-property", self.targetProperty);
+			self.setVariable("tv-action-handle-size", handleSize.toString());
+			self.setVariable("tv-action-parent-size", operation.parentSizeAtStart.toString());
 			self.invokeActionString(self.onBeforeResizeStart, self);
 		}
 		
@@ -1375,13 +1375,13 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 			}
 			
 			// Set variables for the action string
-			self.setVariable("actionValue", convertedValue.toString());
-			self.setVariable("actionValuePixels", operation.startValue.toString());
-			self.setVariable("actionFormattedValue", formattedValue);
-			self.setVariable("actionDirection", self.direction);
-			self.setVariable("actionProperty", self.targetProperty);
-			self.setVariable("actionHandleSize", handleSize.toString());
-			self.setVariable("actionParentSize", operation.parentSizeAtStart.toString());
+			self.setVariable("tv-action-value", convertedValue.toString());
+			self.setVariable("tv-action-value-pixels", operation.startValue.toString());
+			self.setVariable("tv-action-formatted-value", formattedValue);
+			self.setVariable("tv-action-direction", self.direction);
+			self.setVariable("tv-action-property", self.targetProperty);
+			self.setVariable("tv-action-handle-size", handleSize.toString());
+			self.setVariable("tv-action-parent-size", operation.parentSizeAtStart.toString());
 			self.invokeActionString(self.onResizeStart, self);
 		}
 		
@@ -1518,15 +1518,15 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 					}
 					
 					// Set variables for the action string
-					self.setVariable("actionValue", callbackValue.toString());
-					self.setVariable("actionValuePixels", callbackPixelValue.toString());
-					self.setVariable("actionFormattedValue", formattedValue);
-					self.setVariable("actionDirection", self.direction);
-					self.setVariable("actionProperty", self.targetProperty);
-					self.setVariable("actionDeltaX", deltaX.toString());
-					self.setVariable("actionDeltaY", deltaY.toString());
-					self.setVariable("actionHandleSize", operation.handleSize.toString());
-					self.setVariable("actionParentSize", operation.parentSizeAtStart.toString());
+					self.setVariable("tv-action-value", callbackValue.toString());
+					self.setVariable("tv-action-value-pixels", callbackPixelValue.toString());
+					self.setVariable("tv-action-formatted-value", formattedValue);
+					self.setVariable("tv-action-direction", self.direction);
+					self.setVariable("tv-action-property", self.targetProperty);
+					self.setVariable("tv-action-delta-x", deltaX.toString());
+					self.setVariable("tv-action-delta-y", deltaY.toString());
+					self.setVariable("tv-action-handle-size", operation.handleSize.toString());
+					self.setVariable("tv-action-parent-size", operation.parentSizeAtStart.toString());
 					self.invokeActionString(self.onResize, self);
 				}
 				
@@ -1764,13 +1764,13 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 			
 			var formattedValue = self.unit === "%" ? finalValue.toFixed(1) + "%" : Math.round(finalValue) + (self.unit || "px");
 			// Set variables for the action string
-			self.setVariable("actionValue", finalValue.toString());
-			self.setVariable("actionValuePixels", finalPixelValue.toString());
-			self.setVariable("actionFormattedValue", formattedValue);
-			self.setVariable("actionDirection", self.direction);
-			self.setVariable("actionProperty", self.targetProperty);
-			self.setVariable("actionHandleSize", operation.handleSize.toString());
-			self.setVariable("actionParentSize", operation.parentSizeAtStart.toString());
+			self.setVariable("tv-action-value", finalValue.toString());
+			self.setVariable("tv-action-value-pixels", finalPixelValue.toString());
+			self.setVariable("tv-action-formatted-value", formattedValue);
+			self.setVariable("tv-action-direction", self.direction);
+			self.setVariable("tv-action-property", self.targetProperty);
+			self.setVariable("tv-action-handle-size", operation.handleSize.toString());
+			self.setVariable("tv-action-parent-size", operation.parentSizeAtStart.toString());
 			self.invokeActionString(self.onResizeEnd, self);
 		}
 	};
