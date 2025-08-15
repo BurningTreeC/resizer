@@ -103,23 +103,50 @@ ResizerWidget.prototype = new Widget();
 Shared utility methods for all resizer instances
 */
 
-// Get viewport dimensions
+// Get viewport dimensions with high precision
 ResizerWidget.prototype.getViewportDimensions = function() {
 	var win = this.document.defaultView || this.document.parentWindow || {};
+	// Use visualViewport API for more precise measurements when available
+	var viewport = win.visualViewport || null;
+	var width, height;
+	
+	if(viewport) {
+		// visualViewport provides sub-pixel precision and accounts for zoom/pinch
+		width = viewport.width;
+		height = viewport.height;
+	} else {
+		// Fallback to standard viewport measurements
+		// innerWidth/Height are more accurate than clientWidth/Height as they include scrollbars
+		width = win.innerWidth || this.document.documentElement.clientWidth;
+		height = win.innerHeight || this.document.documentElement.clientHeight;
+	}
+	
 	return {
-		width: win.innerWidth || this.document.documentElement.clientWidth,
-		height: win.innerHeight || this.document.documentElement.clientHeight,
+		width: width,
+		height: height,
 		get vmin() { return Math.min(this.width, this.height); },
 		get vmax() { return Math.max(this.width, this.height); }
 	};
 };
 
-// Get computed font size for an element
+// Get computed font size for an element with sub-pixel precision
 ResizerWidget.prototype.getComputedFontSize = function(element, isRoot) {
 	try {
 		var targetElement = isRoot ? this.document.documentElement : (element || this.domNodes[0]);
 		if(targetElement) {
-			return parseFloat(this.document.defaultView.getComputedStyle(targetElement).fontSize) || 16;
+			var computedStyle = this.document.defaultView.getComputedStyle(targetElement);
+			// Parse font-size with higher precision (don't round)
+			var fontSize = computedStyle.fontSize;
+			// Handle different units that might be returned
+			if(fontSize.endsWith('px')) {
+				return parseFloat(fontSize);
+			} else if(fontSize.endsWith('pt')) {
+				// Convert points to pixels (1pt = 1.333...px)
+				return parseFloat(fontSize) * (96 / 72);
+			} else {
+				// For other units, try to parse as-is
+				return parseFloat(fontSize) || 16;
+			}
 		}
 	} catch(e) {
 		// Use default if getComputedStyle fails
@@ -127,58 +154,80 @@ ResizerWidget.prototype.getComputedFontSize = function(element, isRoot) {
 	return 16;
 };
 
-// Convert any CSS unit to pixels
+// Convert any CSS unit to pixels with high precision
 ResizerWidget.prototype.convertToPixels = function(value, unit, contextSize, element) {
 	var numericValue = parseFloat(value);
 	if(isNaN(numericValue)) return 0;
+	
+	// Cache viewport dimensions for this conversion to avoid multiple calls
+	var viewport = null;
+	if(unit === "vh" || unit === "vw" || unit === "vmin" || unit === "vmax") {
+		viewport = this.getViewportDimensions();
+	}
 	
 	switch(unit) {
 		case "px":
 			return numericValue;
 		case "%":
-			return (numericValue / 100) * contextSize;
+			// Use precise multiplication without intermediate rounding
+			return (numericValue * contextSize) / 100;
 		case "em":
+			// Get precise font size and multiply
 			return numericValue * this.getComputedFontSize(element, false);
 		case "rem":
+			// Get precise root font size and multiply
 			return numericValue * this.getComputedFontSize(element, true);
 		case "vh":
-			return numericValue * (this.getViewportDimensions().height / 100);
+			// Use cached viewport and precise division
+			return (numericValue * viewport.height) / 100;
 		case "vw":
-			return numericValue * (this.getViewportDimensions().width / 100);
+			// Use cached viewport and precise division
+			return (numericValue * viewport.width) / 100;
 		case "vmin":
-			return numericValue * (this.getViewportDimensions().vmin / 100);
+			// Use cached viewport and precise division
+			return (numericValue * viewport.vmin) / 100;
 		case "vmax":
-			return numericValue * (this.getViewportDimensions().vmax / 100);
+			// Use cached viewport and precise division
+			return (numericValue * viewport.vmax) / 100;
 		default:
 			return numericValue;
 	}
 };
 
-// Convert pixels back to the original unit
+// Convert pixels back to the original unit with high precision
 ResizerWidget.prototype.convertFromPixels = function(pixelValue, unit, contextSize, element) {
+	// Cache viewport dimensions for this conversion to avoid multiple calls
+	var viewport = null;
+	if(unit === "vh" || unit === "vw" || unit === "vmin" || unit === "vmax") {
+		viewport = this.getViewportDimensions();
+	}
+	
 	switch(unit) {
 		case "px":
 			return pixelValue;
 		case "%":
-			return contextSize > 0 ? Math.max((pixelValue / contextSize) * 100, 0) : 0;
+			// Precise percentage calculation
+			return contextSize > 0 ? Math.max((pixelValue * 100) / contextSize, 0) : 0;
 		case "em":
+			// Precise em calculation with sub-pixel font size
 			var fontSize = this.getComputedFontSize(element, false);
 			return fontSize > 0 ? pixelValue / fontSize : 0;
 		case "rem":
+			// Precise rem calculation with sub-pixel root font size
 			var rootFontSize = this.getComputedFontSize(element, true);
 			return rootFontSize > 0 ? pixelValue / rootFontSize : 0;
 		case "vh":
-			var viewportHeight = this.getViewportDimensions().height;
-			return (pixelValue / viewportHeight) * 100;
+			// Precise viewport height percentage
+			return viewport.height > 0 ? (pixelValue * 100) / viewport.height : 0;
 		case "vw":
-			var viewportWidth = this.getViewportDimensions().width;
-			return (pixelValue / viewportWidth) * 100;
+			// Precise viewport width percentage
+			return viewport.width > 0 ? (pixelValue * 100) / viewport.width : 0;
 		case "vmin":
-			var vmin = this.getViewportDimensions().vmin;
-			return (pixelValue / vmin) * 100;
+			// Precise viewport minimum percentage
+			return viewport.vmin > 0 ? (pixelValue * 100) / viewport.vmin : 0;
 		case "vmax":
-			var vmax = this.getViewportDimensions().vmax;
-			return (pixelValue / vmax) * 100;
+			// Precise viewport maximum percentage
+			return viewport.vmax > 0 ? (pixelValue * 100) / viewport.vmax : 0;
 		default:
 			return pixelValue;
 	}
@@ -339,28 +388,42 @@ ResizerWidget.prototype.evaluateCalcExpression = function(expression, contextSiz
 			return num;
 		}
 		
-		// Get viewport dimensions
+		// Cache viewport dimensions for efficiency
 		var viewport = self.getViewportDimensions();
 		
-		// Handle different units
+		// Extract numeric value with high precision
+		var numericValue = parseFloat(value);
+		if(isNaN(numericValue)) return 0;
+		
+		// Handle different units with improved precision
 		if(value.endsWith("px")) {
-			return parseFloat(value);
+			return numericValue;
 		} else if(value.endsWith("vw")) {
-			return (parseFloat(value) / 100) * viewport.width;
+			// Use precise multiplication
+			return (numericValue * viewport.width) / 100;
 		} else if(value.endsWith("vh")) {
-			return (parseFloat(value) / 100) * viewport.height;
+			// Use precise multiplication
+			return (numericValue * viewport.height) / 100;
 		} else if(value.endsWith("vmin")) {
-			return (parseFloat(value) / 100) * viewport.vmin;
+			// Use precise multiplication
+			return (numericValue * viewport.vmin) / 100;
 		} else if(value.endsWith("vmax")) {
-			return (parseFloat(value) / 100) * viewport.vmax;
+			// Use precise multiplication
+			return (numericValue * viewport.vmax) / 100;
 		} else if(value.endsWith("%")) {
-			return (parseFloat(value) / 100) * contextSize;
-		} else if(value.endsWith("em") || value.endsWith("rem")) {
-			var fontSize = self.getComputedFontSize(self.domNodes[0], value.endsWith("rem"));
-			return parseFloat(value) * fontSize;
+			// Use precise multiplication
+			return (numericValue * contextSize) / 100;
+		} else if(value.endsWith("rem")) {
+			// Use precise rem calculation
+			var rootFontSize = self.getComputedFontSize(self.domNodes[0], true);
+			return numericValue * rootFontSize;
+		} else if(value.endsWith("em")) {
+			// Use precise em calculation
+			var fontSize = self.getComputedFontSize(self.domNodes[0], false);
+			return numericValue * fontSize;
 		} else {
 			// Try to parse as number (treat as pixels)
-			return parseFloat(value) || 0;
+			return numericValue || 0;
 		}
 	}
 };
@@ -368,12 +431,26 @@ ResizerWidget.prototype.evaluateCalcExpression = function(expression, contextSiz
 // Format a numeric value with the appropriate unit and precision
 ResizerWidget.prototype.formatValueWithUnit = function(value, unit) {
 	unit = unit || this.unit || "px";
-	if(unit === "%") {
-		return value.toFixed(1) + "%";
-	} else if(unit === "em" || unit === "rem") {
-		return value.toFixed(2) + unit;
-	} else {
-		return Math.round(value) + unit;
+	
+	// Use higher precision for units that benefit from it
+	switch(unit) {
+		case "%":
+			// 2 decimal places for percentages
+			return value.toFixed(2) + "%";
+		case "em":
+		case "rem":
+			// 3 decimal places for font-relative units
+			return value.toFixed(3) + unit;
+		case "vh":
+		case "vw":
+		case "vmin":
+		case "vmax":
+			// 2 decimal places for viewport units
+			return value.toFixed(2) + unit;
+		case "px":
+		default:
+			// For pixels, use 1 decimal place for sub-pixel precision
+			return value.toFixed(1) + unit;
 	}
 };
 

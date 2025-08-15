@@ -2,6 +2,17 @@ title: $:/plugins/BTC/resizer/procedures/panels
 tags: $:/tags/Global
 code-body: yes
 
+\function tf.get.value.metric(value)
+[<value>suffix[px]then[px]]
+:else[<value>suffix[%]then[%]]
+:else[<value>suffix[rem]then[rem]]
+:else[<value>suffix[em]then[em]]
+:else[<value>suffix[vh]then[vh]]
+:else[<value>suffix[vw]then[vw]]
+:else[<value>suffix[vmin]then[vmin]]
+:else[<value>suffix[vmax]then[vmax]]
+\end
+
 \procedure horizontal-split-panel(leftContent:"", rightContent:"", width:"50%", minHeight:"100%", minWidth:"5%", maxWidth:"80%", stateTiddler:"$:/state/hsplit/width", class:"", leftClass:"", rightClass:"", splitterClass:"")
 \whitespace trim
 <div class={{{ tc-horizontal-split-panel [<class>] +[join[ ]] }}} style.min-height=<<minHeight>> style.max-width="100%">
@@ -19,7 +30,7 @@ code-body: yes
 		min=<<minWidth>>
 		max=<<maxWidth>>
 		default=<<width>>
-		unit={{{ [<width>split[]last[1]match[%]then[%]else[px]] }}}
+		unit={{{ [tf.get.value.metric<width>] :else[[px]] }}}
 	/>
 	<div class={{{ tc-panel-right [<rightClass>] +[join[ ]] }}}>
 		<%if [<rightContent>is[variable]] %>
@@ -31,7 +42,7 @@ code-body: yes
 </div>
 \end
 
-\procedure vertical-split-panel(topContent:"", bottomContent:"", panelHeight:"100%", height:"50%", minHeight:"10%", maxHeight:"80%", stateTiddler:"$:/state/vsplit/height", class:"", topClass:"", bottomClass:"", splitterClass:"")
+\procedure vertical-split-panel(topContent:"", bottomContent:"", panelHeight:"75vh", height:"50%", minHeight:"10%", maxHeight:"80%", stateTiddler:"$:/state/vsplit/height", class:"", topClass:"", bottomClass:"", splitterClass:"")
 \whitespace trim
 <div class={{{ tc-vertical-split-panel [<class>] +[join[ ]] }}} style.height=<<panelHeight>> style.max-width="100%">
 	<div class={{{ tc-panel-top [<topClass>] +[join[ ]] }}} style.height={{{ [<stateTiddler>get[text]else<height>] }}} style.max-height=<<maxHeight>>>
@@ -48,7 +59,7 @@ code-body: yes
 		min=<<minHeight>>
 		max=<<maxHeight>>
 		default=<<height>>
-		unit={{{ [<height>split[]last[1]match[%]then[%]else[px]] }}}
+		unit={{{ [tf.get.value.metric<height>] :else[[px]] }}}
 	/>
 	<div class={{{ tc-panel-bottom [<bottomClass>] +[join[ ]] }}}>
 		<%if [<bottomContent>is[variable]] %>
@@ -80,7 +91,7 @@ code-body: yes
 		min=<<minWidth>>
 		max=<<tf.get-three-column-panels-left-max-width>>
 		default=<<leftWidth>>
-		unit={{{ [<leftWidth>split[]last[1]match[%]then[%]else[px]] }}}
+		unit={{{ [tf.get.value.metric<leftWidth>] :else[[px]] }}}
 	/>
 	<div class="tc-panel-center" style.min-width=<<minWidth>> style.max-height="100%">
 		<%if [<centerContent>is[variable]] %>
@@ -96,7 +107,7 @@ code-body: yes
 		min=<<minWidth>>
 		max=<<tf.get-three-column-panels-right-max-width>>
 		default=<<rightWidth>>
-		unit={{{ [<rightWidth>split[]last[1]match[%]then[%]else[px]] }}}
+		unit={{{ [tf.get.value.metric<rightWidth>] :else[[px]] }}}
 		invert="yes"
 		element="nextSibling"
 	/>
@@ -137,7 +148,7 @@ code-body: yes
 			min=<<minSize>>
 			max=<<maxSize>>
 			default=<<size>>
-			unit={{{ [<size>split[]last[1]match[%]then[%]else[px]] }}}
+			unit={{{ [tf.get.value.metric<size>] :else[[px]] }}}
 		/>
 	<% endif %>
 	<div class={{{ [<collapseStateTiddler>get[text]else<collapsed>match[no]then[tc-detail-panel]] :else[[tc-detail-panel tc-expanded]] }}}>
@@ -186,7 +197,7 @@ code-body: yes
 			min=<<minWidth>>
 			max=<<tf.get-three-column-panels-left-max-width>>
 			default=<<leftWidth>>
-			unit={{{ [<leftWidth>split[]last[1]match[%]then[%]else[px]] }}}
+			unit={{{ [tf.get.value.metric<leftWidth>] :else[[px]] }}}
 		/>
 	<% endif %>
 	<div class="tc-panel-center" style.min-width=<<minWidth>> style.max-height="100%">
@@ -204,7 +215,7 @@ code-body: yes
 			min=<<minWidth>>
 			max=<<tf.get-three-column-panels-right-max-width>>
 			default=<<rightWidth>>
-			unit={{{ [<rightWidth>split[]last[1]match[%]then[%]else[px]] }}}
+			unit={{{ [tf.get.value.metric<rightWidth>] :else[[px]] }}}
 			invert="yes"
 			element="nextSibling"
 		/>
@@ -222,9 +233,9 @@ code-body: yes
 \function tf.get-three-column-panels-top-max-height() [<bottomStateTiddler>get[text]addsuffix[ - handleHeight - handleHeight - ]addsuffix<minHeight>addprefix[ - ]addprefix<overallHeight>addprefix[calc(]addsuffix[)]] :else[<bottomHeight>addsuffix[ - handleHeight - handleHeight - ]addsuffix<minHeight>addprefix[ - ]addprefix<overallHeight>addprefix[calc(]addsuffix[)]]
 \function tf.get-three-column-panels-bottom-max-height() [<topStateTiddler>get[text]addsuffix[ - handleHeight - handleHeight - ]addsuffix<minHeight>addprefix[ - ]addprefix<overallHeight>addprefix[calc(]addsuffix[)]] :else[<topHeight>addsuffix[ - handleHeight - handleHeight - ]addsuffix<minHeight>addprefix[ - ]addprefix<overallHeight>addprefix[calc(]addsuffix[)]]
 
-\procedure collapsible-three-column-panels-vertical(topContent:"", centerContent:"", bottomContent:"", topHeight:"10vh", bottomHeight:"10vh", minHeight:"5vh", maxHeight:"55vh", width:"100%", overallHeight:"75vh", topStateTiddler:"$:/state/three-col-collapsible-vertical/top", bottomStateTiddler:"$:/state/three-col-collapsible-vertical/bottom", class:"", collapsedTop:"no", collapsedBottom:"no", collapseStateTiddlerTop:"$:/state/ctcpv/top", collapseStateTiddlerBottom:"$:/state/ctcpv/bottom")
+\procedure collapsible-three-row-panels(topContent:"", centerContent:"", bottomContent:"", topHeight:"10vh", bottomHeight:"10vh", minHeight:"5vh", maxHeight:"55vh", width:"100%", overallHeight:"75vh", topStateTiddler:"$:/state/three-col-collapsible-vertical/top", bottomStateTiddler:"$:/state/three-col-collapsible-vertical/bottom", class:"", collapsedTop:"no", collapsedBottom:"no", collapseStateTiddlerTop:"$:/state/ctcpv/top", collapseStateTiddlerBottom:"$:/state/ctcpv/bottom")
 \whitespace trim
-<div class={{{ tc-three-column-panels-vertical tc-collapsible-three-column-panels-vertical [<class>] +[join[ ]] }}} style.min-width=<<width>> style.max-width=<<width>> style.height=<<overallHeight>> style.max-height=<<overallHeight>>>
+<div class={{{ tc-three-row-panels tc-collapsible-three-row-panels [<class>] +[join[ ]] }}} style.min-width=<<width>> style.max-width=<<width>> style.height=<<overallHeight>> style.max-height=<<overallHeight>>>
 	<%if [<collapseStateTiddlerTop>get[text]else<collapsedTop>match[no]] %>
 		<$button class="tc-btn-invisible tc-panel-collapse-btn tc-panel-btn-top" set=<<collapseStateTiddlerTop>> setTo="yes">
 			{{$:/core/images/chevron-left}}
@@ -243,7 +254,7 @@ code-body: yes
 			{{$:/core/images/chevron-left}}
 		</$button>
 	<% endif %>
-	<div class="tc-panel-top" style.height={{{ [<topStateTiddler>get[text]else<topHeight>] }}} style.max-width="100%" style.margin-top={{{ [<collapseStateTiddlerTop>get[text]else<collapsedTop>match[yes]then<topStateTiddler>get[text]addprefix[-]] :else[<collapseStateTiddlerTop>get[text]else<collapsedTop>match[yes]then<topHeight>addprefix[-]] :else[[0]] }}}>
+	<div class="tc-panel-top" style.min-height=<<minHeight>> style.height={{{ [<topStateTiddler>get[text]else<topHeight>] }}} style.max-width="100%" style.margin-top={{{ [<collapseStateTiddlerTop>get[text]else<collapsedTop>match[yes]then<topStateTiddler>get[text]addprefix[-]] :else[<collapseStateTiddlerTop>get[text]else<collapsedTop>match[yes]then<topHeight>addprefix[-]] :else[[0]] }}}>
 		<%if [<topContent>is[variable]] %>
 			<$transclude $variable=<<topContent>> $mode="block"/>
 		<%elseif [<topContent>is[tiddler]] [<topContent>is[shadow]] %>
@@ -258,8 +269,7 @@ code-body: yes
 			min=<<minHeight>>
 			max=<<tf.get-three-column-panels-top-max-height>>
 			default=<<topHeight>>
-			unit={{{ [<topHeight>split[]last[1]match[%]then[%]else[px]] }}}
-			element="previousSibling"
+			unit={{{ [tf.get.value.metric<topHeight>] :else[[px]] }}}
 		/>
 	<% endif %>
 	<div class="tc-panel-center-vertical" style.min-height=<<minHeight>> style.max-width="100%">
@@ -279,12 +289,12 @@ code-body: yes
 			min=<<minHeight>>
 			max=<<tf.get-three-column-panels-bottom-max-height>>
 			default=<<bottomHeight>>
-			unit={{{ [<bottomHeight>split[]last[1]match[%]then[%]else[px]] }}}
+			unit={{{ [tf.get.value.metric<bottomHeight>] :else[[px]] }}}
 			invert="yes"
 			element="nextSibling"
 		/>
 	<% endif %>
-	<div class="tc-panel-bottom" style.height={{{ [<bottomStateTiddler>get[text]else<bottomHeight>] }}} style.max-width="100%" style.margin-bottom={{{ [<collapseStateTiddlerBottom>get[text]else<collapsedBottom>match[yes]then<bottomStateTiddler>get[text]addprefix[-]] :else[<collapseStateTiddlerBottom>get[text]else<collapsedBottom>match[yes]then<bottomHeight>addprefix[-]] :else[[0]] }}}>
+	<div class="tc-panel-bottom" style.min-height=<<minHeight>> style.height={{{ [<bottomStateTiddler>get[text]else<bottomHeight>] }}} style.max-width="100%" style.margin-bottom={{{ [<collapseStateTiddlerBottom>get[text]else<collapsedBottom>match[yes]then<bottomStateTiddler>get[text]addprefix[-]] :else[<collapseStateTiddlerBottom>get[text]else<collapsedBottom>match[yes]then<bottomHeight>addprefix[-]] :else[[0]] }}}>
 		<%if [<bottomContent>is[variable]] %>
 			<$transclude $variable=<<bottomContent>> $mode="block"/>
 		<%elseif [<bottomContent>is[tiddler]] [<bottomContent>is[shadow]] %>

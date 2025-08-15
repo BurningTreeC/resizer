@@ -214,7 +214,7 @@ body.tc-resizing .tc-resizer {
 .tc-horizontal-split-panel,
 .tc-vertical-split-panel,
 .tc-three-column-panels,
-.tc-three-column-panels-vertical,
+.tc-three-row-panels,
 .tc-master-detail-layout,
 .tc-collapsible-master-detail {
 	position: relative;
@@ -231,7 +231,7 @@ body.tc-resizing .tc-resizer {
 }
 
 .tc-vertical-split-panel,
-.tc-three-column-panels-vertical {
+.tc-three-row-panels {
 	flex-direction: column;
 }
 
@@ -244,7 +244,7 @@ body.tc-resizing .tc-resizer {
 }
 
 .tc-panel-right:not(.tc-three-column-panels > .tc-panel-right),
-.tc-panel-bottom:not(.tc-three-column-panels-vertical > .tc-panel-bottom),
+.tc-panel-bottom:not(.tc-three-row-panels > .tc-panel-bottom),
 .tc-panel-center,
 .tc-panel-center-vertical,
 .tc-detail-panel {
@@ -373,11 +373,11 @@ body.tc-resizing .tc-resizer {
 	transition: margin-right 0.3s ease;
 }
 
-.tc-collapsible-three-column-panels-vertical .tc-panel-top {
+.tc-collapsible-three-row-panels .tc-panel-top {
 	transition: margin-top 0.3s ease;
 }
 
-.tc-collapsible-three-column-panels-vertical .tc-panel-bottom {
+.tc-collapsible-three-row-panels .tc-panel-bottom {
 	transition: margin-bottom 0.3s ease;
 }
 
