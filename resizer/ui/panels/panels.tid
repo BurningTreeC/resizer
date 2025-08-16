@@ -306,26 +306,29 @@ code-body: yes
 </div>
 \end
 
+\function tf.get.table.width() [<stateTiddlerPrefix>addsuffix[parent-size]get[text]addsuffix[px]]
+\function tf.get.max.column.width() [range<columns>!match<colIndex>!match<nextColIndex>] :reduce[addprefix<stateTiddlerPrefix>get[text]!prefix[Infinity]else<cellWidth>add<accumulator>] +[subtract[100]] :map[abs<currentTiddler>subtract<tf.get.min.column.width.percentage>addsuffix[%]]
+\function tf.get.min.column.width.percentage() [tf.convert.px.to.percentage<tf.get.table.width>,[50px]addsuffix[%]]
+\function tf.get.max.column.width.percentage() [<colIndex>!match<columns>then<tf.get.table.width>!is[blank]then<tf.get.max.column.width>]
+
 \procedure resizable-table-on-before-resize-start-actions()
 <$action-setfield $tiddler={{{ [<stateTiddlerPrefix>addsuffix[parent-size]] }}} text=<<tv-action-parent-size>>/>
-<$action-setfield $tiddler={{{ [<stateTiddlerPrefix>addsuffix<colIndex>] }}} width={{{ [<stateTiddlerPrefix>addsuffix<colIndex>get[text]] :else[<cellWidth>] }}}/>
-<$action-setfield $tiddler={{{ [<stateTiddlerPrefix>addsuffix<nextColIndex>] }}} width={{{ [<stateTiddlerPrefix>addsuffix<nextColIndex>get[text]] :else[<cellWidth>] }}}/>
+<$action-setfield $tiddler={{{ [<stateTiddlerPrefix>addsuffix<colIndex>] }}} width={{{ [<stateTiddlerPrefix>addsuffix<colIndex>get[text]!prefix[Infinity]] :else[<cellWidth>] }}}/>
+<$action-setfield $tiddler={{{ [<stateTiddlerPrefix>addsuffix<nextColIndex>] }}} width={{{ [<stateTiddlerPrefix>addsuffix<nextColIndex>get[text]!prefix[Infinity]] :else[<cellWidth>] }}}/>
 \end
 
 \procedure resizable-table-on-resize-actions()
-<$let tv-action-delta-x={{{ [tf.convert.px.to.percentage<tableWidth>,<tv-action-delta-x>] }}}>
+<$let tv-action-delta-x-converted={{{ [tf.convert.px.to.percentage<tf.get.table.width>,<tv-action-delta-x>] }}}>
 	<$action-setfield
 		$tiddler={{{ [<stateTiddlerPrefix>addsuffix<colIndex>] }}}
-		text={{{ [<stateTiddlerPrefix>addsuffix<colIndex>get[width]] :else[<cellWidth>] +[add<tv-action-delta-x>compare:number:gteq<minColumnWidthPerc>compare:number:lteq<maxColumnWidth>addsuffix[%]] :else[<stateTiddlerPrefix>addsuffix<colIndex>get[width]else<cellWidth>add<tv-action-delta-x>compare:number:lteq<minColumnWidthPerc>then<minColumnWidthPerc>else<maxColumnWidth>] }}}
+		text={{{ [<stateTiddlerPrefix>addsuffix<colIndex>get[width]] :else[<cellWidth>] +[add<tv-action-delta-x-converted>compare:number:gteq<tf.get.min.column.width.percentage>compare:number:lteq<tf.get.max.column.width.percentage>addsuffix[%]] :else[<stateTiddlerPrefix>addsuffix<colIndex>get[width]else<cellWidth>add<tv-action-delta-x-converted>compare:number:lteq<tf.get.min.column.width.percentage>then<tf.get.min.column.width.percentage>else<tf.get.max.column.width.percentage>] +[!prefix[Infinity]else<cellWidth>] }}}
 	/>
 	<$action-setfield
 		$tiddler={{{ [<stateTiddlerPrefix>addsuffix<nextColIndex>] }}}
-		text={{{ [<stateTiddlerPrefix>addsuffix<nextColIndex>get[width]] :else[<cellWidth>] +[subtract<tv-action-delta-x>compare:number:gteq<minColumnWidthPerc>compare:number:lteq<maxColumnWidth>addsuffix[%]] :else[<stateTiddlerPrefix>addsuffix<nextColIndex>get[width]else<cellWidth>subtract<tv-action-delta-x>compare:number:lteq<minColumnWidthPerc>then<minColumnWidthPerc>else<maxColumnWidth>] }}}
+		text={{{ [<stateTiddlerPrefix>addsuffix<nextColIndex>get[width]] :else[<cellWidth>] +[subtract<tv-action-delta-x-converted>compare:number:gteq<tf.get.min.column.width.percentage>compare:number:lteq<tf.get.max.column.width.percentage>addsuffix[%]] :else[<stateTiddlerPrefix>addsuffix<nextColIndex>get[width]else<cellWidth>subtract<tv-action-delta-x-converted>compare:number:lteq<tf.get.min.column.width.percentage>then<tf.get.min.column.width.percentage>else<tf.get.max.column.width.percentage>] +[!prefix[Infinity]else<cellWidth>] }}}
 	/>
 </$let>
 \end
-
-\function tf.get.max.column.width() [range<columns>!match<colIndex>!match<nextColIndex>] :reduce[addprefix<stateTiddlerPrefix>get[text]else<cellWidth>add<accumulator>] +[subtract[100]] :map[abs<currentTiddler>subtract<minColumnWidthPerc>addsuffix[%]]
 
 \procedure resizable-table(columns:"", rows:"", columnFilter:"", rowFilter:"", tableHeight:"auto", class:"", headerClass:"", cellClass:"", stateTiddlerPrefix:"$:/state/resizable-table/col-")
 \whitespace trim
@@ -336,13 +339,8 @@ code-body: yes
 				<thead>
 					<tr class={{{ tc-resizable-table-header [<headerClass>] +[join[ ]] }}}>
 						<$list filter="[range<columns>]" variable="column" counter="colIndex">
-							<$let
-								tableWidth={{{ [<stateTiddlerPrefix>addsuffix[parent-size]get[text]addsuffix[px]] }}}
-								nextColIndex={{{ [<colIndex>add[1]] }}}
-								minColumnWidthPerc={{{ [tf.convert.px.to.percentage<tableWidth>,[50px]addsuffix[%]] }}}
-								maxColumnWidth={{{ [<tableWidth>!is[blank]then<tf.get.max.column.width>] }}}
-							>
-								<th style.position="relative" style.min-width=<<minColumnWidthPerc>> style.max-width={{{ [<colIndex>!match<columns>then<maxColumnWidth>] }}} style.width={{{ [<stateTiddlerPrefix>addsuffix<colIndex>get[text]] :else[<cellWidth>] }}}>
+							<$let nextColIndex={{{ [<colIndex>add[1]] }}}>
+								<th style.position="relative" style.min-width=<<tf.get.min.column.width.percentage>> style.max-width=<<tf.get.max.column.width.percentage>> style.width={{{ [<stateTiddlerPrefix>addsuffix<colIndex>get[text]!prefix[Infinity]] :else[<cellWidth>] }}}>
 									<div class="tc-resizable-table-cell" style.width="100%">
 										<$text text=<<colIndex>>/>
 									</div>
@@ -350,9 +348,9 @@ code-body: yes
 										<$resizer
 											class="tc-table-column-resizer"
 											direction="horizontal"
-											min=<<minColumnWidthPerc>>
-											max=<<maxColumnWidth>>
-											default={{{ [[calc(100% / ]addsuffix<columns>addsuffix[)]] }}}
+											min=<<tf.get.min.column.width.percentage>>
+											max=<<tf.get.max.column.width.percentage>>
+											default=<<cellWidth>>
 											unit="px"
 											element="parent.parent"
 											onBeforeResizeStart=<<resizable-table-on-before-resize-start-actions>>
@@ -370,8 +368,8 @@ code-body: yes
 					<$list filter="[range<rows>]" variable="row">
 						<tr class={{{ tc-resizable-table-row [<cellClass>] +[join[ ]] }}}>
 							<$list filter="[range<columns>]" variable="column" counter="colIndex">
-								<td style.min-width=<<minColumnWidth>> style.max-width="" style.width={{{ [<stateTiddlerPrefix>addsuffix<colIndex>get[text]] :else[[calc(100% / ]addsuffix<columns>addsuffix[)]] }}}>
-									<div class="tc-resizable-table-cell" style.width={{{ [<stateTiddlerPrefix>addsuffix<colIndex>get[text]else<cellWidth>] }}}>
+								<td style.min-width=<<tf.get.min.column.width.percentage>> style.max-width=<<tf.get.max.column.width.percentage>> style.width={{{ [<stateTiddlerPrefix>addsuffix<colIndex>get[text]!prefix[Infinity]] :else[<cellWidth>] }}}>
+									<div class="tc-resizable-table-cell" style.width="100%">
 										<$text text={{{ [<row>addsuffix[ - ]addsuffix<colIndex>] }}}/>
 									</div>
 								</td>
@@ -381,6 +379,58 @@ code-body: yes
 				</tbody>
 			<% endif %>
 		</table>
+	</div>
+</$let>
+\end
+
+\procedure resizable-table-flexbox(columns:"", rows:"", columnFilter:"", rowFilter:"", tableHeight:"auto", class:"", headerClass:"", cellClass:"", stateTiddlerPrefix:"$:/state/resizable-table-flex/col-")
+\whitespace trim
+<$let cellWidth={{{ [[100]divide<columns>addsuffix[%]] }}}>
+	<div class={{{ tc-resizable-table-flexbox-wrapper [<class>] +[join[ ]] }}} style.height=<<tableHeight>> style.width="100%" style.display="flex" style.flex-direction="column">
+		<%if [<columns>!is[blank]] %>
+			<div class={{{ tc-resizable-table-flexbox-header [<headerClass>] +[join[ ]] }}} style.display="flex">
+				<$list filter="[range<columns>]" variable="column" counter="colIndex">
+					<$let
+						nextColIndex={{{ [<colIndex>add[1]] }}}
+						columnZIndex={{{ [<columns>subtract<colIndex>add[1]] }}}
+					>
+						<div style.position="relative" style.z-index=<<columnZIndex>> style.min-width=<<tf.get.min.column.width.percentage>> style.max-width=<<tf.get.max.column.width.percentage>> style.width={{{ [<stateTiddlerPrefix>addsuffix<colIndex>get[text]!prefix[Infinity]] :else[<cellWidth>] }}} style.padding="8px" style.font-weight="bold">
+							<$text text={{{ [[Column ]addsuffix<colIndex>] }}}/>
+							<%if [<colIndex>!match<columns>] %>
+								<$resizer
+									class="tc-table-column-resizer-flexbox"
+									direction="horizontal"
+									min=<<tf.get.min.column.width.percentage>>
+									max=<<tf.get.max.column.width.percentage>>
+									default=<<cellWidth>>
+									unit="px"
+									element="parent"
+									onBeforeResizeStart=<<resizable-table-on-before-resize-start-actions>>
+									onResize=<<resizable-table-on-resize-actions>>
+								/>
+							<% endif %>
+						</div>
+					</$let>
+				</$list>
+			</div>
+		<% endif %>
+		<%if [<rows>!is[blank]] %>
+			<div class="tc-resizable-table-flexbox-body" style.flex="1" style.overflow="auto">
+				<$list filter="[range<rows>]" variable="row">
+					<div class={{{ tc-resizable-table-flexbox-row [<cellClass>] +[join[ ]] }}} style.display="flex">
+						<$list filter="[range<columns>]" variable="column" counter="colIndex">
+							<$let 
+								nextColIndex={{{ [<colIndex>add[1]] }}}
+								columnZIndex={{{ [<columns>subtract<colIndex>add[1]] }}}>
+								<div style.position="relative" style.z-index=<<columnZIndex>> style.min-width=<<tf.get.min.column.width.percentage>> style.max-width=<<tf.get.max.column.width.percentage>> style.width={{{ [<stateTiddlerPrefix>addsuffix<colIndex>get[text]!prefix[Infinity]] :else[<cellWidth>] }}} style.padding="8px" style.word-wrap="break-word" style.overflow-wrap="break-word">
+									<$text text={{{ [<row>addsuffix[ - ]addsuffix<colIndex>] }}}/>
+								</div>
+							</$let>
+						</$list>
+					</div>
+				</$list>
+			</div>
+		<% endif %>
 	</div>
 </$let>
 \end

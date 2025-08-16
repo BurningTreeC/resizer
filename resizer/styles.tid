@@ -735,3 +735,46 @@ body.tc-resizing .tc-resizer {
 	cursor: col-resize;
 	z-index: 10;
 }
+
+/* =================================================================
+   RESIZABLE TABLE FLEXBOX
+   Styles for flexbox-based resizable table
+   ================================================================= */
+
+.tc-resizable-table-flexbox-wrapper {
+	display: flex;
+	flex-direction: column;
+	width: 100%;
+	border: 1px solid <<colour table-border>>;
+}
+
+.tc-resizable-table-flexbox-header {
+	border-bottom: 2px solid <<colour table-border>>;
+}
+
+.tc-resizable-table-flexbox-header > div:not(:last-child) {
+	border-right: 1px solid <<colour table-border>>;
+}
+
+.tc-resizable-table-flexbox-row {
+	border-bottom: 1px solid <<colour table-border>>;
+}
+
+.tc-resizable-table-flexbox-row:last-child {
+	border-bottom: none;
+}
+
+.tc-resizable-table-flexbox-row > div:not(:last-child) {
+	border-right: 1px solid <<colour table-border>>;
+}
+
+.tc-table-column-resizer-flexbox {
+	position: absolute;
+	right: -4px;
+	top: 0;
+	bottom: 0;
+	width: 8px;
+	cursor: col-resize;
+	z-index: 100;
+	background: transparent;
+}
