@@ -698,3 +698,40 @@ body.tc-resizing .tc-resizer {
 		opacity: 1;
 	}
 }
+
+/* =================================================================
+   RESIZABLE TABLE
+   Styles for resizable table components
+   ================================================================= */
+
+.tc-resizable-table {
+	table-layout: fixed;
+	border-collapse: collapse;
+	width: 100%;
+}
+
+.tc-resizable-table th,
+.tc-resizable-table td {
+	word-wrap: break-word;
+	overflow-wrap: break-word;
+	word-break: break-word;
+	white-space: normal;
+	overflow: hidden;
+}
+
+.tc-resizable-table-cell {
+	word-wrap: break-word;
+	overflow-wrap: break-word;
+	word-break: break-word;
+	white-space: normal;
+}
+
+.tc-table-column-resizer {
+	position: absolute;
+	right: -4px;
+	top: 0;
+	bottom: 0;
+	width: 8px;
+	cursor: col-resize;
+	z-index: 10;
+}

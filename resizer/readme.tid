@@ -56,7 +56,7 @@ A powerful and flexible resizer widget that enables interactive resizing of UI e
 
 |!Attribute |!Description |!Default |
 |selector |CSS selector for target DOM element(s) |– |
-|element |Target relative element: "parent", "previousSibling", "nextSibling" |– |
+|element |Target relative element: "parent", "parent.parent", "previousSibling", "nextSibling" |– |
 |property |CSS property to modify |"width" or "height" |
 |aspectRatio |Maintain aspect ratio for live DOM manipulation only (e.g., "16:9" or "1.5") |– |
 

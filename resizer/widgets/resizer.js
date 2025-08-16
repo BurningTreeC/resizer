@@ -466,6 +466,10 @@ ResizerWidget.prototype.getTargetElements = function(domNode) {
 		}
 	} else if(this.targetElement === "parent") {
 		targetElements = [domNode.parentElement];
+	} else if(this.targetElement === "parent.parent") {
+		if(domNode.parentElement && domNode.parentElement.parentElement) {
+			targetElements = [domNode.parentElement.parentElement];
+		}
 	} else if(this.targetElement === "previousSibling") {
 		if(domNode.previousElementSibling) targetElements = [domNode.previousElementSibling];
 	} else if(this.targetElement === "nextSibling") {
