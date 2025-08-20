@@ -60,6 +60,26 @@ body.tc-resizing .tc-resizer {
 	pointer-events: auto !important;
 }
 
+/* CRITICAL: Keep iframe editors interactive during resize */
+body.tc-resizing .tc-edit-texteditor iframe {
+	pointer-events: auto !important;
+}
+
+/* Ensure the editor wrapper remains interactive */
+body.tc-resizing .tc-edit-texteditor {
+	pointer-events: auto !important;
+}
+
+/* Also keep codemirror editors interactive if present */
+body.tc-resizing .CodeMirror {
+	pointer-events: auto !important;
+}
+
+/* Keep simple textareas interactive during resize */
+body.tc-resizing .tc-edit-texteditor textarea {
+	pointer-events: auto !important;
+}
+
 /* Disabled resizer state */
 .tc-resizer-disabled {
 	opacity: 0.3;
@@ -777,4 +797,8 @@ body.tc-resizing .tc-resizer {
 	cursor: col-resize;
 	z-index: 100;
 	background: transparent;
+}
+
+.tc-width-100 {
+	width: 100%;
 }
