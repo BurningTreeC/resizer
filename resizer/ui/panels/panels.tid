@@ -308,11 +308,21 @@ code-body: yes
 
 \function tf.get.table.width() [<stateTiddlerPrefix>addsuffix[parent-size]get[text]addsuffix[px]]
 
-\function tf.get.max.column.width()
+\function tf.get.max.column.width.more.than.two()
 	[range<columns>!match<colIndex>!match<nextColIndex>]
 	:reduce[addprefix<stateTiddlerPrefix>get[text]!prefix[Infinity]else<cellWidth>add<accumulator>]
 	:and[subtract[100]]
 	:map[abs<currentTiddler>subtract<tf.get.min.column.width.percentage>addsuffix[%]]
+\end
+
+\function tf.get.max.column.width.two()
+	[<tf.get.table.width>subtract[50]]
+	:map[tf.convert.px.to.percentage<tf.get.table.width>,<currentTiddler>]
+\end
+
+\function tf.get.max.column.width()
+	[<columns>match[2]then<tf.get.max.column.width.two>]
+	:else[<columns>!match[2]then<tf.get.max.column.width.more.than.two>]
 \end
 
 \function tf.get.min.column.width.percentage() [tf.convert.px.to.percentage<tf.get.table.width>,[50px]addsuffix[%]]
@@ -543,6 +553,14 @@ code-body: yes
 \function tf.row.split.regexp.get.caption() [function[tf.row.split.regexp]suffix[|c]split[|]butfirst[]butlast[]first[]]
 
 
+\function tf.get.table.cell() [function[tf.row.split.regexp]!suffix[|h]!suffix[|c]!suffix[|f]!suffix[|k]nth<rowIndex>split[|]butfirst[]butlast[]nth<colIndex>]
+\function tf.get.table.cell.align()
+	[<tableCell>regexp[^\s.*\s$]then[center]]
+	:else[<tableCell>regexp<alignRightRegexp>then[right]]
+	:else[<tableCell>regexp<alignLeftRegexp>then[left]]
+\end
+
+
 \procedure resizable-table(columns:"", rows:"", columnFilter:"", rowFilter:"", footerFilter:"", field:"text", editable:"no", tableHeight:"auto", class:"", headerClass:"", cellClass:"", stateTiddlerPrefix:"$:/state/resizable-table/", caption:"", wikitextTable:"")
 \whitespace trim
 <$let
@@ -568,7 +586,12 @@ code-body: yes
 					<tr class={{{ tc-resizable-table-header [<headerClass>] +[join[ ]] }}}>
 						<$list filter="[range<columns>]" variable="column" counter="colIndex">
 							<$let nextColIndex={{{ [<colIndex>add[1]] }}} row="0">
-								<th style.position="relative" style.min-width=<<tf.get.min.column.width.percentage>> style.max-width=<<tf.get.max.column.width.percentage>> style.width={{{ [<stateTiddlerPrefix>addsuffix<colIndex>get[text]!prefix[Infinity]] :else[<cellWidth>] }}}>
+								<th
+									style.position="relative"
+									style.min-width=<<tf.get.min.column.width.percentage>>
+									style.max-width=<<tf.get.max.column.width.percentage>>
+									style.width={{{ [<stateTiddlerPrefix>addsuffix<colIndex>get[text]!prefix[Infinity]] :else[<cellWidth>] }}}
+								>
 									<div class="tc-resizable-table-cell" style.width="100%">
 										<$transclude $variable="resizable-table-content" filter=<<columnFilter>> tableArea="header"/>
 									</div>
@@ -601,9 +624,20 @@ code-body: yes
 									nextColIndex={{{ [<colIndex>add[1]] }}}
 									colspan={{{ [<wikitextTable>!is[blank]then<tf.get.colspan>] :else[[1]] }}}
 									rowspan={{{ [<wikitextTable>!is[blank]then<tf.get.rowspan>] :else[[1]] }}}
+									tableCell=<<tf.get.table.cell>>
+									alignRightRegexp="^\s.*[^\s]$"
+									alignLeftRegexp="^[^\s].*\s$"
 								>
 									<%if [<colspan>!match[0]then<rowspan>!match[0]] %>
-										<td style.position="relative" style.min-width=<<tf.get.min.column.width.percentage>> style.max-width=<<tf.get.max.column.width.percentage>> style.width={{{ [<stateTiddlerPrefix>addsuffix<colIndex>get[text]!prefix[Infinity]] :else[<cellWidth>] }}} colspan=<<colspan>> rowspan=<<rowspan>>>
+										<td
+											align=<<tf.get.table.cell.align>>
+											style.position="relative"
+											style.min-width=<<tf.get.min.column.width.percentage>>
+											style.max-width=<<tf.get.max.column.width.percentage>>
+											style.width={{{ [<stateTiddlerPrefix>addsuffix<colIndex>get[text]!prefix[Infinity]] :else[<cellWidth>] }}}
+											colspan=<<colspan>>
+											rowspan=<<rowspan>>
+										>
 											<div class="tc-resizable-table-cell" style.width="100%">
 												<$transclude $variable="resizable-table-content" filter=<<rowFilter>> tableArea="rows"/>
 											</div>
