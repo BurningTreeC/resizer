@@ -559,6 +559,10 @@ code-body: yes
 	:else[<tableCell>regexp<alignRightRegexp>then[right]]
 	:else[<tableCell>regexp<alignLeftRegexp>then[left]]
 \end
+\function tf.get.table.cell.valign()
+	[<tableCell>regexp[^(\^|&#94;).*]then[top]]
+	:else[<tableCell>regexp[^(,|&#44;).*]then[bottom]]
+\end
 
 
 \procedure resizable-table(columns:"", rows:"", columnFilter:"", rowFilter:"", footerFilter:"", field:"text", editable:"no", tableHeight:"auto", class:"", headerClass:"", cellClass:"", stateTiddlerPrefix:"$:/state/resizable-table/", caption:"", wikitextTable:"")
@@ -631,6 +635,7 @@ code-body: yes
 									<%if [<colspan>!match[0]then<rowspan>!match[0]] %>
 										<td
 											align=<<tf.get.table.cell.align>>
+											valign=<<tf.get.table.cell.valign>>
 											style.position="relative"
 											style.min-width=<<tf.get.min.column.width.percentage>>
 											style.max-width=<<tf.get.max.column.width.percentage>>
