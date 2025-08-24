@@ -384,7 +384,7 @@ code-body: yes
 <% endif %>
 \end
 
-\procedure resizable-table-content-inner()
+\procedure resizable-table-content-content()
 \whitespace trim
 <$wikify name="content" text=<<cell>>>
 	<<content>>
@@ -397,27 +397,27 @@ code-body: yes
 	<$transclude $variable="resizable-table-content-inner" filter=<<filter>>/>
 <%elseif [<wikitextTable>!is[blank]then<tableArea>match[thead]] %>
 	<$let tableHeader={{{ [<wikitextTable>splitregexp[\n]suffix[|h]] }}} cell={{{ [<tableHeader>split[|]butfirst[]butlast[]nth<colIndex>] :map[tf.strip.valign<currentTiddler>] }}}>
-		<<resizable-table-content-inner>>
+		<<resizable-table-content-content>>
 	</$let>
 <%elseif [<wikitextTable>!is[blank]then<tableArea>match[tbody]] %>
 	<$let tableRow={{{ [<wikitextTable>splitregexp[\n]!suffix[|h]!suffix[|c]!suffix[|f]!suffix[|k]nth<rowIndex>] }}} cell={{{ [<tableRow>split[|]butfirst[]butlast[]nth<colIndex>] :map[tf.strip.valign<currentTiddler>] }}}>
-		<<resizable-table-content-inner>>
+		<<resizable-table-content-content>>
 	</$let>
 <%elseif [<wikitextTable>!is[blank]then<tableArea>match[tfoot]] %>
 	<$let tableFooter={{{ [<wikitextTable>splitregexp[\n]suffix[|f]] }}} cell={{{ [<tableFooter>split[|]butfirst[]butlast[]nth<colIndex>] :map[tf.strip.valign<currentTiddler>] }}}>
-		<<resizable-table-content-inner>>
+		<<resizable-table-content-content>>
 	</$let>
 <%elseif [<dataTiddler>!is[blank]then<tableArea>match[thead]] %>
 	<$let cell={{{ [[head]addsuffix[ ]addsuffix<excelColumn>addsuffix[ ]addsuffix<row>] :map[<dataTiddler>getindex<currentTiddler>] }}}>
-		<<resizable-table-content-inner>>
+		<<resizable-table-content-content>>
 	</$let>
 <%elseif [<dataTiddler>!is[blank]then<tableArea>match[tbody]] %>
 	<$let cell={{{ [<excelColumn>addsuffix[ ]addsuffix<row>] :map[<dataTiddler>getindex<currentTiddler>] }}}>
-		<<resizable-table-content-inner>>
+		<<resizable-table-content-content>>
 	</$let>
 <%elseif [<dataTiddler>!is[blank]then<tableArea>match[tfoot]] %>
 	<$let cell={{{ [[foot]addsuffix[ ]addsuffix<excelColumn>addsuffix[ ]addsuffix<row>] :map[<dataTiddler>getindex<currentTiddler>] }}}>
-		<<resizable-table-content-inner>>
+		<<resizable-table-content-content>>
 	</$let>
 <% endif %>
 \end
