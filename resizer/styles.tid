@@ -187,7 +187,7 @@ body.tc-resizing .tc-edit-texteditor textarea {
 	}
 }
 
-@media only screen and not (hover: hover) {
+@media (pointer: coarse) {
 	.tc-sidebar-resizer {
 		left: {{{ [{$:/themes/tiddlywiki/vanilla/options/sidebarlayout}match[fluid-fixed]then[6px]] :else[[-36px]] }}};
 	}
@@ -219,7 +219,7 @@ body.tc-resizing .tc-edit-texteditor textarea {
 	margin-left: 0;
 }
 
-@media only screen and not (hover: hover) {
+@media (pointer: coarse) {
 	.tc-tiddler-editor-resizer {
 		width: 15px;
 	}
@@ -607,7 +607,7 @@ body.tc-resizing .tc-edit-texteditor textarea {
    Improved usability for mobile and touch interfaces
    ================================================================= */
 
-@media only screen and not (hover: hover) {
+@media (pointer: coarse) {
 	/* Add gaps between panels for easier touch */
 	.tc-horizontal-split-panel,
 	.tc-three-column-panels,

@@ -384,27 +384,40 @@ code-body: yes
 <% endif %>
 \end
 
+\procedure resizable-table-content-inner()
+\whitespace trim
+<$wikify name="content" text=<<cell>>>
+	<<content>>
+</$wikify>
+\end
+
 \procedure resizable-table-content(filter,tableArea)
 \whitespace trim
-<%if [<wikitextTable>is[blank]] %>
+<%if [<wikitextTable>is[blank]then<dataTiddler>is[blank]] %>
 	<$transclude $variable="resizable-table-content-inner" filter=<<filter>>/>
-<%elseif [<tableArea>match[header]] %>
-	<$let tableHeader={{{ [<wikitextTable>splitregexp[\n]suffix[|h]] }}} tableHeaderCell={{{ [<tableHeader>split[|]butfirst[]butlast[]nth<colIndex>] :map[tf.strip.valign<currentTiddler>] }}}>
-		<$wikify name="content" text=<<tableHeaderCell>>>
-			<<content>>
-		</$wikify>
+<%elseif [<wikitextTable>!is[blank]then<tableArea>match[thead]] %>
+	<$let tableHeader={{{ [<wikitextTable>splitregexp[\n]suffix[|h]] }}} cell={{{ [<tableHeader>split[|]butfirst[]butlast[]nth<colIndex>] :map[tf.strip.valign<currentTiddler>] }}}>
+		<<resizable-table-content-inner>>
 	</$let>
-<%elseif [<tableArea>match[rows]] %>
-	<$let tableRow={{{ [<wikitextTable>splitregexp[\n]!suffix[|h]!suffix[|c]!suffix[|f]!suffix[|k]nth<rowIndex>] }}} tableRowCell={{{ [<tableRow>split[|]butfirst[]butlast[]nth<colIndex>] :map[tf.strip.valign<currentTiddler>] }}}>
-		<$wikify name="content" text=<<tableRowCell>>>
-			<<content>>
-		</$wikify>
+<%elseif [<wikitextTable>!is[blank]then<tableArea>match[tbody]] %>
+	<$let tableRow={{{ [<wikitextTable>splitregexp[\n]!suffix[|h]!suffix[|c]!suffix[|f]!suffix[|k]nth<rowIndex>] }}} cell={{{ [<tableRow>split[|]butfirst[]butlast[]nth<colIndex>] :map[tf.strip.valign<currentTiddler>] }}}>
+		<<resizable-table-content-inner>>
 	</$let>
-<%elseif [<tableArea>match[footer]] %>
-	<$let tableFooter={{{ [<wikitextTable>splitregexp[\n]suffix[|f]] }}} tableFooterCell={{{ [<tableFooter>split[|]butfirst[]butlast[]nth<colIndex>] :map[tf.strip.valign<currentTiddler>] }}}>
-		<$wikify name="content" text=<<tableFooterCell>>>
-			<<content>>
-		</$wikify>
+<%elseif [<wikitextTable>!is[blank]then<tableArea>match[tfoot]] %>
+	<$let tableFooter={{{ [<wikitextTable>splitregexp[\n]suffix[|f]] }}} cell={{{ [<tableFooter>split[|]butfirst[]butlast[]nth<colIndex>] :map[tf.strip.valign<currentTiddler>] }}}>
+		<<resizable-table-content-inner>>
+	</$let>
+<%elseif [<dataTiddler>!is[blank]then<tableArea>match[thead]] %>
+	<$let cell={{{ [[head]addsuffix[ ]addsuffix<excelColumn>addsuffix[ ]addsuffix<row>] :map[<dataTiddler>getindex<currentTiddler>] }}}>
+		<<resizable-table-content-inner>>
+	</$let>
+<%elseif [<dataTiddler>!is[blank]then<tableArea>match[tbody]] %>
+	<$let cell={{{ [<excelColumn>addsuffix[ ]addsuffix<row>] :map[<dataTiddler>getindex<currentTiddler>] }}}>
+		<<resizable-table-content-inner>>
+	</$let>
+<%elseif [<dataTiddler>!is[blank]then<tableArea>match[tfoot]] %>
+	<$let cell={{{ [[foot]addsuffix[ ]addsuffix<excelColumn>addsuffix[ ]addsuffix<row>] :map[<dataTiddler>getindex<currentTiddler>] }}}>
+		<<resizable-table-content-inner>>
 	</$let>
 <% endif %>
 \end
@@ -577,19 +590,114 @@ code-body: yes
 \end
 
 
-\procedure resizable-table(dataTiddler:"", columns:"", headerRows:"", bodyRows:"", footerRows:"", headerFilter:"", bodyFilter:"", footerFilter:"", field:"text", editable:"no", tableHeight:"auto", class:"", headerClass:"", bodyClass:"", footerClass:"", cellClass:"", stateTiddlerPrefix:"$:/state/resizable-table/", caption:"", wikitextTable:"")
+\procedure get-excel-column() <$transclude $variable="excel-column" index=<<colIndex>>/>
+
+
+\procedure resizable-table-section(sectionCellElement,sectionCondition,sectionRows,sectionClasses,sectionClass,colspanFunction,rowspanFunction,tableCellFunction,sectionFilter)
+\whitespace trim
+<%if [subfilter<sectionCondition>] %>
+	<$genesis $type=<<tableSection>>>
+		<$list filter="[range<sectionRows>]" variable="row" counter="rowIndex">
+			<tr class={{{ tc-resizable-table-row [<sectionClasses>] [<rowIndex>remainder[2]match[1]then[evenRow]else[oddRow]] [<sectionClass>] :and[unique[]]  +[join[ ]] }}}>
+				<$list filter="[range<columns>]" variable="column" counter="colIndex">
+					<$let
+						previousColIndex={{{ [<colIndex>subtract[1]] }}}
+						nextColIndex={{{ [<colIndex>add[1]] }}}
+						colspan={{{ [<wikitextTable>!is[blank]] :then[function<colspanFunction>] :else[[1]] }}}
+						rowspan={{{ [<wikitextTable>!is[blank]] :then[function<rowspanFunction>] :else[[1]] }}}
+						tableCell={{{ [tf.get.table.cell<tableCellFunction>] }}}
+					>
+						<$wikify name="excelColumn" text=<<get-excel-column>>>
+							<%if [<colspan>!match[0]then<rowspan>!match[0]] %>
+								<$genesis
+									$type=<<sectionCellElement>>
+									class=<<cellClass>>
+									align=<<tf.get.table.cell.align>>
+									valign=<<tf.get.table.cell.valign>>
+									style.position="relative"
+									style.min-width=<<tf.get.min.column.width.percentage>>
+									style.max-width=<<tf.get.max.column.width.percentage>>
+									style.width={{{ [<stateTiddlerPrefix>addsuffix<colIndex>get[text]!prefix[Infinity]] :else[<cellWidth>] }}}
+									colspan=<<colspan>>
+									rowspan=<<rowspan>>
+								>
+									<div class="tc-resizable-table-cell" style.width="100%">
+										<$transclude $variable="resizable-table-content" filter=<<sectionFilter>> tableArea=<<tableSection>>/>
+									</div>
+									<%if [<colIndex>!match<columns>] %>
+										<$resizer
+											class="tc-table-column-resizer"
+											direction="horizontal"
+											min=<<tf.get.min.column.width.percentage>>
+											max=<<tf.get.max.column.width.percentage>>
+											default=<<cellWidth>>
+											unit="px"
+											element="parent.parent"
+											onBeforeResizeStart=<<resizable-table-on-before-resize-start-actions>>
+											onResize=<<resizable-table-on-resize-actions>>
+										/>
+									<% endif %>
+								</$genesis>
+							<% endif %>
+						</$wikify>
+					</$let>
+				</$list>
+			</tr>
+		</$list>
+	</$genesis>
+<% endif %>
+\end
+
+
+\function tf.data.tiddler.count.columns()
+	[<dataTiddler>indexes[]!prefix[head]!prefix[foot]!prefix[caption]!prefix[classes]]
+	:map[<currentTiddler>split[ ]nth[1]]
+	:and[unique[]count[]]
+\end
+
+\function tf.data.tiddler.count.rows()
+	[<dataTiddler>indexes[]!prefix[head]!prefix[foot]!prefix[caption]!prefix[classes]]
+	:map[<currentTiddler>split[ ]nth[2]]
+	:and[unique[]count[]]
+\end
+
+\function tf.data.tiddler.count.header.rows()
+	[<dataTiddler>indexes[]prefix[head]]
+	:map[<currentTiddler>split[ ]nth[2]]
+	:and[unique[]count[]]
+\end
+
+\function tf.data.tiddler.count.footer.rows()
+	[<dataTiddler>indexes[]prefix[foot]]
+	:map[<currentTiddler>split[ ]nth[2]]
+	:and[unique[]count[]]
+\end
+
+\function tf.data.tiddler.get.caption()
+	[<dataTiddler>indexes[]prefix[caption]nth[1]]
+	:map[<dataTiddler>getindex<currentTiddler>]
+\end
+
+\function tf.data.tiddler.get.classes()
+	[<dataTiddler>indexes[]prefix[classes]nth[1]]
+	:map[<dataTiddler>getindex<currentTiddler>]
+\end
+
+
+\procedure resizable-table(dataTiddler:"", lookup:"no", columns:"", headerRows:"", bodyRows:"", footerRows:"", headerFilter:"", bodyFilter:"", footerFilter:"", field:"text", editable:"no", tableHeight:"auto", class:"", headerClass:"", bodyClass:"", footerClass:"", cellClass:"", stateTiddlerPrefix:"$:/state/resizable-table/", caption:"", wikitextTable:"")
 \whitespace trim
 <$let
-	columns={{{ [<wikitextTable>!is[blank]then<tf.row.split.regexp.count.columns>] :else[<wikitextTable>is[blank]then<columns>] :else[[0]] }}}
-	bodyRows={{{ [<wikitextTable>!is[blank]then<tf.row.split.regexp.count.rows>] :else[<wikitextTable>is[blank]then<bodyRows>] :else[[0]] }}}
-	headerRows={{{ [<wikitextTable>!is[blank]then<tf.row.split.regexp.count.header.rows>] :else[<wikitextTable>is[blank]then<headerRows>] :else[[0]] }}}
-	footerRows={{{ [<wikitextTable>!is[blank]then<tf.row.split.regexp.count.footer.rows>] :else[<wikitextTable>is[blank]then<footerRows>] :else[[0]] }}}
+	columns={{{ [<wikitextTable>!is[blank]then<tf.row.split.regexp.count.columns>] :else[<wikitextTable>is[blank]then<dataTiddler>!is[blank]then<tf.data.tiddler.count.columns>] :else[<dataTiddler>is[blank]then<wikitextTable>is[blank]then<columns>] :else[[0]] }}}
+	bodyRows={{{ [<wikitextTable>!is[blank]then<tf.row.split.regexp.count.rows>] :else[<wikitextTable>is[blank]then<dataTiddler>!is[blank]then<tf.data.tiddler.count.rows>] :else[<dataTiddler>is[blank]then<wikitextTable>is[blank]then<bodyRows>] :else[[0]] }}}
+	headerRows={{{ [<wikitextTable>!is[blank]then<tf.row.split.regexp.count.header.rows>] :else[<wikitextTable>is[blank]then<dataTiddler>!is[blank]then<tf.data.tiddler.count.header.rows>] :else[<dataTiddler>is[blank]then<wikitextTable>is[blank]then<headerRows>] :else[[0]] }}}
+	footerRows={{{ [<wikitextTable>!is[blank]then<tf.row.split.regexp.count.footer.rows>] :else[<wikitextTable>is[blank]then<dataTiddler>!is[blank]then<tf.data.tiddler.count.footer.rows>] :else[<dataTiddler>is[blank]then<wikitextTable>is[blank]then<footerRows>] :else[[0]] }}}
 	cellWidth={{{ [[100]divide<columns>addsuffix[%]] }}}
 	stateTiddlerPrefix={{{ [<stateTiddlerPrefix>addsuffix<columns>addsuffix<qualify>addsuffix[/]addsuffix[col-]] }}}
-	hasHeader={{{ [<wikitextTable>!is[blank]then<tf.row.split.regexp.has.header>] :else[[no]] }}}
-	hasFooter={{{ [<wikitextTable>!is[blank]then<tf.row.split.regexp.has.footer>] :else[[no]] }}}
-	caption={{{ [<wikitextTable>!is[blank]then<tf.row.split.regexp.get.caption>] :else[<caption>!is[blank]] :else[[]] }}}
-	wikitextClasses={{{ [<wikitextTable>!is[blank]then<tf.row.split.regexp>suffix[|k]split[|]butfirst[]butlast[]first[]] }}}
+	hasHeader={{{ [<headerRows>compare:number:gt[0]then[yes]] :else[[no]] }}}
+	hasBody={{{ [<bodyRows>compare:number:gt[0]then[yes]] :else[[no]] }}}
+	hasFooter={{{ [<footerRows>compare:number:gt[0]then[yes]] :else[[no]] }}}
+	caption={{{ [<wikitextTable>!is[blank]then<tf.row.split.regexp.get.caption>] :else[<wikitextTable>is[blank]then<dataTiddler>!is[blank]then<tf.data.tiddler.get.caption>] :else[<caption>!is[blank]] :else[[]] }}}
+	wikitextClasses={{{ [<wikitextTable>!is[blank]then<tf.row.split.regexp>suffix[|k]split[|]butfirst[]butlast[]first[]] :else[<wikitextTable>is[blank]then<dataTiddler>!is[blank]then<tf.data.tiddler.get.classes>] :else[[]] }}}
 	columnsMinusOne={{{ [<columns>subtract[1]] }}}
 	alignRightRegexp="^\s.*[^\s]$"
 	alignLeftRegexp="^[^\s].*\s$"
@@ -598,6 +706,9 @@ code-body: yes
 	alignStripTopRegexp="^(\^|&#94;)"
 	alignStripBottomRegexp="^(,|&#44;)"
 	bodyRowRegexp=".*\|$"
+	tableHeaderCondition="[<hasHeader>match[yes]]"
+	tableBodyCondition="[<hasBody>match[yes]]"
+	tableFooterCondition="[<hasFooter>match[yes]]"
 >
 	<div class="tc-resizable-table-wrapper" style.height=<<tableHeight>> style.width="100%">
 		<table class={{{ tc-resizable-table [<class>] [<wikitextClasses>] :and[unique[]] :and[join[ ]] }}} style.width="100%">
@@ -606,150 +717,20 @@ code-body: yes
 					<<caption>>
 				</caption>
 			<% endif %>
-			<%if [<wikitextTable>is[blank]then<columns>!is[blank]then<headerFilter>!is[blank]] [<wikitextTable>!is[blank]then<hasHeader>match[yes]] %>
-				<thead>
-					<$list filter="[range<headerRows>]" variable="headerRow" counter="rowIndex">
-						<tr class={{{ tc-resizable-table-row tc-resizable-table-header [<rowIndex>remainder[2]match[1]then[evenRow]else[oddRow]] [<headerClass>] :and[unique[]]  +[join[ ]] }}}>
-							<$list filter="[range<columns>]" variable="column" counter="colIndex">
-								<$let
-									previousColIndex={{{ [<colIndex>subtract[1]] }}}
-									nextColIndex={{{ [<colIndex>add[1]] }}}
-									row=<<headerRow>>
-									colspan={{{ [<wikitextTable>!is[blank]then<tf.get.colspan.header>] :else[[1]] }}}
-									rowspan={{{ [<wikitextTable>!is[blank]then<tf.get.rowspan.header>] :else[[1]] }}}
-									tableCell={{{ [tf.get.table.cell[tf.is.header]] }}}
-								>
-									<%if [<colspan>!match[0]then<rowspan>!match[0]] %>
-										<th
-											class=<<cellClass>>
-											align=<<tf.get.table.cell.align>>
-											valign=<<tf.get.table.cell.valign>>
-											style.position="relative"
-											style.min-width=<<tf.get.min.column.width.percentage>>
-											style.max-width=<<tf.get.max.column.width.percentage>>
-											style.width={{{ [<stateTiddlerPrefix>addsuffix<colIndex>get[text]!prefix[Infinity]] :else[<cellWidth>] }}}
-											colspan=<<colspan>>
-											rowspan=<<rowspan>>
-										>
-											<div class="tc-resizable-table-cell" style.width="100%">
-												<$transclude $variable="resizable-table-content" filter=<<headerFilter>> tableArea="header"/>
-											</div>
-											<%if [<colIndex>!match<columns>] %>
-												<$resizer
-													class="tc-table-column-resizer"
-													direction="horizontal"
-													min=<<tf.get.min.column.width.percentage>>
-													max=<<tf.get.max.column.width.percentage>>
-													default=<<cellWidth>>
-													unit="px"
-													element="parent.parent"
-													onBeforeResizeStart=<<resizable-table-on-before-resize-start-actions>>
-													onResize=<<resizable-table-on-resize-actions>>
-												/>
-											<% endif %>
-										</th>
-									<% endif %>
-								</$let>
-							</$list>
-						</tr>
-					</$list>
-				</thead>
-			<% endif %>
-			<%if [<wikitextTable>is[blank]then<bodyRows>!is[blank]then<bodyFilter>!is[blank]] [<wikitextTable>!is[blank]] %>
-				<tbody>
-					<$list filter="[range<bodyRows>]" variable="row" counter="rowIndex">
-						<tr class={{{ tc-resizable-table-row tc-resizable-table-body [<rowIndex>remainder[2]match[1]then[evenRow]else[oddRow]] [<bodyClass>] :and[unique[]] +[join[ ]] }}}>
-							<$list filter="[range<columns>]" variable="column" counter="colIndex">
-								<$let
-									previousColIndex={{{ [<colIndex>subtract[1]] }}}
-									nextColIndex={{{ [<colIndex>add[1]] }}}
-									colspan={{{ [<wikitextTable>!is[blank]then<tf.get.colspan.body>] :else[[1]] }}}
-									rowspan={{{ [<wikitextTable>!is[blank]then<tf.get.rowspan.body>] :else[[1]] }}}
-									tableCell={{{ [tf.get.table.cell[tf.exclude.header.caption.classes.footer]] }}}
-								>
-									<%if [<colspan>!match[0]then<rowspan>!match[0]] %>
-										<td
-											class=<<cellClass>>
-											align=<<tf.get.table.cell.align>>
-											valign=<<tf.get.table.cell.valign>>
-											style.position="relative"
-											style.min-width=<<tf.get.min.column.width.percentage>>
-											style.max-width=<<tf.get.max.column.width.percentage>>
-											style.width={{{ [<stateTiddlerPrefix>addsuffix<colIndex>get[text]!prefix[Infinity]] :else[<cellWidth>] }}}
-											colspan=<<colspan>>
-											rowspan=<<rowspan>>
-										>
-											<div class="tc-resizable-table-cell" style.width="100%">
-												<$transclude $variable="resizable-table-content" filter=<<bodyFilter>> tableArea="rows"/>
-											</div>
-											<%if [<colIndex>!match<columns>] %>
-												<$resizer
-													class="tc-table-column-resizer"
-													direction="horizontal"
-													min=<<tf.get.min.column.width.percentage>>
-													max=<<tf.get.max.column.width.percentage>>
-													default=<<cellWidth>>
-													unit="px"
-													element="parent.parent"
-													onBeforeResizeStart=<<resizable-table-on-before-resize-start-actions>>
-													onResize=<<resizable-table-on-resize-actions>>
-												/>
-											<% endif %>
-										</td>
-									<% endif %>
-								</$let>
-							</$list>
-						</tr>
-					</$list>
-				</tbody>
-			<% endif %>
-			<%if [<wikitextTable>is[blank]then<footerFilter>!is[blank]] [<wikitextTable>!is[blank]then<hasFooter>match[yes]] %>
-				<tfoot>
-					<$list filter="[range<footerRows>]" variable="footerRow" counter="rowIndex">
-						<tr class={{{ tc-resizable-table-row tc-resizable-table-footer [<rowIndex>remainder[2]match[1]then[evenRow]else[oddRow]] [<footerClass>] :and[unique[]] :and[join[ ]] }}}>
-							<$list filter="[range<columns>]" variable="column" counter="colIndex">
-								<$let
-									previousColIndex={{{ [<colIndex>subtract[1]] }}}
-									nextColIndex={{{ [<colIndex>add[1]] }}}
-									row=<<footerRow>>
-									colspan={{{ [<wikitextTable>!is[blank]then<tf.get.colspan.footer>] :else[[1]] }}}
-									rowspan={{{ [<wikitextTable>!is[blank]then<tf.get.rowspan.footer>] :else[[1]] }}}
-									tableCell={{{ [tf.get.table.cell[tf.is.footer]] }}}
-								>
-									<%if [<colspan>!match[0]then<rowspan>!match[0]] %>
-										<td
-											class=<<cellClass>>
-											align=<<tf.get.table.cell.align>>
-											valign=<<tf.get.table.cell.valign>>
-											style.position="relative"
-											style.min-width=<<tf.get.min.column.width.percentage>>
-											style.max-width=<<tf.get.max.column.width.percentage>>
-											style.width={{{ [<stateTiddlerPrefix>addsuffix<colIndex>get[text]!prefix[Infinity]] :else[<cellWidth>] }}}
-										>
-											<div class="tc-resizable-table-cell" style.width="100%">
-												<$transclude $variable="resizable-table-content" filter=<<footerFilter>> tableArea="footer"/>
-											</div>
-											<%if [<colIndex>!match<columns>] %>
-												<$resizer
-													class="tc-table-column-resizer"
-													direction="horizontal"
-													min=<<tf.get.min.column.width.percentage>>
-													max=<<tf.get.max.column.width.percentage>>
-													default=<<cellWidth>>
-													unit="px"
-													element="parent.parent"
-													onBeforeResizeStart=<<resizable-table-on-before-resize-start-actions>>
-													onResize=<<resizable-table-on-resize-actions>>
-												/>
-											<% endif %>
-										</td>
-									<% endif %>
-								</$let>
-							</$list>
-						</tr>
-					</$list>
-				</tfoot>
-			<% endif %>
+			<$list filter="thead tbody tfoot" variable="tableSection">
+				<$transclude
+					$variable="resizable-table-section"
+					sectionCellElement={{{ [<tableSection>match[thead]then[th]] [<tableSection>match[tbody]then[td]] [<tableSection>match[tfoot]then[td]] }}}
+					sectionCondition={{{ [<tableSection>match[thead]then<tableHeaderCondition>] [<tableSection>match[tbody]then<tableBodyCondition>] [<tableSection>match[tfoot]then<tableFooterCondition>] }}}
+					sectionRows={{{ [<tableSection>match[thead]then<headerRows>] [<tableSection>match[tbody]then<bodyRows>] [<tableSection>match[tfoot]then<footerRows>] }}}
+					sectionClasses={{{ [<tableSection>match[thead]then[tc-resizable-table-header]] [<tableSection>match[tbody]then[tc-resizable-table-body]] [<tableSection>match[tfoot]then[tc-resizable-table-footer]] }}}
+					sectionClass={{{ [<tableSection>match[thead]then<headerClass>] [<tableSection>match[tbody]then<bodyClass>] [<tableSection>match[tfoot]then<footerClass>] }}}
+					colspanFunction={{{ [<tableSection>match[thead]then[tf.get.colspan.header]] [<tableSection>match[tbody]then[tf.get.colspan.body]] [<tableSection>match[tfoot]then[tf.get.colspan.footer]] }}}
+					rowspanFunction={{{ [<tableSection>match[thead]then[tf.get.rowspan.header]] [<tableSection>match[tbody]then[tf.get.rowspan.body]] [<tableSection>match[tfoot]then[tf.get.rowspan.footer]] }}}
+					tableCellFunction={{{ [<tableSection>match[thead]then[tf.is.header]] [<tableSection>match[tbody]then[tf.exclude.header.caption.classes.footer]] [<tableSection>match[tfoot]then[tf.is.footer]] }}}
+					sectionFilter={{{ [<tableSection>match[thead]then<headerFilter>] [<tableSection>match[tbody]then<bodyFilter>] [<tableSection>match[tfoot]then<footerFilter>] }}}
+				/>
+			</$list>
 		</table>
 	</div>
 </$let>
