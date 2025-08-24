@@ -754,6 +754,8 @@ body.tc-resizing .tc-edit-texteditor textarea {
 	width: 8px;
 	cursor: col-resize;
 	z-index: 10;
+	background-color: <<colour table-border>>;
+	opacity: 0.25;
 }
 
 /* =================================================================
