@@ -661,7 +661,8 @@ code-body: yes
 \function tf.current.tiddler.to.charcode() [<currentTiddler>tocharcode[]]
 
 \function tf.data.tiddler.count.columns()
-	[<dataTiddler>indexes[]split[ ]!match[head]!match[foot]!match[caption]!match[classes]regexp<upperCaseLettersRegexp>sort[]sortsub:number<compareByLength>last[]split[]]
+	[<dataTiddler>indexes[]split[ ]!match[head]!match[foot]!match[caption]!match[classes]regexp<upperCaseLettersRegexp>sort[]sortsub:number<compareByLength>last[]]
+	:map:flat[split[]]
 	:reduce[<accumulator>multiply[26]add<tf.current.tiddler.to.charcode>subtract[64]]
 	:else[[0]]
 \end
