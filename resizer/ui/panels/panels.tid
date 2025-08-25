@@ -602,9 +602,6 @@ code-body: yes
 \end
 
 
-\procedure get-excel-column() <$transclude $variable="excel-column" index=<<colIndex>>/>
-
-
 \procedure resizable-table-section(sectionCellElement,sectionCondition,sectionRows,sectionClasses,sectionClass,colspanFunction,rowspanFunction,tableCellFunction,sectionFilter)
 \whitespace trim
 <%if [subfilter<sectionCondition>] %>
@@ -618,41 +615,40 @@ code-body: yes
 						colspan={{{ [<wikitextTable>!is[blank]] :then[function<colspanFunction>] :else[[1]] }}}
 						rowspan={{{ [<wikitextTable>!is[blank]] :then[function<rowspanFunction>] :else[[1]] }}}
 						tableCell={{{ [tf.get.table.cell<tableCellFunction>] }}}
+						excelColumn={{{ [<colIndex>excel-column[]] }}}
 						isLastCell=<<tf.is.last.cell>>
 					>
-						<$wikify name="excelColumn" text=<<get-excel-column>>>
-							<%if [<colspan>!match[0]then<rowspan>!match[0]] %>
-								<$genesis
-									$type=<<sectionCellElement>>
-									class=<<cellClass>>
-									align=<<tf.get.table.cell.align>>
-									valign=<<tf.get.table.cell.valign>>
-									style.position="relative"
-									style.min-width=<<tf.get.min.column.width.percentage>>
-									style.max-width=<<tf.get.max.column.width.percentage>>
-									style.width={{{ [<stateTiddlerPrefix>addsuffix<colIndex>get[text]!prefix[Infinity]] :else[<cellWidth>] }}}
-									colspan=<<colspan>>
-									rowspan=<<rowspan>>
-								>
-									<div class="tc-resizable-table-cell" style.width="100%">
-										<$transclude $variable="resizable-table-content" filter=<<sectionFilter>> tableArea=<<tableSection>>/>
-									</div>
-									<%if [<wikitextTable>is[blank]then<colIndex>!match<columns>] [<wikitextTable>!is[blank]then<isLastCell>!match[yes]] %>
-										<$resizer
-											class="tc-table-column-resizer"
-											direction="horizontal"
-											min=<<tf.get.min.column.width.percentage>>
-											max=<<tf.get.max.column.width.percentage>>
-											default=<<cellWidth>>
-											unit="px"
-											element="parent.parent"
-											onBeforeResizeStart=<<resizable-table-on-before-resize-start-actions>>
-											onResize=<<resizable-table-on-resize-actions>>
-										/>
-									<% endif %>
-								</$genesis>
-							<% endif %>
-						</$wikify>
+						<%if [<colspan>!match[0]then<rowspan>!match[0]] %>
+							<$genesis
+								$type=<<sectionCellElement>>
+								class=<<cellClass>>
+								align=<<tf.get.table.cell.align>>
+								valign=<<tf.get.table.cell.valign>>
+								style.position="relative"
+								style.min-width=<<tf.get.min.column.width.percentage>>
+								style.max-width=<<tf.get.max.column.width.percentage>>
+								style.width={{{ [<stateTiddlerPrefix>addsuffix<colIndex>get[text]!prefix[Infinity]] :else[<cellWidth>] }}}
+								colspan=<<colspan>>
+								rowspan=<<rowspan>>
+							>
+								<div class="tc-resizable-table-cell" style.width="100%">
+									<$transclude $variable="resizable-table-content" filter=<<sectionFilter>> tableArea=<<tableSection>>/>
+								</div>
+								<%if [<wikitextTable>is[blank]then<colIndex>!match<columns>] [<wikitextTable>!is[blank]then<isLastCell>!match[yes]] %>
+									<$resizer
+										class="tc-table-column-resizer"
+										direction="horizontal"
+										min=<<tf.get.min.column.width.percentage>>
+										max=<<tf.get.max.column.width.percentage>>
+										default=<<cellWidth>>
+										unit="px"
+										element="parent.parent"
+										onBeforeResizeStart=<<resizable-table-on-before-resize-start-actions>>
+										onResize=<<resizable-table-on-resize-actions>>
+									/>
+								<% endif %>
+							</$genesis>
+						<% endif %>
 					</$let>
 				</$list>
 			</tr>
@@ -662,10 +658,12 @@ code-body: yes
 \end
 
 
+\function tf.current.tiddler.to.charcode() [<currentTiddler>tocharcode[]]
+
 \function tf.data.tiddler.count.columns()
-	[<dataTiddler>indexes[]!prefix[head]!prefix[foot]!prefix[caption]!prefix[classes]]
-	:map[<currentTiddler>split[ ]nth[1]]
-	:and[unique[]count[]]
+	[<dataTiddler>indexes[]split[ ]!match[head]!match[foot]!match[caption]!match[classes]regexp<upperCaseLettersRegexp>sort[]sortsub:number<compareByLength>last[]split[]]
+	:reduce[<accumulator>multiply[26]add<tf.current.tiddler.to.charcode>subtract[64]]
+	:else[[0]]
 \end
 
 \function tf.data.tiddler.count.rows()
@@ -712,6 +710,8 @@ code-body: yes
 	caption={{{ [<wikitextTable>!is[blank]then<tf.row.split.regexp.get.caption>] :else[<wikitextTable>is[blank]then<dataTiddler>!is[blank]then<tf.data.tiddler.get.caption>] :else[<caption>!is[blank]] :else[[]] }}}
 	wikitextClasses={{{ [<wikitextTable>!is[blank]then<tf.row.split.regexp>suffix[|k]split[|]butfirst[]butlast[]first[]] :else[<wikitextTable>is[blank]then<dataTiddler>!is[blank]then<tf.data.tiddler.get.classes>] :else[[]] }}}
 	columnsMinusOne={{{ [<columns>subtract[1]] }}}
+	upperCaseLettersRegexp="([A-Z])"
+	compareByLength="[length[]]"
 	alignRightRegexp="^\s.*[^\s]$"
 	alignLeftRegexp="^[^\s].*\s$"
 	alignTopRegexp="^(\^|&#94;).*"
