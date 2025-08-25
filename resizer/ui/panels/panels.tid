@@ -702,6 +702,8 @@ code-body: yes
 \procedure resizable-table(dataTiddler:"", lookup:"no", columns:"", headerRows:"", bodyRows:"", footerRows:"", headerFilter:"", bodyFilter:"", footerFilter:"", field:"text", editable:"no", tableHeight:"auto", class:"", headerClass:"", bodyClass:"", footerClass:"", cellClass:"", stateTiddlerPrefix:"$:/state/resizable-table/", caption:"", wikitextTable:"")
 \whitespace trim
 <$let
+	upperCaseLettersRegexp="([A-Z])"
+	compareByLength="[length[]]"
 	columns={{{ [<wikitextTable>!is[blank]then<tf.row.split.regexp.count.columns>] :else[<wikitextTable>is[blank]then<dataTiddler>!is[blank]then<tf.data.tiddler.count.columns>] :else[<dataTiddler>is[blank]then<wikitextTable>is[blank]then<columns>] :else[[0]] }}}
 	bodyRows={{{ [<wikitextTable>!is[blank]then<tf.row.split.regexp.count.rows>] :else[<wikitextTable>is[blank]then<dataTiddler>!is[blank]then<tf.data.tiddler.count.rows>] :else[<dataTiddler>is[blank]then<wikitextTable>is[blank]then<bodyRows>] :else[[0]] }}}
 	headerRows={{{ [<wikitextTable>!is[blank]then<tf.row.split.regexp.count.header.rows>] :else[<wikitextTable>is[blank]then<dataTiddler>!is[blank]then<tf.data.tiddler.count.header.rows>] :else[<dataTiddler>is[blank]then<wikitextTable>is[blank]then<headerRows>] :else[[0]] }}}
@@ -714,8 +716,6 @@ code-body: yes
 	caption={{{ [<wikitextTable>!is[blank]then<tf.row.split.regexp.get.caption>] :else[<wikitextTable>is[blank]then<dataTiddler>!is[blank]then<tf.data.tiddler.get.caption>] :else[<caption>!is[blank]] :else[[]] }}}
 	wikitextClasses={{{ [<wikitextTable>!is[blank]then<tf.row.split.regexp>suffix[|k]split[|]butfirst[]butlast[]first[]] :else[<wikitextTable>is[blank]then<dataTiddler>!is[blank]then<tf.data.tiddler.get.classes>] :else[[]] }}}
 	columnsMinusOne={{{ [<columns>subtract[1]] }}}
-	upperCaseLettersRegexp="([A-Z])"
-	compareByLength="[length[]]"
 	alignRightRegexp="^\s.*[^\s]$"
 	alignLeftRegexp="^[^\s].*\s$"
 	alignTopRegexp="^(\^|&#94;).*"
