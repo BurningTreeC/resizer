@@ -669,19 +669,22 @@ code-body: yes
 \function tf.data.tiddler.count.rows()
 	[<dataTiddler>indexes[]!prefix[head]!prefix[foot]!prefix[caption]!prefix[classes]]
 	:map[<currentTiddler>split[ ]nth[2]]
-	:and[unique[]count[]]
+	:and[regexp[\d+]sortan[]last[]]
+	:else[[0]]
 \end
 
 \function tf.data.tiddler.count.header.rows()
 	[<dataTiddler>indexes[]prefix[head]]
 	:map[<currentTiddler>split[ ]nth[3]]
-	:and[unique[]count[]]
+	:and[regexp[\d+]sortan[]last[]]
+	:else[[0]]
 \end
 
 \function tf.data.tiddler.count.footer.rows()
 	[<dataTiddler>indexes[]prefix[foot]]
 	:map[<currentTiddler>split[ ]nth[3]]
-	:and[unique[]count[]]
+	:and[regexp[\d+]sortan[]last[]]
+	:else[[0]]
 \end
 
 \function tf.data.tiddler.get.caption()
