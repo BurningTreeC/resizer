@@ -386,9 +386,13 @@ code-body: yes
 
 \procedure resizable-table-content-content()
 \whitespace trim
-<$wikify name="content" text=<<cell>>>
-	<<content>>
-</$wikify>
+<%if [<cell>!is[blank]] %>
+	<$wikify name="content" text=<<cell>>>
+		<<content>>
+	</$wikify>
+<% else %>
+	<div style.height="1.5rem"/>
+<% endif %>
 \end
 
 \procedure resizable-table-content(filter,tableArea)
