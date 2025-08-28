@@ -695,8 +695,12 @@ Add double-click handler for reset functionality
 ResizerWidget.prototype.addDoubleClickHandler = function(domNode) {
 	var self = this;
 	
-	// Store reference for cleanup
-	self.handleDoubleClickReference = function(event) {
+	// Variables for double-tap detection
+	var lastTapTime = 0;
+	var doubleTapDelay = 300; // Maximum time between taps for double-tap (ms)
+	
+	// Common handler for both double-click and double-tap
+	var handleDoubleActivation = function(event) {
 		event.preventDefault();
 		event.stopPropagation();
 		
@@ -878,7 +882,34 @@ ResizerWidget.prototype.addDoubleClickHandler = function(domNode) {
 		}
 	};
 	
+	// Store reference for cleanup
+	self.handleDoubleClickReference = handleDoubleActivation;
+	
+	// Double-click handler for desktop
 	domNode.addEventListener("dblclick", self.handleDoubleClickReference);
+	
+	// Touch end handler for double-tap detection
+	self.handleTouchTapReference = function(event) {
+		// Only handle touch events
+		if(event.pointerType !== "touch") return;
+		
+		var currentTime = Date.now();
+		var tapTimeDiff = currentTime - lastTapTime;
+		
+		if(tapTimeDiff < doubleTapDelay && tapTimeDiff > 0) {
+			// This is a double-tap
+			event.preventDefault();
+			event.stopPropagation();
+			handleDoubleActivation(event);
+			lastTapTime = 0; // Reset to prevent triple-tap
+		} else {
+			// This is the first tap - record time
+			lastTapTime = currentTime;
+		}
+	};
+	
+	// Add pointer up listener for double-tap detection (doesn't interfere with drag)
+	domNode.addEventListener("pointerup", self.handleTouchTapReference, {passive: false});
 };
 
 /*
@@ -1951,7 +1982,8 @@ ResizerWidget.prototype.performCleanup = function() {
 			{ref: 'handleLostPointerCaptureReference', event: 'lostpointercapture'},
 			{ref: 'handleGotPointerCaptureReference', event: 'gotpointercapture'},
 			{ref: 'handleDoubleClickReference', event: 'dblclick'},
-			{ref: 'handleTouchStartReference', event: 'touchstart'}
+			{ref: 'handleTouchStartReference', event: 'touchstart'},
+			{ref: 'handleTouchTapReference', event: 'pointerup'}
 		];
 		
 		for(var i = 0; i < listeners.length; i++) {
@@ -1987,6 +2019,7 @@ ResizerWidget.prototype.performCleanup = function() {
 	self.handleGotPointerCaptureReference = null;
 	self.handleDoubleClickReference = null;
 	self.handleTouchStartReference = null;
+	self.handleTouchTapReference = null;
 	self.triggerHaptic = null;
 	self.cleanupResize = null;
 	
