@@ -550,7 +550,7 @@ code-body: yes
 
 <!-- Maps a table to its rowspans -->
 \function col.map(table,fn)
-	[<table>splitregexp[\n]function<fn>split[|]butfirst[]butlast[]join[ ]enlist-input:raw[]]
+	[<table>splitregexp[\n]function<fn>split[|]butfirst[]butlast[]format:titlelist[]]
 	:map:flat[<index>remainder<columns>match<previousColIndex>then<currentTiddler>]
 	:and[!match[]join[|]] :and[addprefix[|]addsuffix[|]]
 	:map[<currentTiddler>fn.sanitize[]]
@@ -579,7 +579,7 @@ code-body: yes
 
 \function tf.get.table.cell(fn) [function[tf.row.split.regexp]function<fn>nth<rowIndex>split[|]butfirst[]butlast[]nth<colIndex>]
 \function tf.get.table.cell.align()
-	[<tableCell>regexp[^\s.*\s$]then[center]]
+	[<tableCell>regexp<alignCenterRegexp>then[center]]
 	:else[<tableCell>regexp<alignRightRegexp>then[right]]
 	:else[<tableCell>regexp<alignLeftRegexp>then[left]]
 \end
@@ -720,8 +720,9 @@ code-body: yes
 	caption={{{ [<wikitextTable>!is[blank]then<tf.row.split.regexp.get.caption>] :else[<wikitextTable>is[blank]then<dataTiddler>!is[blank]then<tf.data.tiddler.get.caption>] :else[<caption>!is[blank]] :else[[]] }}}
 	wikitextClasses={{{ [<wikitextTable>!is[blank]then<tf.row.split.regexp>suffix[|k]split[|]butfirst[]butlast[]first[]] :else[<wikitextTable>is[blank]then<dataTiddler>!is[blank]then<tf.data.tiddler.get.classes>] :else[[]] }}}
 	columnsMinusOne={{{ [<columns>subtract[1]] }}}
-	alignRightRegexp="^\s.*[^\s]$"
-	alignLeftRegexp="^[^\s].*\s$"
+	alignCenterRegexp="^(?:[\^,])?\s.*\s$"
+	alignRightRegexp="^(?:[\^,])?\s.*[^\s]$"
+	alignLeftRegexp="^[^\s](?:[\^,])?.*\s$"
 	alignTopRegexp="^(\^|&#94;).*"
 	alignBottomRegexp="^(,|&#44;).*"
 	alignStripTopRegexp="^(\^|&#94;)"
