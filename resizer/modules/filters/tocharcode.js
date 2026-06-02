@@ -1,5 +1,5 @@
 /*\
-title: $:/plugins/BTC/tiddlywiki-resize/modules/filters/tocharcode.js
+title: $:/plugins/BTC/resizer/modules/filters/tocharcode.js
 type: application/javascript
 module-type: filteroperator
 
