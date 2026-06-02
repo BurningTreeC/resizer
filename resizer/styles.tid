@@ -804,3 +804,625 @@ body.tc-resizing .tc-edit-texteditor textarea {
 .tc-width-100 {
 	width: 100%;
 }
+
+/* =================================================================
+   RESIZER CSS STABILITY OVERHAUL
+   Appended intentionally after the original rules so it preserves the
+   existing feature set while overriding fragile layout behaviour.
+   ================================================================= */
+
+/* -----------------------------------------------------------------
+   Global containment and resize safety
+   ----------------------------------------------------------------- */
+
+.tc-resizer,
+.tc-resizer::before,
+.tc-resizer::after,
+.tc-sidebar-resizer,
+.tc-sidebar-resizer::before,
+.tc-sidebar-resizer::after,
+.tc-panel-splitter-vertical,
+.tc-panel-splitter-vertical::before,
+.tc-panel-splitter-vertical::after,
+.tc-panel-splitter-horizontal,
+.tc-panel-splitter-horizontal::before,
+.tc-panel-splitter-horizontal::after,
+.tc-table-column-resizer,
+.tc-table-column-resizer::before,
+.tc-table-column-resizer::after,
+.tc-table-column-resizer-flexbox,
+.tc-table-column-resizer-flexbox::before,
+.tc-table-column-resizer-flexbox::after {
+	box-sizing: border-box;
+	touch-action: none;
+	-webkit-user-select: none;
+	user-select: none;
+}
+
+body.tc-resizing {
+	cursor: inherit;
+	-webkit-user-select: none;
+	user-select: none;
+}
+
+body.tc-resizing .tc-resizer,
+body.tc-resizing .tc-resize-overlay {
+	pointer-events: auto !important;
+}
+
+/* -----------------------------------------------------------------
+   Sidebar wrapper and scroll containment
+   ----------------------------------------------------------------- */
+
+@media (min-width: {{$:/themes/tiddlywiki/vanilla/metrics/sidebarbreakpoint}}) {
+	.tc-sidebar-scrollable-wrapper {
+		box-sizing: border-box;
+		min-width: 0;
+		min-height: 0;
+		overflow: visible;
+	}
+
+	.tc-sidebar-scrollable-wrapper > .tc-sidebar-scrollable {
+		box-sizing: border-box;
+		min-width: 0;
+		min-height: 0;
+		overflow-x: auto;
+		overflow-y: auto;
+		-webkit-overflow-scrolling: touch;
+	}
+}
+
+.tc-sidebar-scrollable,
+.tc-sidebar-header,
+.tc-sidebar-lists,
+.tc-sidebar-tabs,
+.tc-sidebar-search,
+.tc-tab-set,
+.tc-tab-buttons,
+.tc-tab-content {
+	min-width: 0;
+	box-sizing: border-box;
+}
+
+.tc-sidebar-lists {
+	overflow-x: auto;
+}
+
+.tc-sidebar-lists .tc-menu-list-item {
+	max-width: 100%;
+	box-sizing: border-box;
+}
+
+/* -----------------------------------------------------------------
+   Sidebar resizer robustness
+   ----------------------------------------------------------------- */
+
+.tc-sidebar-resizer {
+	box-sizing: border-box;
+	flex: 0 0 auto;
+	min-width: 6px;
+	touch-action: none;
+	-webkit-user-select: none;
+	user-select: none;
+}
+
+@media (pointer: coarse) {
+	.tc-sidebar-resizer {
+		min-width: 18px;
+	}
+}
+
+/* -----------------------------------------------------------------
+   Editor resizer robustness
+   ----------------------------------------------------------------- */
+
+.tc-tiddler-editor-resizer {
+	box-sizing: border-box;
+	flex: 0 0 auto;
+	min-width: 5px;
+	touch-action: none;
+	-webkit-user-select: none;
+	user-select: none;
+}
+
+/* -----------------------------------------------------------------
+   Panel layout stability
+   ----------------------------------------------------------------- */
+
+.tc-horizontal-split-panel,
+.tc-vertical-split-panel,
+.tc-three-column-panels,
+.tc-three-row-panels,
+.tc-master-detail-layout,
+.tc-collapsible-master-detail,
+.tc-collapsible-three-column-panels,
+.tc-collapsible-three-row-panels {
+	position: relative;
+	display: flex;
+	width: 100%;
+	height: 100%;
+	min-width: 0;
+	min-height: 0;
+	max-width: 100%;
+	max-height: 100%;
+	box-sizing: border-box;
+	overflow: hidden;
+	contain: layout;
+}
+
+.tc-horizontal-split-panel,
+.tc-three-column-panels,
+.tc-collapsible-master-detail,
+.tc-collapsible-three-column-panels {
+	flex-direction: row;
+}
+
+.tc-vertical-split-panel,
+.tc-three-row-panels,
+.tc-collapsible-three-row-panels {
+	flex-direction: column;
+}
+
+.tc-panel-left,
+.tc-panel-right,
+.tc-panel-top,
+.tc-panel-bottom,
+.tc-panel-center,
+.tc-panel-center-vertical,
+.tc-master-panel,
+.tc-detail-panel {
+	min-width: 0;
+	min-height: 0;
+	max-width: 100%;
+	max-height: 100%;
+	box-sizing: border-box;
+	overflow: auto;
+	-webkit-overflow-scrolling: touch;
+}
+
+.tc-panel-left,
+.tc-panel-right,
+.tc-panel-top,
+.tc-panel-bottom,
+.tc-master-panel {
+	flex: 0 0 auto;
+}
+
+.tc-panel-center,
+.tc-panel-center-vertical,
+.tc-detail-panel {
+	flex: 1 1 auto;
+}
+
+.tc-panel-left > *,
+.tc-panel-right > *,
+.tc-panel-top > *,
+.tc-panel-bottom > *,
+.tc-panel-center > *,
+.tc-panel-center-vertical > *,
+.tc-master-panel > *,
+.tc-detail-panel > * {
+	min-width: 0;
+	min-height: 0;
+	max-width: 100%;
+	box-sizing: border-box;
+}
+
+/* Collapsed panels should not rely on negative margins. */
+.tc-collapsed,
+.tc-master-panel.tc-collapsed,
+.tc-panel-left.tc-collapsed,
+.tc-panel-right.tc-collapsed,
+.tc-panel-top.tc-collapsed,
+.tc-panel-bottom.tc-collapsed {
+	flex-basis: 0 !important;
+	width: 0 !important;
+	height: 0 !important;
+	min-width: 0 !important;
+	min-height: 0 !important;
+	padding: 0 !important;
+	border-width: 0 !important;
+	overflow: hidden !important;
+}
+
+/* -----------------------------------------------------------------
+   Panel splitter robustness
+   ----------------------------------------------------------------- */
+
+.tc-panel-splitter-vertical,
+.tc-panel-splitter-horizontal {
+	position: relative;
+	flex: 0 0 auto;
+	z-index: 20;
+	box-sizing: border-box;
+	touch-action: none;
+	-webkit-user-select: none;
+	user-select: none;
+	background-clip: padding-box;
+}
+
+.tc-panel-splitter-vertical {
+	width: 5px;
+	min-width: 5px;
+	max-width: 5px;
+	cursor: ew-resize;
+}
+
+.tc-panel-splitter-horizontal {
+	height: 5px;
+	min-height: 5px;
+	max-height: 5px;
+	cursor: ns-resize;
+}
+
+@media (pointer: coarse) {
+	.tc-panel-splitter-vertical {
+		width: 20px;
+		min-width: 20px;
+		max-width: 20px;
+	}
+
+	.tc-panel-splitter-horizontal {
+		height: 20px;
+		min-height: 20px;
+		max-height: 20px;
+	}
+}
+
+/* -----------------------------------------------------------------
+   RESIZABLE TABLE: robust vertical expansion
+   -----------------------------------------------------------------
+
+   The important correction is that table cells must be allowed to grow
+   vertically with their content. Horizontal width remains controlled by
+   the resizer and table-layout: fixed, but vertical overflow must not be
+   clipped at the cell level.
+   ----------------------------------------------------------------- */
+
+.tc-resizable-table-wrapper {
+	width: 100%;
+	min-width: 0;
+	min-height: 0;
+	max-width: 100%;
+	box-sizing: border-box;
+	overflow: auto;
+	-webkit-overflow-scrolling: touch;
+}
+
+.tc-resizable-table {
+	table-layout: fixed;
+	border-collapse: collapse;
+	width: 100%;
+	max-width: 100%;
+	box-sizing: border-box;
+}
+
+.tc-resizable-table caption {
+	box-sizing: border-box;
+	max-width: 100%;
+	overflow-wrap: anywhere;
+}
+
+.tc-resizable-table thead,
+.tc-resizable-table tbody,
+.tc-resizable-table tfoot,
+.tc-resizable-table tr {
+	height: auto;
+	min-height: 0;
+	max-height: none;
+	box-sizing: border-box;
+}
+
+.tc-resizable-table th,
+.tc-resizable-table td {
+	position: relative;
+	height: auto;
+	min-height: 0;
+	max-height: none;
+	box-sizing: border-box;
+	vertical-align: top;
+	word-wrap: break-word;
+	overflow-wrap: anywhere;
+	word-break: normal;
+	white-space: normal;
+	overflow: visible;
+}
+
+/* Make the inner cell box participate in normal height calculation. */
+.tc-resizable-table-cell {
+	display: block;
+	position: relative;
+	width: 100%;
+	height: auto;
+	min-height: 100%;
+	max-height: none;
+	box-sizing: border-box;
+	overflow: visible;
+	word-wrap: break-word;
+	overflow-wrap: anywhere;
+	word-break: normal;
+	white-space: normal;
+}
+
+/* Common content in table cells must wrap and therefore increase row height. */
+.tc-resizable-table-cell p,
+.tc-resizable-table-cell div,
+.tc-resizable-table-cell span,
+.tc-resizable-table-cell a,
+.tc-resizable-table-cell li {
+	max-width: 100%;
+	overflow-wrap: anywhere;
+	word-break: normal;
+}
+
+.tc-resizable-table-cell pre,
+.tc-resizable-table-cell code {
+	max-width: 100%;
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+	word-break: break-word;
+}
+
+.tc-resizable-table-cell img,
+.tc-resizable-table-cell svg,
+.tc-resizable-table-cell canvas,
+.tc-resizable-table-cell video,
+.tc-resizable-table-cell iframe,
+.tc-resizable-table-cell embed {
+	max-width: 100%;
+	height: auto;
+	box-sizing: border-box;
+}
+
+/* Nested tables should not blow up the parent table. */
+.tc-resizable-table-cell table {
+	display: block;
+	max-width: 100%;
+	overflow-x: auto;
+	box-sizing: border-box;
+}
+
+/* Column handles must overlay the full expanded cell height. */
+.tc-table-column-resizer {
+	position: absolute;
+	top: 0;
+	right: -4px;
+	bottom: 0;
+	width: 8px;
+	min-width: 8px;
+	z-index: 30;
+	cursor: col-resize;
+	touch-action: none;
+	box-sizing: border-box;
+}
+
+/* Make the handle visible and usable without forcing table dimensions. */
+.tc-table-column-resizer::before {
+	content: "";
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	left: 50%;
+	width: 2px;
+	transform: translateX(-50%);
+	background: <<colour table-border>>;
+	opacity: 0.45;
+}
+
+.tc-table-column-resizer:hover::before,
+.tc-table-column-resizer.tc-resizer-active::before {
+	background: <<colour primary>>;
+	opacity: 1;
+}
+
+/* -----------------------------------------------------------------
+   RESIZABLE TABLE FLEXBOX: robust row height expansion
+   ----------------------------------------------------------------- */
+
+.tc-resizable-table-flexbox-wrapper {
+	display: flex;
+	flex-direction: column;
+	width: 100%;
+	min-width: 0;
+	min-height: 0;
+	max-width: 100%;
+	box-sizing: border-box;
+	overflow: hidden;
+}
+
+.tc-resizable-table-flexbox-header,
+.tc-resizable-table-flexbox-row {
+	display: flex;
+	flex-direction: row;
+	align-items: stretch;
+	width: 100%;
+	min-width: 0;
+	height: auto;
+	min-height: 0;
+	box-sizing: border-box;
+}
+
+.tc-resizable-table-flexbox-header > div,
+.tc-resizable-table-flexbox-row > div {
+	position: relative;
+	min-width: 0;
+	min-height: 0;
+	height: auto;
+	max-height: none;
+	box-sizing: border-box;
+	overflow: visible;
+	word-wrap: break-word;
+	overflow-wrap: anywhere;
+	word-break: normal;
+	white-space: normal;
+}
+
+/* The body scrolls, but rows and cells may grow vertically. */
+.tc-resizable-table-flexbox-body {
+	flex: 1 1 auto;
+	min-width: 0;
+	min-height: 0;
+	max-width: 100%;
+	box-sizing: border-box;
+	overflow: auto;
+	-webkit-overflow-scrolling: touch;
+}
+
+.tc-resizable-table-flexbox-body > .tc-resizable-table-flexbox-row {
+	flex: 0 0 auto;
+}
+
+.tc-table-column-resizer-flexbox {
+	position: absolute;
+	top: 0;
+	right: -4px;
+	bottom: 0;
+	width: 8px;
+	min-width: 8px;
+	z-index: 100;
+	cursor: col-resize;
+	touch-action: none;
+	box-sizing: border-box;
+	background: transparent;
+}
+
+.tc-table-column-resizer-flexbox::before {
+	content: "";
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	left: 50%;
+	width: 2px;
+	transform: translateX(-50%);
+	background: <<colour table-border>>;
+	opacity: 0.35;
+}
+
+.tc-table-column-resizer-flexbox:hover::before,
+.tc-table-column-resizer-flexbox.tc-resizer-active::before {
+	background: <<colour primary>>;
+	opacity: 1;
+}
+
+/* -----------------------------------------------------------------
+   Form controls inside panels and tables
+   ----------------------------------------------------------------- */
+
+.tc-panel-left input,
+.tc-panel-right input,
+.tc-panel-top input,
+.tc-panel-bottom input,
+.tc-panel-center input,
+.tc-panel-center-vertical input,
+.tc-master-panel input,
+.tc-detail-panel input,
+.tc-resizable-table input,
+.tc-resizable-table-flexbox-wrapper input,
+.tc-panel-left textarea,
+.tc-panel-right textarea,
+.tc-panel-top textarea,
+.tc-panel-bottom textarea,
+.tc-panel-center textarea,
+.tc-panel-center-vertical textarea,
+.tc-master-panel textarea,
+.tc-detail-panel textarea,
+.tc-resizable-table textarea,
+.tc-resizable-table-flexbox-wrapper textarea,
+.tc-panel-left select,
+.tc-panel-right select,
+.tc-panel-top select,
+.tc-panel-bottom select,
+.tc-panel-center select,
+.tc-panel-center-vertical select,
+.tc-master-panel select,
+.tc-detail-panel select,
+.tc-resizable-table select,
+.tc-resizable-table-flexbox-wrapper select {
+	max-width: 100%;
+	box-sizing: border-box;
+}
+
+/* -----------------------------------------------------------------
+   Width utility
+   ----------------------------------------------------------------- */
+
+.tc-width-100 {
+	width: 100%;
+	min-width: 0;
+	box-sizing: border-box;
+}
+
+.tc-horizontal-split-panel,
+.tc-three-column-panels,
+.tc-collapsible-master-detail,
+.tc-collapsible-three-column-panels {
+	display: flex;
+	flex-direction: row;
+	width: 100%;
+	min-width: 0;
+	min-height: 0;
+	max-width: 100%;
+	box-sizing: border-box;
+	overflow: hidden;
+}
+
+.tc-vertical-split-panel,
+.tc-three-row-panels,
+.tc-collapsible-three-row-panels {
+	display: flex;
+	flex-direction: column;
+	width: 100%;
+	min-width: 0;
+	min-height: 0;
+	max-width: 100%;
+	box-sizing: border-box;
+	overflow: hidden;
+}
+
+.tc-panel-left,
+.tc-panel-right,
+.tc-panel-top,
+.tc-panel-bottom,
+.tc-master-panel {
+	flex: 0 0 auto;
+	min-width: 0;
+	min-height: 0;
+	box-sizing: border-box;
+	overflow: auto;
+}
+
+.tc-panel-center,
+.tc-panel-center-vertical,
+.tc-detail-panel {
+	flex: 1 1 auto;
+	min-width: 0;
+	min-height: 0;
+	box-sizing: border-box;
+	overflow: auto;
+}
+
+.tc-panel-splitter-vertical,
+.tc-panel-splitter-horizontal {
+	flex: 0 0 auto;
+	z-index: 10;
+	touch-action: none;
+}
+
+.tc-panel-splitter-vertical {
+	cursor: ew-resize;
+}
+
+.tc-panel-splitter-horizontal {
+	cursor: ns-resize;
+}
+
+.tc-collapsed {
+	flex-basis: 0 !important;
+	width: 0 !important;
+	height: 0 !important;
+	min-width: 0 !important;
+	min-height: 0 !important;
+	padding: 0 !important;
+	border-width: 0 !important;
+	overflow: hidden !important;
+}

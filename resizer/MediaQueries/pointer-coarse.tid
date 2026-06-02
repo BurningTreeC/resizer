@@ -1,0 +1,4 @@
+title: $:/plugins/BTC/resizer/MediaQueries/pointer-coarse
+tags: $:/tags/MediaQueryTracker
+media-query: (pointer: coarse)
+info-tiddler: $:/info/resizer-mediaquery/pointer-coarse

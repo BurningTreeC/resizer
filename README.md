@@ -1,558 +1,909 @@
 # TiddlyWiki Resizer Widget Plugin
 
-A powerful and flexible resizer widget for TiddlyWiki that enables interactive resizing of UI elements with support for multiple tiddlers, various CSS units, and calc() expressions.
+A flexible, pointer-based resizer widget for TiddlyWiki. It can resize one tiddler, multiple tiddlers, live DOM elements, and paired split panes. It supports horizontal and vertical resizing, CSS units, `calc()` expressions, min/max constraints, pointer/touch input, double-click reset, action hooks, and a dedicated `split-pair` mode for adjacent panels such as left/right columns or top/bottom panes.
+
+The widget is intended for TiddlyWiki layouts where sizes are stored in state/config tiddlers and reused as CSS values. The normal `single` and `multiple` modes resize target values directly. The `split-pair` mode is different: it treats two adjacent panes as one pair, grows the first pane by the drag delta, shrinks the second pane by the same amount, and keeps the pair's total size stable.
+
+## Contents
+
+- [Features](#features)
+- [Installation](#installation)
+- [Quick Start](#quick-start)
+- [Core Concepts](#core-concepts)
+- [Widget Attributes](#widget-attributes)
+- [Action Variables](#action-variables)
+- [Single-Target Resizing](#single-target-resizing)
+- [Multiple-Target Resizing](#multiple-target-resizing)
+- [Split-Pair Resizing](#split-pair-resizing)
+- [Live DOM Resizing](#live-dom-resizing)
+- [Double-Click Reset](#double-click-reset)
+- [CSS `calc()` Support](#css-calc-support)
+- [Units and Conversion](#units-and-conversion)
+- [Constraints](#constraints)
+- [Styling](#styling)
+- [Layout Procedures](#layout-procedures)
+- [Debugging and Troubleshooting](#debugging-and-troubleshooting)
+- [Browser Compatibility](#browser-compatibility)
+- [Contributing](#contributing)
+- [License](#license)
+- [Credits](#credits)
 
 ## Features
 
-- **Multi-tiddler Support**: Resize multiple tiddlers simultaneously using filter expressions
-- **Comprehensive Unit Support**: Works with all CSS units (px, %, em, rem, vh, vw, vmin, vmax)
-- **CSS calc() Expressions**: Use complex calculations for min/max values like `calc(100% - 350px)`
-- **Unit Preservation**: Maintains each tiddler's original unit type while ensuring consistent resize behavior
-- **Smart Unit Conversion**: Automatically converts between units when needed
-- **Constraint System**: Enforces min/max limits across all target tiddlers as a group
-- **Live Preview**: Optional real-time visual feedback during resizing
-- **Directional Control**: Supports both horizontal and vertical resizing
-- **Aspect Ratio**: Maintain aspect ratios during resize operations
-- **Touch Support**: Works with both mouse and touch input via pointer events
-- **Double-Click Reset**: Double-click any resizer handle to reset to default/min/max values
-- **Enhanced Handle Styles**: Choose from multiple handle visual styles (solid, dots, lines, chevron, grip)
-- **Haptic Feedback**: Tactile feedback on mobile devices for better user experience
+- **Single-target resizing**: Resize one tiddler field, usually `text`, and use the saved value as a CSS size.
+- **Multiple-target resizing**: Resize several tiddlers at once using the `filter` attribute.
+- **Split-pair resizing**: Resize two adjacent panes as a coupled pair with `mode="split-pair"`.
+- **Horizontal and vertical split pairs**: Use `leftTiddler`/`rightTiddler` for horizontal pairs and `topTiddler`/`bottomTiddler` for vertical pairs.
+- **Stable pair size**: In `split-pair` mode, the first pane grows while the second pane shrinks, preserving the pair's total width or height.
+- **CSS unit support**: Supports `px`, `%`, `em`, `rem`, `vh`, `vw`, `vmin`, and `vmax`.
+- **CSS `calc()` support**: `min`, `max`, and `default` can use `calc()` expressions such as `calc(100% - 350px)`.
+- **Unit preservation**: Existing tiddler units are detected and preserved where appropriate.
+- **Smart pixel conversion**: Internal drag calculations are performed in pixels, then converted back to the chosen unit.
+- **Min/max constraints**: Prevents panes from shrinking below or growing beyond configured limits.
+- **Live DOM preview**: Optionally updates DOM styles during drag for immediate visual feedback.
+- **Action hooks**: Provides `actions`, `onBeforeResizeStart`, `onResizeStart`, `onResize`, `onResizeEnd`, `onReset`, and `dblClickActions`.
+- **Rich action variables**: Provides pixel, unit, percentage-of-parent, delta, parent-size, handle-size, and split-pair variables.
+- **Pointer events**: Works with mouse, pen, and touch through pointer events.
+- **Pointer capture and document-level tracking**: Dragging continues even if the pointer leaves the handle.
+- **Touch support**: Prevents unwanted scroll gestures during drag.
+- **Haptic feedback**: Optional vibration feedback on touch devices.
+- **Double-click reset**: Reset to default/min/max/custom values, or run custom double-click actions.
+- **Handle styles**: Supports visual styles such as `solid`, `dots`, `lines`, `chevron`, and `grip` if the plugin CSS defines them.
+- **Visible portion mode**: Optionally calculates resize based on visible portion for clipped elements.
+- **Aspect ratio support**: Can maintain aspect ratio for live DOM manipulation.
 
 ## Installation
 
-1. Go to burningtreec.github.io/resizer/
-2. Drag and drop the plugin file into your TiddlyWiki
-3. Save and reload your wiki
+1. Open the plugin demo or distribution page.
+2. Drag the plugin into your TiddlyWiki.
+3. Import the plugin tiddlers.
+4. Save and reload your wiki.
+5. Use `<$resizer ... />` wherever you need a draggable resize handle.
 
-## Basic Usage
+Typical plugin tiddler:
+
+```text
+$:/plugins/BTC/resizer
+```
+
+The widget module itself is expected at:
+
+```text
+$:/plugins/BTC/resizer/modules/widgets/resizer.js
+```
+
+## Quick Start
+
+### Resize one tiddler
 
 ```html
 <$resizer
   direction="horizontal"
-  tiddler="$:/themes/tiddlywiki/vanilla/metrics/sidebarwidth"
+  tiddler="$:/state/sidebar/width"
+  field="text"
+  unit="px"
   min="200px"
   max="800px"
   default="350px"
 />
 ```
+
+Then use the stored value in your layout:
+
+```html
+<div style.width={{$:/state/sidebar/width}}>
+  Sidebar content
+</div>
+```
+
+### Resize a horizontal split pair
+
+```html
+<div class="my-horizontal-split">
+  <div class="my-pane" style.width={{$:/state/split/left}}>Left</div>
+  <$resizer
+    class="my-splitter"
+    direction="horizontal"
+    mode="split-pair"
+    unit="%"
+    element="previousSibling"
+    leftTiddler="$:/state/split/left"
+    rightTiddler="$:/state/split/right"
+    leftField="text"
+    rightField="text"
+    min="15%"
+    splitPairLiveResize="yes"
+    splitPairSave="end"
+  />
+  <div class="my-pane" style.width={{$:/state/split/right}}>Right</div>
+</div>
+```
+
+For this structure, `element="previousSibling"` makes the left pane the primary target. If your resizer is rendered *inside* the left pane, use `element="parent"` instead.
+
+### Resize a vertical split pair
+
+```html
+<div class="my-vertical-split">
+  <div class="my-pane" style.height={{$:/state/split/top}}>Top</div>
+  <$resizer
+    class="my-horizontal-splitter"
+    direction="vertical"
+    mode="split-pair"
+    unit="%"
+    element="previousSibling"
+    topTiddler="$:/state/split/top"
+    bottomTiddler="$:/state/split/bottom"
+    topField="text"
+    bottomField="text"
+    min="15%"
+    splitPairLiveResize="yes"
+    splitPairSave="end"
+  />
+  <div class="my-pane" style.height={{$:/state/split/bottom}}>Bottom</div>
+</div>
+```
+
+## Core Concepts
+
+### Direction
+
+`direction` controls which pointer axis is used and which CSS property is assumed by default.
+
+| Direction | Pointer delta | Default property | Parent measurement |
+|---|---:|---|---|
+| `horizontal` | `clientX` movement | `width` | parent width |
+| `vertical` | `clientY` movement | `height` | parent height |
+
+### Modes
+
+| Mode | Purpose |
+|---|---|
+| `single` | Resize one tiddler or one target value. |
+| `multiple` | Resize multiple tiddlers selected by `filter`. |
+| `split-pair` | Resize two adjacent panes as a coupled pair. |
+
+### Target element vs. state tiddler
+
+The widget separates two ideas:
+
+- **Target DOM element**: the actual element measured or optionally live-resized.
+- **State tiddler**: the tiddler field where the resulting value is stored.
+
+For normal resizing, `tiddler` or `filter` controls which tiddler(s) are written. For DOM measurement, use `element` or `selector`.
+
+For `split-pair`, the target DOM element should be the first pane in the pair:
+
+```text
+horizontal: targetElement = left pane
+vertical:   targetElement = top pane
+```
+
+The second pane is normally found via:
+
+```js
+primaryElement.nextElementSibling
+```
+
+You can override this with `rightSelector` or `bottomSelector`.
 
 ## Widget Attributes
 
 ### Core Attributes
 
 | Attribute | Description | Default |
-|-----------|-------------|---------|
-| `direction` | Resize direction: "horizontal" or "vertical" | "horizontal" |
-| `tiddler` | Target tiddler | - |
-| `filter` | Filter attribute to specify multiple tiddlers (optional alternative to `tiddler`) | - |
-| `field` | Field to update in the target tiddler | "text" |
-| `unit` | Unit for the resizer (px, %, em, rem, vh, vw, etc.) | "px" |
-| `default` | Default value if tiddler doesn't exist (supports calc() expressions) | "200px" or "50%" |
-| `min` | Minimum value (supports calc() expressions) | "50" or "10" |
-| `max` | Maximum value (supports calc() expressions) | "800" or "90" |
+|---|---|---|
+| `direction` | Resize direction: `horizontal` or `vertical`. | `horizontal` |
+| `mode` | Resize mode: `single`, `multiple`, or `split-pair`. | `single` |
+| `tiddler` | Target tiddler for `single` mode. Also used as fallback primary tiddler in `split-pair`. | — |
+| `filter` | Filter expression or space-separated title list for multiple tiddlers. | — |
+| `field` | Field to update in normal modes. | `text` |
+| `unit` | Output unit for generated values. | `px` |
+| `default` | Default value if no tiddler value exists. Supports `calc()`. | `200px` or `50%` depending on context |
+| `min` | Minimum value. Supports any supported unit and `calc()`. | — |
+| `max` | Maximum value. Supports any supported unit and `calc()`. | — |
 
 ### Behavior Attributes
 
 | Attribute | Description | Default |
-|-----------|-------------|---------|
-| `invert` | Invert resize direction: "yes" or "no" | "no" |
-| `live` | Update target element in real-time: "yes" or "no" | "no" |
-| `position` | Position calculation: "absolute" or "relative" | "absolute" |
-| `mode` | Resize mode: "single" or "multiple" | "single" |
+|---|---|---|
+| `invert` | Invert drag direction. Use `yes` or `no`. | `no` |
+| `live` | Directly update target DOM element during drag. | `no` |
+| `position` | Parent-size measurement style: `absolute` uses `getBoundingClientRect()`, `relative` uses offset size. | `absolute` |
+| `property` | CSS property to modify for live DOM resizing. | `width` for horizontal, `height` for vertical |
+| `aspectRatio` | Maintain aspect ratio during live DOM resize, e.g. `16:9` or `1.5`. | — |
+| `visiblePortion` | Use only visible part of target element for measurement. | `no` |
+| `disable` | Disable pointer interaction. Adds disabled class/attribute. | `no` |
 
 ### Target Attributes
 
 | Attribute | Description | Default |
-|-----------|-------------|---------|
-| `selector` | CSS selector for target DOM element(s) | - |
-| `element` | Target relative element: "parent", "parent.parent", "previousSibling", "nextSibling" | - |
-| `property` | CSS property to modify | "width" or "height" |
-| `aspectRatio` | Maintain aspect ratio for live DOM manipulation only (e.g., "16:9" or "1.5") | - |
+|---|---|---|
+| `selector` | CSS selector for the target DOM element. | — |
+| `element` | Relative target element: `parent`, `parent.parent`, `previousSibling`, `nextSibling`. | depends on handle position |
+| `handlePosition` | Handle insertion/interpretation: `before`, `after`, `overlay`. | `after` |
+
+`element` is especially important in `split-pair` mode. It should resolve to the first pane of the pair, not to the whole container.
+
+Correct for split-pair:
+
+```text
+targetElement = left/top pane
+targetElement.parentElement = whole split container
+targetElement.nextElementSibling = right/bottom pane
+```
+
+Wrong for split-pair:
+
+```text
+targetElement = whole split container
+```
+
+### Split-Pair Attributes
+
+These attributes are only used when `mode="split-pair"`.
+
+| Attribute | Direction | Description | Default/fallback |
+|---|---|---|---|
+| `leftTiddler` | horizontal | Tiddler storing the left pane size. | `tiddler` or first filter result |
+| `rightTiddler` | horizontal | Tiddler storing the right pane size. | second filter result |
+| `leftField` | horizontal | Field to write on `leftTiddler`. | `field` or `text` |
+| `rightField` | horizontal | Field to write on `rightTiddler`. | `field` or `text` |
+| `leftSelector` | horizontal | CSS selector for the left pane. | resolved target element |
+| `rightSelector` | horizontal | CSS selector for the right pane. | `leftElement.nextElementSibling` |
+| `topTiddler` | vertical | Tiddler storing the top pane size. | `tiddler` or first filter result |
+| `bottomTiddler` | vertical | Tiddler storing the bottom pane size. | second filter result |
+| `topField` | vertical | Field to write on `topTiddler`. | `field` or `text` |
+| `bottomField` | vertical | Field to write on `bottomTiddler`. | `field` or `text` |
+| `topSelector` | vertical | CSS selector for the top pane. | resolved target element |
+| `bottomSelector` | vertical | CSS selector for the bottom pane. | `topElement.nextElementSibling` |
+| `splitPairLiveResize` | both | Apply DOM style changes while dragging. Also updates `flex-basis` for flex layouts. | value of `live` |
+| `splitPairSave` | both | Save split-pair tiddler values during drag or only at the end. Use `end` for smooth resizing without repeated TiddlyWiki refreshes. | `end` |
 
 ### Event Attributes
 
 | Attribute | Description |
-|-----------|-------------|
-| `actions` | Action string to execute on value change |
-| `onBeforeResizeStart` | Actions to execute before resize starts (useful for setup) |
-| `onResizeStart` | Actions to execute when resize starts |
-| `onResize` | Actions to execute during resize |
-| `onResizeEnd` | Actions to execute when resize ends |
-| `dblClickActions` | Custom actions to execute on double-click (overrides reset behavior) |
-
-#### Available Action Variables
-
-The following variables are available within action strings:
-
-| Variable | Description | Available In |
-|----------|-------------|--------------|
-| `<<tv-action-value>>` | The numeric value in the widget's unit | All actions |
-| `<<tv-action-value-pixels>>` | The value in pixels (always pixels regardless of unit) | All actions |
-| `<<tv-action-formatted-value>>` | The value with unit (e.g., "350px", "50%") | All actions |
-| `<<tv-action-direction>>` | The resize direction ("horizontal" or "vertical") | All actions |
-| `<<tv-action-property>>` | The CSS property being modified | All actions |
-| `<<tv-action-handle-size>>` | The computed size of the resize handle in pixels | All actions |
-| `<<tv-action-parent-size>>` | The parent container width (horizontal) or height (vertical) in pixels | All actions |
-| `<<tv-action-delta-x>>` | The horizontal mouse movement delta | `onResize` only |
-| `<<tv-action-delta-y>>` | The vertical mouse movement delta | `onResize` only |
+|---|---|
+| `actions` | Action string to execute whenever values change. |
+| `onBeforeResizeStart` | Action string executed after start measurements are collected but before normal drag handling. |
+| `onResizeStart` | Action string executed when resize starts. |
+| `onResize` | Action string executed during resize. |
+| `onResizeEnd` | Action string executed when resize ends. |
+| `onReset` | Action string executed after reset. |
+| `dblClickActions` | Custom double-click actions. Overrides built-in reset behavior. |
 
 ### Styling Attributes
 
 | Attribute | Description | Default |
-|-----------|-------------|---------|
-| `class` | Additional CSS classes for the resizer | "" |
-| `handlePosition` | Position of resize handle: "before", "after", "overlay" | "after" |
-| `handleStyle` | Visual style of the handle: "solid", "dots", "lines", "chevron", "grip" | "solid" |
-| `disable` | Disable the resizer: "yes" or "no" | "no" |
-| `visiblePortion` | Calculate resize based only on visible portion when element is clipped: "yes" or "no" | "no" |
+|---|---|---|
+| `class` | Additional CSS class(es) for the resizer handle. | empty |
+| `handleStyle` | Visual style: `solid`, `dots`, `lines`, `chevron`, `grip`. | `solid` |
+| `disable` | Adds `tc-resizer-disabled` and prevents interaction. | `no` |
 
 ### Reset Attributes
 
 | Attribute | Description | Default |
-|-----------|-------------|---------|
-| `resetTo` | What value to reset to on double-click: "default", "min", "max", "custom" (ignored if `dblClickActions` is set) | "default" |
-| `resetValue` | Custom value to reset to when resetTo="custom" (ignored if `dblClickActions` is set) | - |
-| `smoothReset` | Animate the reset transition: "yes" or "no" (ignored if `dblClickActions` is set) | "yes" |
-| `onReset` | Action string to execute when resizer is reset (ignored if `dblClickActions` is set) | - |
+|---|---|---|
+| `resetTo` | Reset target: `default`, `min`, `max`, or `custom`. Ignored when `dblClickActions` is set. | `default` |
+| `resetValue` | Custom reset value when `resetTo="custom"`. | — |
+| `smoothReset` | Animate reset transition. | `yes` |
+| `onReset` | Actions after reset. | — |
 
 ### Mobile/Touch Attributes
 
 | Attribute | Description | Default |
-|-----------|-------------|---------|
-| `hapticFeedback` | Enable haptic feedback on touch devices: "yes" or "no" | "yes" |
+|---|---|---|
+| `hapticFeedback` | Enable vibration feedback on supported devices. | `yes` |
+| `hapticDebug` | Log haptic availability/results to console. | `no` |
 
-## Advanced Examples
+## Action Variables
 
-### Multiple Tiddlers with Filter Expression
+Action variables are set before invoking event/action strings. They let you inspect or reuse the current drag state in Wikitext actions.
+
+### Generic Variables
+
+| Variable | Description | Available in |
+|---|---|---|
+| `<<tv-action-value>>` | Numeric value in the widget's output unit. | all action callbacks |
+| `<<tv-action-value-pixels>>` | Current value in pixels. | all action callbacks |
+| `<<tv-action-formatted-value>>` | Current value with unit suffix. | all action callbacks |
+| `<<tv-action-value-percent-of-parent>>` | Current value as percentage of frozen parent size. | resize callbacks, split-pair callbacks |
+| `<<tv-action-formatted-value-percent-of-parent>>` | Percentage-of-parent with `%` suffix. | resize callbacks, split-pair callbacks |
+| `<<tv-action-direction>>` | `horizontal` or `vertical`. | all action callbacks |
+| `<<tv-action-property>>` | CSS property being modified. | resize callbacks |
+| `<<tv-action-parent-size>>` | Frozen parent size at drag start, in pixels. | resize callbacks |
+| `<<tv-action-handle-size>>` | Computed handle size in pixels. | resize callbacks |
+| `<<tv-action-delta-x>>` | Horizontal pointer delta in pixels. | `onResize` |
+| `<<tv-action-delta-y>>` | Vertical pointer delta in pixels. | `onResize` |
+| `<<tv-action-delta-pixels>>` | Directional delta in pixels, clamped where applicable. | resize callbacks |
+| `<<tv-action-delta-percent-of-parent>>` | Directional delta as percentage of parent size. | resize callbacks |
+| `<<tv-action-formatted-delta-percent-of-parent>>` | Delta percentage with `%` suffix. | resize callbacks |
+| `<<tv-action-phase>>` | Current phase such as `resize`, `resize-start`, `resize-end`, or `actions`. | split-pair callbacks |
+
+### Split-Pair Generic Variables
+
+These exist in `mode="split-pair"` for both horizontal and vertical layouts.
+
+| Variable | Description |
+|---|---|
+| `<<tv-action-split-pair>>` | Set to `yes` in split-pair mode. |
+| `<<tv-action-split-pair-direction>>` | `horizontal` or `vertical`. |
+| `<<tv-action-primary-tiddler>>` | Left/top tiddler title. |
+| `<<tv-action-secondary-tiddler>>` | Right/bottom tiddler title. |
+| `<<tv-action-primary-field>>` | Left/top field. |
+| `<<tv-action-secondary-field>>` | Right/bottom field. |
+| `<<tv-action-primary-value-pixels>>` | Left/top current size in pixels. |
+| `<<tv-action-secondary-value-pixels>>` | Right/bottom current size in pixels. |
+| `<<tv-action-primary-value-percent-of-parent>>` | Left/top current size as percentage of parent. |
+| `<<tv-action-secondary-value-percent-of-parent>>` | Right/bottom current size as percentage of parent. |
+| `<<tv-action-formatted-primary-value-percent-of-parent>>` | Left/top percentage with `%`. |
+| `<<tv-action-formatted-secondary-value-percent-of-parent>>` | Right/bottom percentage with `%`. |
+| `<<tv-action-primary-formatted-value>>` | Left/top formatted value in widget unit. |
+| `<<tv-action-secondary-formatted-value>>` | Right/bottom formatted value in widget unit. |
+| `<<tv-action-primary-start-value-pixels>>` | Left/top size at drag start. |
+| `<<tv-action-secondary-start-value-pixels>>` | Right/bottom size at drag start. |
+| `<<tv-action-pair-size-pixels>>` | Sum of both panes at drag start. |
+| `<<tv-action-pair-size-percent-of-parent>>` | Pair size as percentage of parent. |
+| `<<tv-action-formatted-pair-size-percent-of-parent>>` | Pair percentage with `%`. |
+| `<<tv-action-min-value-pixels>>` | Computed minimum value in pixels. |
+| `<<tv-action-max-value-pixels>>` | Computed maximum value in pixels, if any. |
+| `<<tv-action-requested-delta-pixels>>` | Raw requested delta before pair clamping. |
+| `<<tv-action-requested-delta-percent-of-parent>>` | Raw requested delta as parent percentage. |
+
+### Horizontal Split-Pair Aliases
+
+Only set for `direction="horizontal"`.
+
+| Variable | Description |
+|---|---|
+| `<<tv-action-left-tiddler>>` | Left tiddler. |
+| `<<tv-action-right-tiddler>>` | Right tiddler. |
+| `<<tv-action-left-field>>` | Left field. |
+| `<<tv-action-right-field>>` | Right field. |
+| `<<tv-action-left-value-pixels>>` | Left size in pixels. |
+| `<<tv-action-right-value-pixels>>` | Right size in pixels. |
+| `<<tv-action-left-value-percent-of-parent>>` | Left size as percentage of parent. |
+| `<<tv-action-right-value-percent-of-parent>>` | Right size as percentage of parent. |
+| `<<tv-action-formatted-left-value-percent-of-parent>>` | Left percentage with `%`. |
+| `<<tv-action-formatted-right-value-percent-of-parent>>` | Right percentage with `%`. |
+| `<<tv-action-left-formatted-value>>` | Left formatted value. |
+| `<<tv-action-right-formatted-value>>` | Right formatted value. |
+
+### Vertical Split-Pair Aliases
+
+Only set for `direction="vertical"`.
+
+| Variable | Description |
+|---|---|
+| `<<tv-action-top-tiddler>>` | Top tiddler. |
+| `<<tv-action-bottom-tiddler>>` | Bottom tiddler. |
+| `<<tv-action-top-field>>` | Top field. |
+| `<<tv-action-bottom-field>>` | Bottom field. |
+| `<<tv-action-top-value-pixels>>` | Top size in pixels. |
+| `<<tv-action-bottom-value-pixels>>` | Bottom size in pixels. |
+| `<<tv-action-top-value-percent-of-parent>>` | Top size as percentage of parent. |
+| `<<tv-action-bottom-value-percent-of-parent>>` | Bottom size as percentage of parent. |
+| `<<tv-action-formatted-top-value-percent-of-parent>>` | Top percentage with `%`. |
+| `<<tv-action-formatted-bottom-value-percent-of-parent>>` | Bottom percentage with `%`. |
+| `<<tv-action-top-formatted-value>>` | Top formatted value. |
+| `<<tv-action-bottom-formatted-value>>` | Bottom formatted value. |
+
+### Double-Click Action Variables
+
+When using `dblClickActions`, these variables are available:
+
+| Variable | Description |
+|---|---|
+| `<<tv-action-value>>` | Current value. |
+| `<<tv-action-value-pixels>>` | Current value in pixels. |
+| `<<tv-action-direction>>` | Direction. |
+| `<<tv-action-parent-size>>` | Parent size in pixels. |
+| `<<tv-action-handle-size>>` | Handle size in pixels. |
+
+## Single-Target Resizing
+
+Single-target resizing writes one value into one tiddler field.
 
 ```html
 <$resizer
   direction="horizontal"
-  tiddler="[tag[layout-metrics]]"
-  min="100px"
-  max="calc(100% - 200px)"
+  tiddler="$:/state/panel/width"
+  field="text"
+  unit="px"
+  min="200px"
+  max="800px"
+  default="350px"
 />
 ```
 
-### Space-Separated Tiddler List (Filter)
+Use the value:
+
+```html
+<div class="panel" style.width={{$:/state/panel/width}}>
+  Panel
+</div>
+```
+
+Vertical example:
+
+```html
+<$resizer
+  direction="vertical"
+  tiddler="$:/state/header/height"
+  field="text"
+  unit="px"
+  min="48px"
+  max="240px"
+  default="96px"
+/>
+```
+
+## Multiple-Target Resizing
+
+Use `filter` to resize several tiddlers at once.
 
 ```html
 <$resizer
   direction="horizontal"
   filter="$:/metrics/storyright $:/metrics/storywidth $:/metrics/tiddlerwidth"
+  unit="px"
   min="300px"
   max="calc(100vw - 350px)"
 />
 ```
 
-### Using Different Units
+You can also use a normal TiddlyWiki filter expression:
 
 ```html
-<!-- Percentage-based resizing -->
 <$resizer
-  direction="vertical"
-  tiddler="$:/config/header/height"
+  direction="horizontal"
+  filter="[tag[layout-metric]]"
+  unit="px"
+  min="100px"
+  max="800px"
+/>
+```
+
+In multiple mode, each target's original unit is detected and preserved where possible. Internally, each value is converted to pixels, constrained, and then converted back.
+
+## Split-Pair Resizing
+
+`split-pair` mode is for adjacent split panes. It is the recommended mode for resizable columns and stacked panes.
+
+### How split-pair works
+
+At drag start, the widget measures:
+
+```text
+parent size
+primary pane size
+secondary pane size
+pair size = primary + secondary
+```
+
+During drag:
+
+```text
+primary = primaryStart + delta
+secondary = pairStart - primary
+```
+
+So the pair stays stable while the divider moves.
+
+### Horizontal split pair
+
+```html
+<div class="split split-horizontal">
+  <div class="pane" style.width={{$:/state/split/left}}>Left</div>
+  <$resizer
+    class="splitter splitter-vertical"
+    direction="horizontal"
+    mode="split-pair"
+    unit="%"
+    element="previousSibling"
+    leftTiddler="$:/state/split/left"
+    rightTiddler="$:/state/split/right"
+    leftField="text"
+    rightField="text"
+    min="15%"
+    splitPairLiveResize="yes"
+    splitPairSave="end"
+  />
+  <div class="pane" style.width={{$:/state/split/right}}>Right</div>
+</div>
+```
+
+### Vertical split pair
+
+```html
+<div class="split split-vertical">
+  <div class="pane" style.height={{$:/state/split/top}}>Top</div>
+  <$resizer
+    class="splitter splitter-horizontal"
+    direction="vertical"
+    mode="split-pair"
+    unit="%"
+    element="previousSibling"
+    topTiddler="$:/state/split/top"
+    bottomTiddler="$:/state/split/bottom"
+    topField="text"
+    bottomField="text"
+    min="15%"
+    splitPairLiveResize="yes"
+    splitPairSave="end"
+  />
+  <div class="pane" style.height={{$:/state/split/bottom}}>Bottom</div>
+</div>
+```
+
+### Resizer inside the first pane
+
+If the resizer is rendered inside the left/top pane, use:
+
+```html
+element="parent"
+```
+
+Example for dynamic TiddlyWiki columns:
+
+```html
+<$resizer
+  class="tc-flexbox-story-column-resizer-flexbox"
+  direction="horizontal"
+  mode="split-pair"
+  min="15%"
+  default=<<cellWidth>>
   unit="%"
-  min="5%"
-  max="50%"
-  default="20%"
-/>
-
-<!-- Using viewport units -->
-<$resizer
-  direction="horizontal"
-  tiddler="$:/config/panel/width"
-  unit="vw"
-  min="20vw"
-  max="80vw"
-  default="50vw"
+  element="parent"
+  leftTiddler={{{ [<stateTiddlerPrefix>addsuffix<colIndex>] }}}
+  rightTiddler={{{ [<stateTiddlerPrefix>addsuffix<nextColIndex>] }}}
+  leftField="text"
+  rightField="text"
+  splitPairLiveResize="yes"
+  splitPairSave="end"
 />
 ```
 
-### With Actions and Events
+For this pattern, the target element must be the left/top pane itself. The widget then finds the right/bottom pane with `targetElement.nextElementSibling`.
 
-```html
-<$resizer
-  direction="horizontal"
-  tiddler="$:/state/sidebar/width"
-  actions="""
-    <$action-setfield $tiddler="$:/state/sidebar/visible" text="yes"/>
-  """
-  onResizeEnd="""
-    <$action-log message="Resize completed" value=<<value>>/>
-  """
-/>
+### CSS for stable split-pair layouts
+
+For horizontal flex columns:
+
+```css
+.split-horizontal {
+  display: flex;
+  flex-direction: row;
+  width: 100%;
+  min-width: 0;
+}
+
+.split-horizontal > .pane {
+  flex-grow: 0;
+  flex-shrink: 0;
+  min-width: 0;
+  box-sizing: border-box;
+}
 ```
 
-### Live DOM Manipulation
+For vertical flex panes:
+
+```css
+.split-vertical {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.split-vertical > .pane {
+  flex-grow: 0;
+  flex-shrink: 0;
+  min-height: 0;
+  box-sizing: border-box;
+}
+```
+
+`splitPairLiveResize="yes"` updates the DOM styles and `flex-basis` during drag. Combine it with `splitPairSave="end"` so the widget saves the final tiddler values only once on pointer release. This avoids repeated TiddlyWiki refreshes while dragging and gives the smoothest split-pair resizing.
+
+### When not to use split-pair
+
+Do not use `split-pair` if you only want to change one stored value. Use normal `single` mode instead.
+
+Do not also run Wikitext `onResize` actions that rewrite the same pair tiddlers unless you intentionally want custom override logic. Otherwise you will have two systems writing sizes at once.
+
+## Live DOM Resizing
+
+Normal `live="yes"` directly updates the selected target's CSS property while dragging.
 
 ```html
 <$resizer
   direction="horizontal"
   selector=".tc-sidebar"
   property="width"
-  tiddler="$:/config/sidebar/width"
+  tiddler="$:/state/sidebar/width"
   live="yes"
 />
 ```
 
-### Disabling the Resizer
-
-The `disable` attribute allows you to temporarily disable the resizer functionality:
+For `split-pair`, prefer:
 
 ```html
-<!-- Disable resizer based on condition -->
-<$resizer
-  direction="horizontal"
-  tiddler="$:/state/panel/width"
-  disable={{{ [{$:/state/edit-mode}match[yes]then[yes]else[no]] }}}
-/>
-
-<!-- Always disabled resizer -->
-<$resizer
-  direction="horizontal"
-  tiddler="$:/state/panel/width"
-  disable="yes"
-/>
+splitPairLiveResize="yes"
+splitPairSave="end"
 ```
 
-When disabled:
-- The resizer handle remains visible but is non-interactive
-- The class `tc-resizer-disabled` is added for styling
-- No resize events or actions are triggered
-- The `data-disabled="true"` attribute is set on the DOM element
+This updates both panes and their `flex-basis` while dragging, but saves the final state tiddlers only once at the end of the drag.
 
-### Double-Click Reset
+## Double-Click Reset
 
-Double-click any resizer handle to reset it to a specified value:
+Double-click a resizer handle to reset the value.
+
+### Reset to default
 
 ```html
-<!-- Reset to default value -->
 <$resizer
   direction="horizontal"
   tiddler="$:/state/panel/width"
   default="300px"
   resetTo="default"
 />
+```
 
-<!-- Reset to minimum value -->
+### Reset to minimum
+
+```html
 <$resizer
   direction="horizontal"
   tiddler="$:/state/panel/width"
   min="200px"
   resetTo="min"
 />
+```
 
-<!-- Reset to custom value with action -->
+### Reset to maximum
+
+```html
+<$resizer
+  direction="horizontal"
+  tiddler="$:/state/panel/width"
+  max="800px"
+  resetTo="max"
+/>
+```
+
+### Reset to custom value
+
+```html
 <$resizer
   direction="horizontal"
   tiddler="$:/state/panel/width"
   resetTo="custom"
-  resetValue="400px"
-  onReset="""
-    <$action-log message="Panel reset to 400px"/>
-  """
+  resetValue="420px"
 />
+```
 
-<!-- Disable smooth animation on reset -->
-<$resizer
-  direction="horizontal"
-  tiddler="$:/state/panel/width"
-  smoothReset="no"
-/>
+### Run custom double-click actions
 
-<!-- Custom double-click actions (overrides reset behavior) -->
+`dblClickActions` overrides built-in reset behavior.
+
+```html
 <$resizer
   direction="horizontal"
   tiddler="$:/state/panel/width"
   dblClickActions="""
-    <$action-sendmessage $message="tm-modal" $param="$:/core/ui/ControlPanel/Settings"/>
-    <$action-log message="Panel width on double-click" value=<<tv-action-value>>/>
+    <$action-log message="Panel double-clicked" value=<<tv-action-value>>/>
   """
 />
 ```
 
-When using `dblClickActions`, the following variables are available:
-- `<<tv-action-value>>` - The current value with unit
-- `<<tv-action-value-pixels>>` - The current value in pixels
-- `<<tv-action-direction>>` - The resize direction
-- `<<tv-action-parent-size>>` - The parent container size in pixels
-- `<<tv-action-handle-size>>` - The handle size in pixels
+## CSS `calc()` Support
 
-### Handle Styles
-
-Choose from different visual styles for the resizer handle:
+The widget supports `calc()` in `min`, `max`, and `default`.
 
 ```html
-<!-- Default solid bar -->
-<$resizer handleStyle="solid" />
-
-<!-- Dots pattern -->
-<$resizer handleStyle="dots" />
-
-<!-- Dashed lines -->
-<$resizer handleStyle="lines" />
-
-<!-- Chevron arrows (❯❯ for horizontal, ⌄⌄ for vertical) -->
-<$resizer handleStyle="chevron" />
-
-<!-- Grip dots (⋮⋮ for horizontal, ⋯⋯ for vertical) -->
-<$resizer handleStyle="grip" />
-```
-
-### Visible Portion Mode
-
-The `visiblePortion` attribute allows the resizer to work correctly with elements that are partially clipped outside the viewport:
-
-```html
-<!-- Enable visible portion mode for clipped elements -->
 <$resizer
   direction="horizontal"
   tiddler="$:/state/panel/width"
-  visiblePortion="yes"
-/>
-```
-
-When enabled, this mode:
-- Calculates resize operations based only on the visible portion of the element
-- Automatically adjusts the resize ratio when elements extend beyond viewport boundaries
-- Ensures consistent resizing behavior for partially visible elements
-- Useful for panels that slide off-screen or are clipped by viewport edges
-
-This is particularly helpful when working with:
-- Off-canvas navigation panels
-- Sliding drawers that extend beyond viewport
-- Elements with negative margins or transforms
-- Overflow-hidden containers with content outside bounds
-
-### Mobile Experience
-
-The resizer includes enhanced support for touch devices:
-
-```html
-<!-- Enable haptic feedback (default) -->
-<$resizer
-  direction="horizontal"
-  tiddler="$:/state/panel/width"
-  hapticFeedback="yes"
-/>
-
-<!-- Disable haptic feedback -->
-<$resizer
-  direction="horizontal"
-  tiddler="$:/state/panel/width"
-  hapticFeedback="no"
-/>
-```
-
-Haptic feedback provides:
-- 5ms vibration on touch start (grab)
-- 3ms vibration on touch end (release)
-- Double pulse (10-50-10ms) on double-click reset
-
-### Real-World Example
-
-The resizer is used in TiddlyWiki's sidebar implementation:
-
-```html
-<$resizer
-  class="tc-sidebar-resizer"
-  direction="horizontal"
-  filter="$:/themes/tiddlywiki/vanilla/metrics/storyright $:/themes/tiddlywiki/vanilla/metrics/storywidth $:/themes/tiddlywiki/vanilla/metrics/tiddlerwidth"
-  min={{$:/themes/tiddlywiki/vanilla/metrics/storyminwidth}}
-  max={{{ [[calc(100vw - ]addsuffix{$:/themes/tiddlywiki/vanilla/metrics/sidebarminwidth}addsuffix[)]] }}}
-  default="350px"
-  invert="no"
-/>
-```
-
-This example demonstrates:
-- Multiple tiddlers being resized together
-- Dynamic min/max values from tiddlers
-- Complex calc() expression for maximum value
-- Integration with TiddlyWiki's theme system
-
-## CSS calc() Expression Support
-
-The widget supports CSS calc() expressions in min, max, and default values, including special variables:
-
-### Special Variables
-
-The following variables can be used within calc() expressions in the `min`, `max`, and `default` attributes:
-
-- `handleSize` - The computed width/height of the resize handle
-- `handleWidth` - Alias for handleSize
-- `handleHeight` - Alias for handleSize
-
-These variables are automatically replaced with the actual pixel size of the resize handle when the calc() expression is evaluated.
-
-```html
-<!-- Leave 350px for sidebar -->
-<$resizer
-  max="calc(100% - 350px)"
-/>
-
-<!-- Use viewport width -->
-<$resizer
-  max="calc(100vw - 400px)"
-/>
-
-<!-- Complex calculations -->
-<$resizer
-  min="calc(20% + 100px)"
-  max="calc(80% - 50px)"
-/>
-
-<!-- Dynamic default value based on viewport -->
-<$resizer
   default="calc(50vw - 100px)"
-  min="200px"
-  max="800px"
-/>
-
-<!-- Responsive default with fallback -->
-<$resizer
-  default="calc(100% / 3)"
-  min="calc(100% / 6)"
-  max="calc(100% / 2)"
-/>
-
-<!-- Using handle size in calculations -->
-<$resizer
-  min="calc(handleSize + 20px)"
-  max="calc(100% - handleSize)"
-  default="calc(50% - handleSize / 2)"
-/>
-
-<!-- Account for handle in panel layouts -->
-<$resizer
-  direction="horizontal"
-  max="calc(100vw - 400px - handleWidth)"
   min="calc(200px + handleWidth)"
+  max="calc(100vw - 350px - handleWidth)"
 />
 ```
 
-## Unit Conversion Features
+### Special calc variables
 
-The widget intelligently handles mixed units:
+| Variable | Meaning |
+|---|---|
+| `handleSize` | Computed width or height of the handle, depending on direction. |
+| `handleWidth` | Alias for `handleSize`. |
+| `handleHeight` | Alias for `handleSize`. |
 
-- Tiddlers can store values in any unit (e.g., "2.5rem", "50vh", "300px")
-- Internal calculations are performed in pixels for consistency
-- Values are converted back to the original unit when saved
-- Maintains precision with appropriate decimal places per unit type
+Examples:
 
-## Constraint Behavior
+```html
+<$resizer min="calc(handleSize + 20px)" />
+<$resizer max="calc(100% - handleSize)" />
+<$resizer default="calc(50% - handleSize / 2)" />
+```
 
-When resizing multiple tiddlers:
-- If ANY tiddler would exceed min/max limits, NO tiddlers are updated
-- This preserves relative relationships between tiddler values
-- All tiddlers move together within the defined constraints
+## Units and Conversion
+
+Supported units:
+
+```text
+px, %, em, rem, vh, vw, vmin, vmax
+```
+
+The widget performs drag math in pixels because pointer movement is measured in pixels. It then converts the result back to the configured or original unit.
+
+Precision rules:
+
+| Unit | Formatting |
+|---|---|
+| `%` | stable percentage precision; use six decimals for Wikitext-generated layout values |
+| `px` | pixel value with decimal/subpixel precision |
+| `em`, `rem` | font-relative decimal precision |
+| `vh`, `vw`, `vmin`, `vmax` | viewport-relative decimal precision |
+
+For Wikitext-generated percentages, use `fixed[6]` before appending `%`:
+
+```tw
+cellWidth={{{ [[100]divide<columns>fixed[6]addsuffix[%]] }}}
+```
+
+This avoids noisy floating-point values such as `33.333333333333336%` while preserving enough precision for stable layouts.
+
+## Constraints
+
+### Normal modes
+
+`min` and `max` constrain the target value. For multiple tiddlers, the delta is clamped so all target values stay within their constraints.
+
+### Split-pair mode
+
+`min` applies to both panes in the pair. The first pane cannot grow so far that the second pane becomes smaller than `min`.
+
+Conceptually:
+
+```text
+primaryMin = min
+secondaryMin = min
+primaryMax = pairSize - secondaryMin
+```
+
+If `max` is set, it additionally limits the primary pane.
+
+For most split-pair layouts, prefer setting only `min` first. Add `max` only when you need a hard maximum for the first pane.
 
 ## Styling
 
-The widget creates a div element with the class `tc-resizer` plus any additional classes specified. You can style it with CSS:
+The widget renders a `div` with class:
+
+```text
+tc-resizer
+```
+
+plus any additional class from the `class` attribute.
+
+During interaction:
+
+| Class | Applied to | Meaning |
+|---|---|---|
+| `tc-resizer-active` | resizer handle | The handle is being dragged. |
+| `tc-resizer-disabled` | resizer handle | The handle is disabled. |
+| `tc-resizing` | `body` | A resize operation is active. |
+
+Example styling:
 
 ```css
 .tc-resizer {
-  cursor: ew-resize; /* or ns-resize for vertical */
-  width: 5px;
-  background: #ccc;
   position: relative;
+  z-index: 1000;
+  background: transparent;
+  touch-action: none;
+  user-select: none;
 }
 
-.tc-resizer:hover {
-  background: #999;
+.tc-resizer[data-direction="horizontal"] {
+  width: 8px;
+  cursor: ew-resize;
 }
 
+.tc-resizer[data-direction="vertical"] {
+  height: 8px;
+  cursor: ns-resize;
+}
+
+.tc-resizer:hover,
 .tc-resizer-active {
-  background: #666;
+  background: rgba(127, 127, 127, 0.25);
 }
 
 .tc-resizer-disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
-```
 
-During resize operations:
-- `.tc-resizing` class is added to the body element
-- `.tc-resizer-active` class is added to the active resizer
-- `.tc-resize-overlay` overlay captures pointer events
+.tc-resizing * {
+  user-select: none !important;
+}
+```
 
 ## Layout Procedures
 
-The resizer plugin includes several pre-built layout procedures that make it easy to create common split-panel layouts:
+The plugin may include prebuilt layout procedures. Their exact availability depends on the installed plugin tiddlers, but typical procedures include horizontal split panels, vertical split panels, three-column panels, and collapsible master-detail panels.
 
-### horizontal-split-panel
+### `horizontal-split-panel`
 
-Creates a horizontally split layout with a resizable divider between left and right panels.
+Creates a left/right layout with a draggable divider.
 
 ```html
 <<horizontal-split-panel
-  leftContent:"Content for left panel"
-  rightContent:"Content for right panel"
+  leftContent:"Left content"
+  rightContent:"Right content"
   width:"50%"
   minWidth:"100px"
   maxWidth:"80%"
   stateTiddler:"$:/state/hsplit/width"
   class:"my-panel"
-  leftClass:"left-panel-class"
-  rightClass:"right-panel-class"
-  splitterClass:"splitter-class"
+  leftClass:"left-panel"
+  rightClass:"right-panel"
+  splitterClass:"splitter"
 >>
 ```
 
 | Parameter | Description | Default |
-|-----------|-------------|---------|
-| `leftContent` | Content for the left panel (variable or tiddler name) | "" |
-| `rightContent` | Content for the right panel (variable or tiddler name) | "" |
-| `width` | Initial width of the left panel | "50%" |
-| `minHeight` | Minimum height of the panel container | "100%" |
-| `minWidth` | Minimum width of the left panel | "100px" |
-| `maxWidth` | Maximum width of the left panel | "80%" |
-| `stateTiddler` | Tiddler to store the current width | "$:/state/hsplit/width" |
-| `class` | Additional CSS classes for the container | "" |
-| `leftClass` | Additional CSS classes for the left panel | "" |
-| `rightClass` | Additional CSS classes for the right panel | "" |
-| `splitterClass` | Additional CSS classes for the splitter | "" |
+|---|---|---|
+| `leftContent` | Content for the left panel. | empty |
+| `rightContent` | Content for the right panel. | empty |
+| `width` | Initial width of the left panel. | `50%` |
+| `minHeight` | Minimum height of the whole container. | `100%` |
+| `minWidth` | Minimum width of the left panel. | `100px` |
+| `maxWidth` | Maximum width of the left panel. | `80%` |
+| `stateTiddler` | Tiddler storing the left panel width. | `$:/state/hsplit/width` |
+| `class` | Extra container classes. | empty |
+| `leftClass` | Extra left panel classes. | empty |
+| `rightClass` | Extra right panel classes. | empty |
+| `splitterClass` | Extra splitter classes. | empty |
 
-### vertical-split-panel
+### `vertical-split-panel`
 
-Creates a vertically split layout with a resizable divider between top and bottom panels.
+Creates a top/bottom layout with a draggable divider.
 
 ```html
 <<vertical-split-panel
-  topContent:"Content for top panel"
-  bottomContent:"Content for bottom panel"
+  topContent:"Top content"
+  bottomContent:"Bottom content"
   height:"50%"
   panelHeight:"100%"
   minHeight:"100px"
   maxHeight:"80%"
   stateTiddler:"$:/state/vsplit/height"
   class:"my-panel"
-  topClass:"top-panel-class"
-  bottomClass:"bottom-panel-class"
-  splitterClass:"splitter-class"
+  topClass:"top-panel"
+  bottomClass:"bottom-panel"
+  splitterClass:"splitter"
 >>
 ```
 
 | Parameter | Description | Default |
-|-----------|-------------|---------|
-| `topContent` | Content for the top panel (variable or tiddler name) | "" |
-| `bottomContent` | Content for the bottom panel (variable or tiddler name) | "" |
-| `panelHeight` | Height of the entire panel container | "100%" |
-| `height` | Initial height of the top panel | "50%" |
-| `minHeight` | Minimum height of the top panel | "100px" |
-| `maxHeight` | Maximum height of the top panel | "80%" |
-| `stateTiddler` | Tiddler to store the current height | "$:/state/vsplit/height" |
-| `class` | Additional CSS classes for the container | "" |
-| `topClass` | Additional CSS classes for the top panel | "" |
-| `bottomClass` | Additional CSS classes for the bottom panel | "" |
-| `splitterClass` | Additional CSS classes for the splitter | "" |
+|---|---|---|
+| `topContent` | Content for the top panel. | empty |
+| `bottomContent` | Content for the bottom panel. | empty |
+| `panelHeight` | Height of the entire panel container. | `100%` |
+| `height` | Initial height of the top panel. | `50%` |
+| `minHeight` | Minimum height of the top panel. | `100px` |
+| `maxHeight` | Maximum height of the top panel. | `80%` |
+| `stateTiddler` | Tiddler storing the top panel height. | `$:/state/vsplit/height` |
+| `class` | Extra container classes. | empty |
+| `topClass` | Extra top panel classes. | empty |
+| `bottomClass` | Extra bottom panel classes. | empty |
+| `splitterClass` | Extra splitter classes. | empty |
 
-### three-column-panels
+### `three-column-panels`
 
-Creates a three-column layout with resizable left and right panels, and a flexible center panel.
+Creates a three-column layout with resizable side panels and a flexible center panel.
 
 ```html
 <<three-column-panels
@@ -571,24 +922,22 @@ Creates a three-column layout with resizable left and right panels, and a flexib
 ```
 
 | Parameter | Description | Default |
-|-----------|-------------|---------|
-| `leftContent` | Content for the left panel (variable or tiddler name) | "" |
-| `centerContent` | Content for the center panel (variable or tiddler name) | "" |
-| `rightContent` | Content for the right panel (variable or tiddler name) | "" |
-| `leftWidth` | Initial width of the left panel | "200px" |
-| `rightWidth` | Initial width of the right panel | "200px" |
-| `minWidth` | Minimum width for side panels | "150px" |
-| `maxWidth` | Maximum width for side panels | "400px" |
-| `minHeight` | Minimum height of the panel container | "100%" |
-| `leftStateTiddler` | Tiddler to store the left panel width | "$:/state/three-col/left" |
-| `rightStateTiddler` | Tiddler to store the right panel width | "$:/state/three-col/right" |
-| `class` | Additional CSS classes for the container | "" |
+|---|---|---|
+| `leftContent` | Left panel content. | empty |
+| `centerContent` | Center panel content. | empty |
+| `rightContent` | Right panel content. | empty |
+| `leftWidth` | Initial left panel width. | `200px` |
+| `rightWidth` | Initial right panel width. | `200px` |
+| `minWidth` | Minimum width for side panels. | `150px` |
+| `maxWidth` | Maximum width for side panels. | `400px` |
+| `minHeight` | Minimum height of the container. | `100%` |
+| `leftStateTiddler` | Tiddler storing left width. | `$:/state/three-col/left` |
+| `rightStateTiddler` | Tiddler storing right width. | `$:/state/three-col/right` |
+| `class` | Extra container classes. | empty |
 
-Note: The center panel automatically adjusts its width based on the left and right panel sizes, with constraints to ensure all panels remain visible.
+### `collapsible-master-detail-panel`
 
-### collapsible-master-detail-panel
-
-Creates a master-detail layout where the master panel can be collapsed to save space.
+Creates a resizable master/detail layout with collapse state.
 
 ```html
 <<collapsible-master-detail-panel
@@ -606,123 +955,232 @@ Creates a master-detail layout where the master panel can be collapsed to save s
 ```
 
 | Parameter | Description | Default |
-|-----------|-------------|---------|
-| `masterContent` | Content for the master panel (variable or tiddler name) | "" |
-| `detailContent` | Content for the detail panel (variable or tiddler name) | "" |
-| `collapsed` | Initial collapsed state ("yes" or "no") | "no" |
-| `size` | Initial width of the master panel | "300px" |
-| `minSize` | Minimum width of the master panel | "200px" |
-| `maxSize` | Maximum width of the master panel | "500px" |
-| `minHeight` | Minimum height of the panel container | "100%" |
-| `stateTiddler` | Tiddler to store the master panel width | "$:/state/cmd/size" |
-| `collapseStateTiddler` | Tiddler to store the collapsed state | "$:/state/cmd/collapsed" |
-| `class` | Additional CSS classes for the container | "" |
+|---|---|---|
+| `masterContent` | Master panel content. | empty |
+| `detailContent` | Detail panel content. | empty |
+| `collapsed` | Initial collapsed state. | `no` |
+| `size` | Initial master panel width. | `300px` |
+| `minSize` | Minimum master panel width. | `200px` |
+| `maxSize` | Maximum master panel width. | `500px` |
+| `minHeight` | Minimum container height. | `100%` |
+| `stateTiddler` | Tiddler storing size. | `$:/state/cmd/size` |
+| `collapseStateTiddler` | Tiddler storing collapsed state. | `$:/state/cmd/collapsed` |
+| `class` | Extra container classes. | empty |
 
-Features:
-- Collapse/expand buttons integrated into the master panel
-- Detail panel automatically expands when master panel is collapsed
-- State persistence for both size and collapse state
 
-## MediaQuery Filter
+## TiddlyFlex Column Management
 
-The plugin includes a `mediaquery` filter operator that allows you to evaluate CSS media queries within TiddlyWiki filters. This is particularly useful for creating responsive layouts and conditional content.
+For dynamic TiddlyFlex columns, the add/remove toolbar buttons should preserve the current layout by redistributing width equally across the affected columns.
 
-### Syntax
+This is not proportional scaling. It is equal-delta redistribution.
 
+### Add column logic
+
+When adding a column:
+
+```text
+newColumnWidth = 100 / newColumnCount
+cellDiff = -newColumnWidth / existingColumnCount
+oldColumn = oldColumn + cellDiff
+newColumn = newColumnWidth
 ```
-[mediaquery<media-query>]
+
+Example:
+
+```text
+Before:
+50% | 50%
+
+Add third column:
+newColumnWidth = 33.333333%
+cellDiff = -33.333333 / 2 = -16.666667%
+
+After:
+33.333333% | 33.333333% | 33.333333%
 ```
 
-### Examples
+With custom widths:
+
+```text
+Before:
+70% | 30%
+
+Add third column:
+newColumnWidth = 33.333333%
+cellDiff = -16.666667%
+
+After:
+53.333333% | 13.333333% | 33.333333%
+```
+
+The fallback/default width for a missing existing column should be `100 / existingColumnCount`, rounded with `fixed[6]`.
+
+### Remove column logic
+
+When removing the last column:
+
+```text
+removedColumnWidth = stored width of the last column, or fallback width
+cellDiff = removedColumnWidth / remainingColumnCount
+remainingColumn = remainingColumn + cellDiff
+```
+
+Example:
+
+```text
+Before:
+33.333333% | 33.333333% | 33.333333%
+
+Remove last column:
+removedColumnWidth = 33.333333%
+cellDiff = 33.333333 / 2 = 16.666667%
+
+After:
+50% | 50%
+```
+
+With custom widths:
+
+```text
+Before:
+53.333333% | 13.333333% | 33.333333%
+
+Remove last column:
+removedColumnWidth = 33.333333%
+cellDiff = 16.666667%
+
+After:
+70% | 30%
+```
+
+### Recommended sum functions
+
+Summing functions should return numeric percentages without the `%` suffix:
+
+```tw
+\function tdff.sum.visible.columns.widths()
+	[subfilter<tdff.tiddlyflex-enlist-columns>]
+	:map[<stateTiddlerPrefix>addsuffix[col-]addsuffix<currentTiddler>get[text]removesuffix[%]else<cellWidth>removesuffix[%]]
+	:reduce[<currentTiddler>add<accumulator>]
+\end
+
+\function tdff.sum.visible.columns.plus.one.widths()
+	[subfilter<tdff.tiddlyflex-enlist-columns.plus-one>]
+	:map[<stateTiddlerPrefix>addsuffix[col-]addsuffix<currentTiddler>get[text]removesuffix[%]else<cellWidth>removesuffix[%]]
+	:reduce[<currentTiddler>add<accumulator>]
+\end
+
+\function tdff.sum.visible.columns.minus.one.widths()
+	[subfilter<tdff.tiddlyflex-enlist-columns.minus-one>]
+	:map[<stateTiddlerPrefix>addsuffix[col-]addsuffix<currentTiddler>get[text]removesuffix[%]else<cellWidth>removesuffix[%]]
+	:reduce[<currentTiddler>add<accumulator>]
+\end
+```
+
+Always format written percentage values with `fixed[6]addsuffix[%]`.
+
+## Debugging and Troubleshooting
+
+### Only the first column resizes
+
+Check that `element` resolves to the left/top pane, not the whole container.
+
+For split-pair, this must be true:
+
+```text
+targetElement = left/top pane
+targetElement.nextElementSibling = right/bottom pane
+targetElement.parentElement = full container
+```
+
+If the resizer is inside the pane, use:
 
 ```html
-<!-- Show content only on mobile devices -->
-<%if [mediaquery[(max-width: 768px)]] %>
-  This content only appears on mobile devices
-<% endif %>
-
-<!-- Show different content for touch vs mouse devices -->
-<%if [mediaquery[(pointer: coarse)]] %>
-  <div class="touch-interface">
-    Touch-optimized interface with larger buttons
-  </div>
-<% else %>
-  <div class="mouse-interface">
-    Mouse-optimized interface with hover states
-  </div>
-<% endif %>
-
-<!-- Responsive layout based on screen size -->
-<%if [mediaquery[(min-width: 1024px)]] %>
-  <<three-column-panels
-    leftContent:"Navigation"
-    centerContent:"Main Content"
-    rightContent:"Sidebar"
-  >>
-<% else %>
-  <<vertical-split-panel
-    topContent:"Navigation"
-    bottomContent:"Main Content"
-  >>
-<% endif %>
-
-<!-- Dark mode support -->
-<%if [mediaquery[(prefers-color-scheme: dark)]] %>
-  <style>
-    .my-component { background: #1a1a1a; color: #ffffff; }
-  </style>
-<% endif %>
-
-<!-- Responsive resizer configuration -->
-<$let handleWidth={{{ [mediaquery[(pointer: coarse)]then[40px]else[10px]] }}}>
-  <$resizer
-    direction="horizontal"
-    tiddler="$:/state/panel-width"
-    default=<<handleWidth>>
-  />
-</$let>
-
-<!-- Disable animations for users who prefer reduced motion -->
-<%if [mediaquery[(prefers-reduced-motion: reduce)]] %>
-  <style>
-    * { animation: none !important; transition: none !important; }
-  </style>
-<% endif %>
+element="parent"
 ```
 
-### Features
+If the resizer is between panes, use:
 
-- **Reactive Updates**: Automatically refreshes when media query state changes (e.g., window resize, device rotation)
-- **Browser-Only**: Returns empty results when running in Node.js
-- **Error Handling**: Invalid media queries return empty results
-- **Negation Support**: Use `!mediaquery` to invert the condition
+```html
+element="previousSibling"
+```
 
-### Common Media Queries
+### Other panes flicker during drag
 
-- `(max-width: 768px)` - Mobile devices
-- `(min-width: 769px)` - Tablets and desktops
-- `(pointer: coarse)` - Touch devices
-- `(pointer: fine)` - Mouse/trackpad devices  
-- `(prefers-color-scheme: dark)` - Dark mode preference
-- `(orientation: portrait)` - Portrait orientation
-- `(orientation: landscape)` - Landscape orientation
-- `(prefers-reduced-motion: reduce)` - Reduced motion preference
+Flexbox may be shrinking or rebalancing panes. Use fixed flex behavior:
+
+```css
+.pane {
+  flex-grow: 0;
+  flex-shrink: 0;
+  min-width: 0;
+  min-height: 0;
+  box-sizing: border-box;
+}
+```
+
+For horizontal layouts, set width/flex-basis. For vertical layouts, set height/flex-basis.
+
+### Percent values are wrong or show `100%`
+
+You are probably measuring a pane relative to itself instead of the whole split container. Use the split-pair percentage variables:
+
+```text
+<<tv-action-value-percent-of-parent>>
+<<tv-action-primary-value-percent-of-parent>>
+<<tv-action-secondary-value-percent-of-parent>>
+```
+
+These are calculated against the frozen parent size from drag start.
+
+### Split-pair does nothing
+
+Check all of these:
+
+- `mode="split-pair"` is set.
+- `direction` is correct.
+- For horizontal: `leftTiddler` and `rightTiddler` exist.
+- For vertical: `topTiddler` and `bottomTiddler` exist.
+- `element` resolves to the first pane.
+- The second pane is the next sibling or is supplied via selector.
+- `min` is not larger than half the pair size.
+
+### Live resize conflicts with TiddlyWiki refresh
+
+If you see visual jitter while dragging split-pair columns, use:
+
+```html
+splitPairLiveResize="yes"
+splitPairSave="end"
+```
+
+This keeps the drag visually live by mutating DOM styles, but delays state tiddler writes until pointer release. That avoids a TiddlyWiki refresh on every pointermove.
+
+### Avoid double-writing sizes
+
+In `split-pair` mode, the widget already writes both paired tiddlers. Do not also use `onResize` actions that write those same tiddlers, unless you are intentionally overriding the built-in pair logic.
 
 ## Browser Compatibility
 
-- Modern browsers with ES5 support
-- Touch devices via pointer events
-- MediaQueryList API support for reactive media queries
-- Fallback handling for older viewport unit implementations
-- Cross-browser window object detection
+- Modern browsers with pointer events.
+- Mouse, pen, and touch input.
+- Uses `getBoundingClientRect()` for accurate measurements.
+- Uses `visualViewport` when available for viewport units.
+- Uses the Vibration API for optional haptic feedback where supported.
 
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+Contributions are welcome. Useful areas for improvement include:
+
+- additional handle styles,
+- more prebuilt layout procedures,
+- stronger visual debugging helpers,
+- tests for split-pair edge cases,
+- improved documentation examples for complex TiddlyWiki layouts.
 
 ## License
 
-This plugin is released under the MIT License. See the [LICENSE](LICENSE) file for details.
+This plugin is released under the MIT License. See the `LICENSE` file for details.
 
 ## Credits
 

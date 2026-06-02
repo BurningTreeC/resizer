@@ -428,29 +428,34 @@ ResizerWidget.prototype.evaluateCalcExpression = function(expression, contextSiz
 	}
 };
 
-// Format a numeric value with the appropriate unit and precision
+// Format a numeric value with the appropriate unit and stable precision
 ResizerWidget.prototype.formatValueWithUnit = function(value, unit) {
 	unit = unit || this.unit || "px";
-	
-	// Use higher precision for units that benefit from it
+
+	var formatNumber = function(number, decimals) {
+		if(!isFinite(number)) {
+			number = 0;
+		}
+		return number
+			.toFixed(decimals)
+			.replace(/\.?0+$/, "");
+	};
+
 	switch(unit) {
 		case "%":
-			// 2 decimal places for percentages
-			return value.toFixed(2) + "%";
+			// Use enough precision for stable layouts, without floating-point noise
+			return formatNumber(value, 6) + "%";
 		case "em":
 		case "rem":
-			// 3 decimal places for font-relative units
-			return value.toFixed(3) + unit;
+			return formatNumber(value, 4) + unit;
 		case "vh":
 		case "vw":
 		case "vmin":
 		case "vmax":
-			// 2 decimal places for viewport units
-			return value.toFixed(2) + unit;
+			return formatNumber(value, 4) + unit;
 		case "px":
 		default:
-			// For pixels, use 1 decimal place for sub-pixel precision
-			return value.toFixed(1) + unit;
+			return formatNumber(value, 2) + "px";
 	}
 };
 
@@ -993,8 +998,392 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 	};
 	
 	
+
+	// Helper to preserve the exact pointer offset from the moving resize boundary.
+	//
+	// The pointer position itself is not necessarily the resize boundary because
+	// the user may grab the handle at any point inside its thickness. The only
+	// offset that must be preserved is:
+	//
+	//   pointerToResizeBoundaryOffset = pointerCoordinate - resizeBoundaryAtStart
+	//
+	// During pointermove we reconstruct:
+	//
+	//   resizeBoundaryNow = pointerCoordinate - pointerToResizeBoundaryOffset
+	//
+	// For inverted right/bottom panels, the fixed edge is right/bottom and the
+	// moving boundary is left/top. For normal left/top panels, the fixed edge is
+	// left/top and the moving boundary is right/bottom.
+	//
+	// Important: resizeBoundaryAtStart is derived from operation.startValue, not
+	// from the target element's raw border box. That keeps visiblePortion="yes"
+	// and normal measured widths in the same coordinate system.
+	var setupHandleGrabOffset = function(event, operation) {
+		if(!operation || !operation.targetElement) {
+			return;
+		}
+
+		var targetRect = operation.targetElement.getBoundingClientRect();
+		var startValue = Math.max(operation.startValue || 0, 0);
+		var fixedEdge;
+		var boundaryAtStart;
+		var pointerCoordinate = self.direction === "horizontal" ? event.clientX : event.clientY;
+
+		if(self.direction === "horizontal") {
+			if(self.invertDirection === "yes") {
+				// Right-side panel/sidebar:
+				// right edge is fixed, left boundary moves.
+				fixedEdge = targetRect.right;
+				boundaryAtStart = fixedEdge - startValue;
+			} else {
+				// Left-side panel:
+				// left edge is fixed, right boundary moves.
+				fixedEdge = targetRect.left;
+				boundaryAtStart = fixedEdge + startValue;
+			}
+		} else {
+			if(self.invertDirection === "yes") {
+				// Bottom-side panel:
+				// bottom edge is fixed, top boundary moves.
+				fixedEdge = targetRect.bottom;
+				boundaryAtStart = fixedEdge - startValue;
+			} else {
+				// Top-side panel:
+				// top edge is fixed, bottom boundary moves.
+				fixedEdge = targetRect.top;
+				boundaryAtStart = fixedEdge + startValue;
+			}
+		}
+
+		operation.resizeFixedEdgeAtStart = fixedEdge;
+		operation.resizeBoundaryAtStart = boundaryAtStart;
+		operation.pointerToResizeBoundaryOffset = pointerCoordinate - boundaryAtStart;
+	};
+
+	var getHandleGrabOffsetPixelDelta = function(event, operation) {
+		if(!operation ||
+				operation.pointerToResizeBoundaryOffset === undefined ||
+				operation.pointerToResizeBoundaryOffset === null ||
+				operation.resizeFixedEdgeAtStart === undefined ||
+				operation.resizeFixedEdgeAtStart === null) {
+			return null;
+		}
+
+		var pointerCoordinate = self.direction === "horizontal" ? event.clientX : event.clientY;
+		var movingBoundary = pointerCoordinate - operation.pointerToResizeBoundaryOffset;
+		var newPixelValue;
+
+		if(self.invertDirection === "yes") {
+			newPixelValue = operation.resizeFixedEdgeAtStart - movingBoundary;
+		} else {
+			newPixelValue = movingBoundary - operation.resizeFixedEdgeAtStart;
+		}
+
+		newPixelValue = Math.max(newPixelValue, 0);
+		return newPixelValue - operation.startValue;
+	};
+
+
+	// Helper to resolve the primary/secondary elements and tiddlers for split-pair mode.
+	// horizontal: primary = left, secondary = right
+	// vertical:   primary = top,  secondary = bottom
+	// This mode is intentionally additive: it does not remove the old single/multiple logic.
+	var setupSplitPairOperation = function(operation) {
+		if(self.resizeMode !== "split-pair") {
+			return;
+		}
+
+		var isHorizontal = self.direction === "horizontal";
+		var primaryElement = null;
+		var secondaryElement = null;
+
+		var primarySelector = isHorizontal ? self.leftSelector : self.topSelector;
+		var secondarySelector = isHorizontal ? self.rightSelector : self.bottomSelector;
+
+		if(primarySelector) {
+			primaryElement = self.document.querySelector(primarySelector);
+		}
+		if(!primaryElement) {
+			primaryElement = operation.targetElement || (operation.targetElements && operation.targetElements[0]) || null;
+		}
+
+		if(secondarySelector) {
+			secondaryElement = self.document.querySelector(secondarySelector);
+		}
+		if(!secondaryElement && primaryElement) {
+			secondaryElement = primaryElement.nextElementSibling;
+		}
+
+		var primaryTiddler = isHorizontal
+			? (self.leftTiddler || self.targetTiddler || (self.targetTiddlers && self.targetTiddlers[0]))
+			: (self.topTiddler || self.targetTiddler || (self.targetTiddlers && self.targetTiddlers[0]));
+
+		var secondaryTiddler = isHorizontal
+			? (self.rightTiddler || (self.targetTiddlers && self.targetTiddlers[1]))
+			: (self.bottomTiddler || (self.targetTiddlers && self.targetTiddlers[1]));
+
+		var primaryField = isHorizontal
+			? (self.leftField || self.targetField || "text")
+			: (self.topField || self.targetField || "text");
+
+		var secondaryField = isHorizontal
+			? (self.rightField || self.targetField || "text")
+			: (self.bottomField || self.targetField || "text");
+
+		if(!primaryElement || !secondaryElement || !primaryTiddler || !secondaryTiddler) {
+			if(self.hapticDebug === "yes") {
+				console.warn("Resizer split-pair mode could not resolve primary/secondary element or tiddler", {
+					direction: self.direction,
+					primaryElement: primaryElement,
+					secondaryElement: secondaryElement,
+					primaryTiddler: primaryTiddler,
+					secondaryTiddler: secondaryTiddler
+				});
+			}
+			return;
+		}
+
+		var primaryRect = primaryElement.getBoundingClientRect();
+		var secondaryRect = secondaryElement.getBoundingClientRect();
+
+		var primaryStartPx = isHorizontal ? primaryRect.width : primaryRect.height;
+		var secondaryStartPx = isHorizontal ? secondaryRect.width : secondaryRect.height;
+		var pairStartPx = primaryStartPx + secondaryStartPx;
+
+		var parentSize = operation.parentSizeAtStart || getParentSize(primaryElement, true);
+		var handleSize = operation.handleSize || getHandleSize();
+
+		var minPx = self.minValueRaw ? self.evaluateCSSValue(self.minValueRaw, parentSize, handleSize) : 0;
+		var maxPx = self.maxValueRaw ? self.evaluateCSSValue(self.maxValueRaw, parentSize, handleSize) : null;
+
+		minPx = Math.max(minPx || 0, 0);
+		if(maxPx !== null) {
+			maxPx = Math.max(maxPx, 0);
+		}
+
+		operation.splitPair = {
+			direction: self.direction,
+			isHorizontal: isHorizontal,
+
+			primaryName: isHorizontal ? "left" : "top",
+			secondaryName: isHorizontal ? "right" : "bottom",
+
+			primaryElement: primaryElement,
+			secondaryElement: secondaryElement,
+
+			primaryTiddler: primaryTiddler,
+			secondaryTiddler: secondaryTiddler,
+
+			primaryField: primaryField,
+			secondaryField: secondaryField,
+
+			primaryStartPx: primaryStartPx,
+			secondaryStartPx: secondaryStartPx,
+			pairStartPx: pairStartPx,
+
+			parentSizeAtStart: parentSize,
+			minPx: minPx,
+			maxPx: maxPx,
+
+			currentPrimaryPx: primaryStartPx,
+			currentSecondaryPx: secondaryStartPx,
+			lastClampedDelta: 0
+		};
+
+		// Backwards compatibility for generic callbacks:
+		// horizontal => left side; vertical => top side.
+		operation.startValue = primaryStartPx;
+		operation.targetElement = primaryElement;
+		if(!operation.targetElements || operation.targetElements.length === 0) {
+			operation.targetElements = [primaryElement];
+		}
+	};
+
+	var formatSplitPairValue = function(pixelValue, element, parentSize) {
+		var convertedValue = self.convertFromPixels(pixelValue, self.unit, parentSize, element);
+		return self.formatValueWithUnit(convertedValue, self.unit);
+	};
+
+	var setSplitPairActionVariables = function(operation, requestedDelta, phase) {
+		if(!operation || !operation.splitPair) {
+			return;
+		}
+
+		var pair = operation.splitPair;
+		var parentSize = pair.parentSizeAtStart || operation.parentSizeAtStart || 0;
+
+		var primaryPx = pair.currentPrimaryPx;
+		var secondaryPx = pair.currentSecondaryPx;
+		var clampedDelta = pair.lastClampedDelta || 0;
+
+		var primaryPercent = parentSize > 0 ? (primaryPx * 100) / parentSize : 0;
+		var secondaryPercent = parentSize > 0 ? (secondaryPx * 100) / parentSize : 0;
+		var pairPercent = parentSize > 0 ? (pair.pairStartPx * 100) / parentSize : 0;
+		var deltaPercent = parentSize > 0 ? (clampedDelta * 100) / parentSize : 0;
+		var requestedDeltaPercent = parentSize > 0 ? ((requestedDelta || 0) * 100) / parentSize : 0;
+
+		var primaryFormatted = formatSplitPairValue(primaryPx, pair.primaryElement, parentSize);
+		var secondaryFormatted = formatSplitPairValue(secondaryPx, pair.secondaryElement, parentSize);
+
+		// Existing generic variables point to the primary side.
+		self.setVariable("tv-action-value", self.convertFromPixels(primaryPx, self.unit, parentSize, pair.primaryElement).toString());
+		self.setVariable("tv-action-value-pixels", primaryPx.toString());
+		self.setVariable("tv-action-formatted-value", primaryFormatted);
+		self.setVariable("tv-action-value-percent-of-parent", primaryPercent.toString());
+		self.setVariable("tv-action-formatted-value-percent-of-parent", self.formatValueWithUnit(primaryPercent, "%"));
+
+		self.setVariable("tv-action-delta-pixels", clampedDelta.toString());
+		self.setVariable("tv-action-delta-percent-of-parent", deltaPercent.toString());
+		self.setVariable("tv-action-formatted-delta-percent-of-parent", self.formatValueWithUnit(deltaPercent, "%"));
+
+		self.setVariable("tv-action-requested-delta-pixels", (requestedDelta || 0).toString());
+		self.setVariable("tv-action-requested-delta-percent-of-parent", requestedDeltaPercent.toString());
+
+		self.setVariable("tv-action-phase", phase || "");
+		self.setVariable("tv-action-split-pair", "yes");
+		self.setVariable("tv-action-split-pair-direction", pair.direction);
+
+		self.setVariable("tv-action-primary-tiddler", pair.primaryTiddler || "");
+		self.setVariable("tv-action-secondary-tiddler", pair.secondaryTiddler || "");
+		self.setVariable("tv-action-primary-field", pair.primaryField || "text");
+		self.setVariable("tv-action-secondary-field", pair.secondaryField || "text");
+
+		self.setVariable("tv-action-primary-value-pixels", primaryPx.toString());
+		self.setVariable("tv-action-secondary-value-pixels", secondaryPx.toString());
+		self.setVariable("tv-action-primary-value-percent-of-parent", primaryPercent.toString());
+		self.setVariable("tv-action-secondary-value-percent-of-parent", secondaryPercent.toString());
+		self.setVariable("tv-action-formatted-primary-value-percent-of-parent", self.formatValueWithUnit(primaryPercent, "%"));
+		self.setVariable("tv-action-formatted-secondary-value-percent-of-parent", self.formatValueWithUnit(secondaryPercent, "%"));
+		self.setVariable("tv-action-primary-formatted-value", primaryFormatted);
+		self.setVariable("tv-action-secondary-formatted-value", secondaryFormatted);
+
+		self.setVariable("tv-action-primary-start-value-pixels", pair.primaryStartPx.toString());
+		self.setVariable("tv-action-secondary-start-value-pixels", pair.secondaryStartPx.toString());
+
+		self.setVariable("tv-action-pair-size-pixels", pair.pairStartPx.toString());
+		self.setVariable("tv-action-pair-size-percent-of-parent", pairPercent.toString());
+		self.setVariable("tv-action-formatted-pair-size-percent-of-parent", self.formatValueWithUnit(pairPercent, "%"));
+
+		self.setVariable("tv-action-min-value-pixels", pair.minPx.toString());
+		self.setVariable("tv-action-max-value-pixels", pair.maxPx === null ? "" : pair.maxPx.toString());
+
+		// Direction-specific aliases.
+		if(pair.direction === "horizontal") {
+			self.setVariable("tv-action-left-tiddler", pair.primaryTiddler || "");
+			self.setVariable("tv-action-right-tiddler", pair.secondaryTiddler || "");
+			self.setVariable("tv-action-left-field", pair.primaryField || "text");
+			self.setVariable("tv-action-right-field", pair.secondaryField || "text");
+
+			self.setVariable("tv-action-left-value-pixels", primaryPx.toString());
+			self.setVariable("tv-action-right-value-pixels", secondaryPx.toString());
+			self.setVariable("tv-action-left-value-percent-of-parent", primaryPercent.toString());
+			self.setVariable("tv-action-right-value-percent-of-parent", secondaryPercent.toString());
+			self.setVariable("tv-action-formatted-left-value-percent-of-parent", self.formatValueWithUnit(primaryPercent, "%"));
+			self.setVariable("tv-action-formatted-right-value-percent-of-parent", self.formatValueWithUnit(secondaryPercent, "%"));
+			self.setVariable("tv-action-left-formatted-value", primaryFormatted);
+			self.setVariable("tv-action-right-formatted-value", secondaryFormatted);
+		} else {
+			self.setVariable("tv-action-top-tiddler", pair.primaryTiddler || "");
+			self.setVariable("tv-action-bottom-tiddler", pair.secondaryTiddler || "");
+			self.setVariable("tv-action-top-field", pair.primaryField || "text");
+			self.setVariable("tv-action-bottom-field", pair.secondaryField || "text");
+
+			self.setVariable("tv-action-top-value-pixels", primaryPx.toString());
+			self.setVariable("tv-action-bottom-value-pixels", secondaryPx.toString());
+			self.setVariable("tv-action-top-value-percent-of-parent", primaryPercent.toString());
+			self.setVariable("tv-action-bottom-value-percent-of-parent", secondaryPercent.toString());
+			self.setVariable("tv-action-formatted-top-value-percent-of-parent", self.formatValueWithUnit(primaryPercent, "%"));
+			self.setVariable("tv-action-formatted-bottom-value-percent-of-parent", self.formatValueWithUnit(secondaryPercent, "%"));
+			self.setVariable("tv-action-top-formatted-value", primaryFormatted);
+			self.setVariable("tv-action-bottom-formatted-value", secondaryFormatted);
+		}
+	};
+
+	var updateSplitPairValues = function(pixelDelta, operation) {
+		var pair = operation.splitPair;
+		if(!pair) {
+			return;
+		}
+
+		var minPx = Math.max(pair.minPx || 0, 0);
+		var maxPrimaryPx = pair.pairStartPx - minPx;
+
+		if(pair.maxPx !== null && pair.maxPx > 0) {
+			maxPrimaryPx = Math.min(maxPrimaryPx, pair.maxPx);
+		}
+
+		if(maxPrimaryPx < minPx) {
+			minPx = Math.max(pair.pairStartPx / 2, 0);
+			maxPrimaryPx = minPx;
+		}
+
+		var requestedPrimaryPx = pair.primaryStartPx + pixelDelta;
+		var primaryPx = self.applyConstraints(requestedPrimaryPx, minPx, maxPrimaryPx);
+		var secondaryPx = pair.pairStartPx - primaryPx;
+		var clampedDelta = primaryPx - pair.primaryStartPx;
+
+		pair.currentPrimaryPx = primaryPx;
+		pair.currentSecondaryPx = secondaryPx;
+		pair.lastClampedDelta = clampedDelta;
+
+		var parentSize = pair.parentSizeAtStart || operation.parentSizeAtStart;
+		var primaryValue = formatSplitPairValue(primaryPx, pair.primaryElement, parentSize);
+		var secondaryValue = formatSplitPairValue(secondaryPx, pair.secondaryElement, parentSize);
+
+		pair.currentPrimaryValue = primaryValue;
+		pair.currentSecondaryValue = secondaryValue;
+
+		if(self.splitPairSave !== "end") {
+			self.wiki.setText(pair.primaryTiddler, pair.primaryField || "text", null, primaryValue);
+			self.wiki.setText(pair.secondaryTiddler, pair.secondaryField || "text", null, secondaryValue);
+		}
+
+		if(self.splitPairLiveResize === "yes" || self.liveResize === "yes") {
+			pair.primaryElement.style[self.targetProperty] = primaryValue;
+			pair.secondaryElement.style[self.targetProperty] = secondaryValue;
+
+			// For flex layouts, width/height alone may not be enough.
+			// flexBasis makes horizontal and vertical split-pair resizing much more stable.
+			if(pair.primaryElement.style) {
+				pair.primaryElement.style.flexBasis = primaryValue;
+			}
+			if(pair.secondaryElement.style) {
+				pair.secondaryElement.style.flexBasis = secondaryValue;
+			}
+		}
+
+		if(self.actions) {
+			setSplitPairActionVariables(operation, pixelDelta, "actions");
+			self.setVariable("tv-action-direction", self.direction);
+			self.setVariable("tv-action-property", self.targetProperty);
+			self.setVariable("tv-action-handle-size", operation.handleSize.toString());
+			self.setVariable("tv-action-parent-size", operation.parentSizeAtStart.toString());
+			self.invokeActionString(self.actions, self);
+		}
+	};
+
+	var commitSplitPairValues = function(operation) {
+		if(!operation || !operation.splitPair || self.splitPairSave !== "end") {
+			return;
+		}
+
+		var pair = operation.splitPair;
+
+		if(pair.currentPrimaryValue !== undefined && pair.currentPrimaryValue !== null) {
+			self.wiki.setText(pair.primaryTiddler, pair.primaryField || "text", null, pair.currentPrimaryValue);
+		}
+
+		if(pair.currentSecondaryValue !== undefined && pair.currentSecondaryValue !== null) {
+			self.wiki.setText(pair.secondaryTiddler, pair.secondaryField || "text", null, pair.currentSecondaryValue);
+		}
+	};
+
 	// Helper to update the tiddler values based on drag delta (in pixels)
 	var updateValues = function(pixelDelta, operation) {
+		if(self.resizeMode === "split-pair" && operation.splitPair) {
+			updateSplitPairValues(pixelDelta, operation);
+			return;
+		}
 		// Get fresh measurements for accurate calc() evaluation
 		// This ensures that if parent size or handle size changes during resize, we use current values
 		var measureElement = operation.targetElements && operation.targetElements[0] ? operation.targetElements[0] : domNode;
@@ -1104,15 +1493,28 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 			}
 			
 			// Convert to widget's unit for the action
-			var actionValue = self.convertFromPixels(actionPixelValue, self.unit, getParentSize(domNode), domNode);
-			var formattedValue;
-			if(self.unit === "%") {
-				formattedValue = actionValue.toFixed(1) + "%";
-			} else if(self.unit === "em" || self.unit === "rem") {
-				formattedValue = actionValue.toFixed(2) + self.unit;
-			} else {
-				formattedValue = Math.round(actionValue) + (self.unit || "px");
-			}
+			var actionValue = self.convertFromPixels(
+				actionPixelValue,
+				self.unit,
+				operation.parentSizeAtStart,
+				operation.targetElement || domNode
+			);
+
+			var formattedValue = self.formatValueWithUnit(actionValue, self.unit);
+
+			var actionPercentOfParent = operation.parentSizeAtStart > 0
+				? (actionPixelValue * 100) / operation.parentSizeAtStart
+				: 0;
+
+			var actionDeltaPercentOfParent = operation.parentSizeAtStart > 0
+				? (clampedDelta * 100) / operation.parentSizeAtStart
+				: 0;
+
+			self.setVariable("tv-action-value-percent-of-parent", actionPercentOfParent.toString());
+			self.setVariable("tv-action-formatted-value-percent-of-parent", self.formatValueWithUnit(actionPercentOfParent, "%"));
+			self.setVariable("tv-action-delta-pixels", clampedDelta.toString());
+			self.setVariable("tv-action-delta-percent-of-parent", actionDeltaPercentOfParent.toString());
+			self.setVariable("tv-action-formatted-delta-percent-of-parent", self.formatValueWithUnit(actionDeltaPercentOfParent, "%"));
 			// Set variables for the action string
 			self.setVariable("tv-action-value", actionValue.toString());
 			self.setVariable("tv-action-value-pixels", actionPixelValue.toString());
@@ -1142,7 +1544,10 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 			animationFrameId: null,
 			pendingMouseEvent: null,
 			hasPointerCapture: false,
-			cursor: null
+			cursor: null,
+			pointerToResizeBoundaryOffset: null,
+			resizeFixedEdgeAtStart: null,
+			resizeBoundaryAtStart: null
 		};
 	};
 	
@@ -1190,7 +1595,9 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 		operation.initialMouseX = event.clientX;
 		operation.initialMouseY = event.clientY;
 		
-		// For now, use simple start position without offset adjustment
+		// Store the raw pointer start position for backwards-compatible delta values.
+		// The exact handle grab offset is calculated later after the target
+		// element and operation.startValue are known.
 		operation.startX = event.clientX;
 		operation.startY = event.clientY;
 		
@@ -1246,33 +1653,157 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 		operation.startValues = {}; // Create object when needed
 		operation.startUnits = {}; // Create object when needed
 		
-		// Helper to get the actual computed size of an element
+		// Helper to get the actual computed size of an element.
+		// If visiblePortion="yes", this returns the visible portion of the target
+		// element's own border box after intersecting it with the viewport and all
+		// clipping ancestors.
+		//
+		// Important:
+		// - This deliberately does not union descendant rectangles.
+		// - It must not include the resizer handle, handle grip, sidebar content,
+		//   or overflowing children.
+		// - The returned size is relative to the target element itself.
 		var getElementSize = function(element) {
-			if(!element) return null;
-			var rect = element.getBoundingClientRect();
-			
-			// If visiblePortion is enabled, calculate only the visible portion
-			if(self.visiblePortion === "yes") {
-				var viewportWidth = self.document.documentElement.clientWidth || self.document.body.clientWidth;
-				var viewportHeight = self.document.documentElement.clientHeight || self.document.body.clientHeight;
-				
-				if(self.direction === "horizontal") {
-					// Calculate visible width
-					var leftVisible = Math.max(0, rect.left);
-					var rightVisible = Math.min(viewportWidth, rect.right);
-					// If element is completely outside viewport, return 0
-					if(leftVisible >= rightVisible) return 0;
-					return rightVisible - leftVisible;
-				} else {
-					// Calculate visible height
-					var topVisible = Math.max(0, rect.top);
-					var bottomVisible = Math.min(viewportHeight, rect.bottom);
-					// If element is completely outside viewport, return 0
-					if(topVisible >= bottomVisible) return 0;
-					return bottomVisible - topVisible;
-				}
+			if(!element) {
+				return null;
 			}
-			
+
+			var viewportClipRect = function() {
+				var docEl = self.document.documentElement;
+				var body = self.document.body;
+				var width = self.document.defaultView && self.document.defaultView.innerWidth
+					? self.document.defaultView.innerWidth
+					: (docEl.clientWidth || body.clientWidth || 0);
+				var height = self.document.defaultView && self.document.defaultView.innerHeight
+					? self.document.defaultView.innerHeight
+					: (docEl.clientHeight || body.clientHeight || 0);
+
+				return {
+					left: 0,
+					top: 0,
+					right: width,
+					bottom: height
+				};
+			};
+
+			var normalizeRect = function(rect) {
+				return {
+					left: rect.left,
+					top: rect.top,
+					right: rect.right,
+					bottom: rect.bottom
+				};
+			};
+
+			var rectWidth = function(rect) {
+				return Math.max(0, rect.right - rect.left);
+			};
+
+			var rectHeight = function(rect) {
+				return Math.max(0, rect.bottom - rect.top);
+			};
+
+			var intersectRects = function(a, b) {
+				var result = {
+					left: Math.max(a.left, b.left),
+					top: Math.max(a.top, b.top),
+					right: Math.min(a.right, b.right),
+					bottom: Math.min(a.bottom, b.bottom)
+				};
+
+				if(result.right <= result.left || result.bottom <= result.top) {
+					return null;
+				}
+
+				return result;
+			};
+
+			var overflowClips = function(value) {
+				return value === "hidden" ||
+					value === "clip" ||
+					value === "auto" ||
+					value === "scroll";
+			};
+
+			var getElementClientClipRect = function(clipElement) {
+				var rect = clipElement.getBoundingClientRect();
+
+				// clientLeft/clientTop remove the border from the clipping box.
+				// clientWidth/clientHeight represent the inner visible box.
+				var left = rect.left + (clipElement.clientLeft || 0);
+				var top = rect.top + (clipElement.clientTop || 0);
+				var width = clipElement.clientWidth || Math.max(0, rect.width);
+				var height = clipElement.clientHeight || Math.max(0, rect.height);
+
+				return {
+					left: left,
+					top: top,
+					right: left + width,
+					bottom: top + height
+				};
+			};
+
+			var getVisibleRect = function(targetElement) {
+				// Start with the target element's own border box only.
+				// Do not include descendants; descendants can include the resizer handle
+				// or overflowing sidebar content and would corrupt the measured width.
+				var visibleRect = normalizeRect(targetElement.getBoundingClientRect());
+				var clipRect = viewportClipRect();
+
+				visibleRect = intersectRects(visibleRect, clipRect);
+				if(!visibleRect) {
+					return null;
+				}
+
+				// Walk from the element itself upward. Including the element itself is
+				// useful if the target has overflow:hidden/auto/scroll/clip.
+				var current = targetElement;
+
+				while(current && current.nodeType === 1 && current !== self.document.body.parentElement) {
+					var style;
+
+					try {
+						style = self.document.defaultView.getComputedStyle(current);
+					} catch(e) {
+						style = null;
+					}
+
+					if(style) {
+						var clipsX = overflowClips(style.overflowX);
+						var clipsY = overflowClips(style.overflowY);
+						var clipsShorthand = overflowClips(style.overflow);
+
+						if(clipsX || clipsY || clipsShorthand) {
+							var elementClipRect = getElementClientClipRect(current);
+							visibleRect = intersectRects(visibleRect, elementClipRect);
+
+							if(!visibleRect) {
+								return null;
+							}
+						}
+					}
+
+					current = current.parentElement;
+				}
+
+				return visibleRect;
+			};
+
+			var rect;
+
+			if(self.visiblePortion === "yes") {
+				rect = getVisibleRect(element);
+
+				if(!rect) {
+					return 0;
+				}
+
+				return self.direction === "horizontal"
+					? rectWidth(rect)
+					: rectHeight(rect);
+			}
+
+			rect = element.getBoundingClientRect();
 			return self.direction === "horizontal" ? rect.width : rect.height;
 		};
 		
@@ -1311,7 +1842,12 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 						operation.startUnits[tiddlerTitle] = valueUnit;
 						
 						// Convert to pixels for internal calculations
-						var pixelValue = self.convertToPixels(numericValue, valueUnit, getParentSize(domNode), domNode);
+						var pixelValue = self.convertToPixels(
+							numericValue,
+							valueUnit,
+							operation.parentSizeAtStart,
+							operation.targetElement || domNode
+						);
 						operation.startValues[tiddlerTitle] = pixelValue;
 					}
 				}
@@ -1348,7 +1884,12 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 					self.unit = valueUnit;
 					
 					// Convert to pixels for internal calculations
-					operation.startValue = self.convertToPixels(numericValue, valueUnit, getParentSize(domNode), domNode);
+					operation.startValue = self.convertToPixels(
+						numericValue,
+						valueUnit,
+						operation.parentSizeAtStart,
+						operation.targetElement || domNode
+					);
 				}
 			}
 		} else {
@@ -1360,6 +1901,16 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 				operation.startValue = self.evaluateCSSValue(self.defaultValue || "200px", operation.parentSizeAtStart, handleSize);
 			}
 		}
+		
+		// Set up coupled adjacent-column resizing after the generic start value
+		// detection, so the split-pair mode can override operation.startValue
+		// without removing any of the legacy logic above.
+		setupSplitPairOperation(operation);
+
+		// Now that operation.targetElement and operation.startValue are final,
+		// capture the exact pointer offset from the moving resize boundary.
+		// This keeps the handle anchored to the point where it was grabbed.
+		setupHandleGrabOffset(event, operation);
 		
 		// Add active class
 		domNode.classList.add("tc-resizer-active");
@@ -1375,14 +1926,7 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 			// Convert pixel value to the widget's unit
 			var referenceElement = operation.targetElements && operation.targetElements[0] ? operation.targetElements[0] : domNode;
 			var convertedValue = self.convertFromPixels(operation.startValue, self.unit, getParentSize(referenceElement), referenceElement);
-			var formattedValue;
-			if(self.unit === "%") {
-				formattedValue = convertedValue.toFixed(1) + "%";
-			} else if(self.unit === "em" || self.unit === "rem") {
-				formattedValue = convertedValue.toFixed(2) + self.unit;
-			} else {
-				formattedValue = Math.round(convertedValue) + (self.unit || "px");
-			}
+			var formattedValue = self.formatValueWithUnit(convertedValue, self.unit);
 			
 			// Set variables for the action string
 			self.setVariable("tv-action-value", convertedValue.toString());
@@ -1392,6 +1936,9 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 			self.setVariable("tv-action-property", self.targetProperty);
 			self.setVariable("tv-action-handle-size", handleSize.toString());
 			self.setVariable("tv-action-parent-size", operation.parentSizeAtStart.toString());
+			if(operation.splitPair) {
+				setSplitPairActionVariables(operation, 0, "before-resize-start");
+			}
 			self.invokeActionString(self.onBeforeResizeStart, self);
 		}
 		
@@ -1400,14 +1947,7 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 			// Convert pixel value to the widget's unit
 			var referenceElement = operation.targetElements && operation.targetElements[0] ? operation.targetElements[0] : domNode;
 			var convertedValue = self.convertFromPixels(operation.startValue, self.unit, getParentSize(referenceElement), referenceElement);
-			var formattedValue;
-			if(self.unit === "%") {
-				formattedValue = convertedValue.toFixed(1) + "%";
-			} else if(self.unit === "em" || self.unit === "rem") {
-				formattedValue = convertedValue.toFixed(2) + self.unit;
-			} else {
-				formattedValue = Math.round(convertedValue) + (self.unit || "px");
-			}
+			var formattedValue = self.formatValueWithUnit(convertedValue, self.unit);
 			
 			// Set variables for the action string
 			self.setVariable("tv-action-value", convertedValue.toString());
@@ -1417,6 +1957,9 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 			self.setVariable("tv-action-property", self.targetProperty);
 			self.setVariable("tv-action-handle-size", handleSize.toString());
 			self.setVariable("tv-action-parent-size", operation.parentSizeAtStart.toString());
+			if(operation.splitPair) {
+				setSplitPairActionVariables(operation, 0, "resize-start");
+			}
 			self.invokeActionString(self.onResizeStart, self);
 		}
 		
@@ -1529,6 +2072,14 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 				} else {
 					pixelDelta = self.invertDirection === "yes" ? -deltaY : deltaY;
 				}
+
+				// Correct the delta for the exact point inside the handle where the
+				// pointer was pressed. This prevents jumps/drift when the handle has
+				// thickness or when visiblePortion changes the measured start size.
+				var handleGrabOffsetPixelDelta = getHandleGrabOffsetPixelDelta(operation.pendingMouseEvent, operation);
+				if(handleGrabOffsetPixelDelta !== null) {
+					pixelDelta = handleGrabOffsetPixelDelta;
+				}
 				
 				// Update all values based on the pixel delta
 				updateValues(pixelDelta, operation);
@@ -1542,16 +2093,24 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 					}
 					
 					// Convert to widget's unit for the callback
-					var callbackValue = self.convertFromPixels(callbackPixelValue, self.unit, getParentSize(domNode), domNode);
-					var formattedValue;
-					if(self.unit === "%") {
-						formattedValue = callbackValue.toFixed(1) + "%";
-					} else if(self.unit === "em" || self.unit === "rem") {
-						formattedValue = callbackValue.toFixed(2) + self.unit;
-					} else {
-						formattedValue = Math.round(callbackValue) + (self.unit || "px");
-					}
+					var callbackValue = self.convertFromPixels(
+						callbackPixelValue,
+						self.unit,
+						operation.parentSizeAtStart,
+						operation.targetElement || domNode
+					);
+
+					var formattedValue = self.formatValueWithUnit(callbackValue, self.unit);
 					
+					var callbackPercentOfParent = operation.parentSizeAtStart > 0
+						? (callbackPixelValue * 100) / operation.parentSizeAtStart
+						: 0;
+
+					var deltaPixels = self.direction === "horizontal" ? pixelDelta : pixelDelta;
+					var deltaPercentOfParent = operation.parentSizeAtStart > 0
+						? (deltaPixels * 100) / operation.parentSizeAtStart
+						: 0;
+
 					// Set variables for the action string
 					self.setVariable("tv-action-value", callbackValue.toString());
 					self.setVariable("tv-action-value-pixels", callbackPixelValue.toString());
@@ -1562,53 +2121,29 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 					self.setVariable("tv-action-delta-y", deltaY.toString());
 					self.setVariable("tv-action-handle-size", operation.handleSize.toString());
 					self.setVariable("tv-action-parent-size", operation.parentSizeAtStart.toString());
+					self.setVariable("tv-action-value-percent-of-parent", callbackPercentOfParent.toString());
+					self.setVariable("tv-action-formatted-value-percent-of-parent", self.formatValueWithUnit(callbackPercentOfParent, "%"));
+					self.setVariable("tv-action-delta-pixels", deltaPixels.toString());
+					self.setVariable("tv-action-delta-percent-of-parent", deltaPercentOfParent.toString());
+					self.setVariable("tv-action-formatted-delta-percent-of-parent", self.formatValueWithUnit(deltaPercentOfParent, "%"));
+					if(operation.splitPair) {
+						setSplitPairActionVariables(operation, pixelDelta, "resize");
+					}
 					self.invokeActionString(self.onResize, self);
 				}
 				
 				// Optionally update the target element(s) directly for immediate feedback
-				if(self.liveResize === "yes" && operation.targetElements.length > 0) {
+				if(self.liveResize === "yes" && operation.targetElements.length > 0 && !(self.resizeMode === "split-pair" && operation.splitPair)) {
 					// For live resize of DOM elements, we'll use the first tiddler's value as reference
 					var livePixelValue = operation.startValue + pixelDelta;
 					if(self.targetTiddlers && self.targetTiddlers.length > 0 && operation.startValues[self.targetTiddlers[0]] !== undefined) {
 						livePixelValue = operation.startValues[self.targetTiddlers[0]] + pixelDelta;
 					}
 					
-					// If visiblePortion is enabled, adjust the pixel delta based on visible portion
-					if(self.visiblePortion === "yes" && operation.targetElements[0]) {
-						var element = operation.targetElements[0];
-						var rect = element.getBoundingClientRect();
-						var viewportWidth = self.document.documentElement.clientWidth || self.document.body.clientWidth;
-						var viewportHeight = self.document.documentElement.clientHeight || self.document.body.clientHeight;
-						
-						if(self.direction === "horizontal") {
-							// Check if element extends beyond viewport
-							if(rect.right > viewportWidth || rect.left < 0) {
-								// Calculate the actual visible width change needed
-								var currentVisibleWidth = Math.min(viewportWidth, rect.right) - Math.max(0, rect.left);
-								var targetVisibleWidth = operation.startValue + pixelDelta;
-								// Adjust the live pixel value to account for the clipped portion
-								var totalWidth = rect.width;
-								var visibleRatio = currentVisibleWidth / totalWidth;
-								if(visibleRatio > 0 && visibleRatio < 1) {
-									// Scale up the change to account for hidden portion
-									livePixelValue = operation.startValue + (pixelDelta / visibleRatio);
-								}
-							}
-						} else {
-							// Check if element extends beyond viewport vertically
-							if(rect.bottom > viewportHeight || rect.top < 0) {
-								var currentVisibleHeight = Math.min(viewportHeight, rect.bottom) - Math.max(0, rect.top);
-								var targetVisibleHeight = operation.startValue + pixelDelta;
-								var totalHeight = rect.height;
-								var visibleRatio = currentVisibleHeight / totalHeight;
-								if(visibleRatio > 0 && visibleRatio < 1) {
-									// Scale up the change to account for hidden portion
-									livePixelValue = operation.startValue + (pixelDelta / visibleRatio);
-								}
-							}
-						}
-					}
-					
+					// visiblePortion affects the measured start value only. Do not scale
+					// live resize deltas here; doing so makes the handle drift because it
+					// mixes viewport clipping with pointer-boundary math.
+
 					// Apply min/max constraints to the pixel value
 					// Get fresh measurements for accurate constraint evaluation
 					var measureElement = operation.targetElements && operation.targetElements[0] ? operation.targetElements[0] : domNode;
@@ -1758,6 +2293,8 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 		if(operation.pointerType === "touch" && self.hapticFeedback === "yes") {
 			self.triggerHaptic(5); // Short pulse for release
 		}
+
+		commitSplitPairValues(operation);
 		
 		self.cleanupResize(event.pointerId);
 		
@@ -1797,7 +2334,7 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 				finalPixelValue = self.convertToPixels(finalValue, currentUnit, parentSize, referenceElement);
 			}
 			
-			var formattedValue = self.unit === "%" ? finalValue.toFixed(1) + "%" : Math.round(finalValue) + (self.unit || "px");
+			var formattedValue = self.formatValueWithUnit(finalValue, self.unit);
 			// Set variables for the action string
 			self.setVariable("tv-action-value", finalValue.toString());
 			self.setVariable("tv-action-value-pixels", finalPixelValue.toString());
@@ -1806,6 +2343,9 @@ ResizerWidget.prototype.addEventHandlers = function(domNode) {
 			self.setVariable("tv-action-property", self.targetProperty);
 			self.setVariable("tv-action-handle-size", operation.handleSize.toString());
 			self.setVariable("tv-action-parent-size", operation.parentSizeAtStart.toString());
+			if(operation.splitPair) {
+				setSplitPairActionVariables(operation, operation.splitPair.lastClampedDelta || 0, "resize-end");
+			}
 			self.invokeActionString(self.onResizeEnd, self);
 		}
 	};
@@ -1893,7 +2433,28 @@ ResizerWidget.prototype.execute = function() {
 	this.resizerClass = this.getAttribute("class", "");
 	this.actions = this.getAttribute("actions");
 	this.aspectRatio = this.getAttribute("aspectRatio"); // e.g., "16:9" or "1.5"
-	this.resizeMode = this.getAttribute("mode", "single"); // single or multiple
+	this.resizeMode = this.getAttribute("mode", "single"); // single, multiple, or split-pair
+
+	// Split-pair mode resizes two adjacent elements as a coupled pair.
+	// horizontal: left side grows by delta, right side shrinks by the same delta.
+	// vertical:   top side grows by delta, bottom side shrinks by the same delta.
+	this.leftTiddler = this.getAttribute("leftTiddler");
+	this.rightTiddler = this.getAttribute("rightTiddler");
+	this.topTiddler = this.getAttribute("topTiddler");
+	this.bottomTiddler = this.getAttribute("bottomTiddler");
+
+	this.leftField = this.getAttribute("leftField", this.targetField || "text");
+	this.rightField = this.getAttribute("rightField", this.targetField || "text");
+	this.topField = this.getAttribute("topField", this.targetField || "text");
+	this.bottomField = this.getAttribute("bottomField", this.targetField || "text");
+
+	this.leftSelector = this.getAttribute("leftSelector");
+	this.rightSelector = this.getAttribute("rightSelector");
+	this.topSelector = this.getAttribute("topSelector");
+	this.bottomSelector = this.getAttribute("bottomSelector");
+
+	this.splitPairLiveResize = this.getAttribute("splitPairLiveResize", this.liveResize);
+	this.splitPairSave = this.getAttribute("splitPairSave", "end"); // "end" avoids refresh flicker during split-pair drags
 	this.handlePosition = this.getAttribute("handlePosition", "after"); // before, after, overlay
 	this.onBeforeResizeStart = this.getAttribute("onBeforeResizeStart");
 	this.onResizeStart = this.getAttribute("onResizeStart");
