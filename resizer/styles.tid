@@ -679,11 +679,11 @@ body.tc-resizing .tc-edit-texteditor textarea {
 	}
 	
 	/* Enhanced touch targets for all resizers */
-	.tc-resizer:not(.tc-sidebar-resizer) {
+	.tc-resizer:not(.tc-sidebar-resizer):not(.tc-flexbox-story-column-resizer-flexbox) {
 		position: relative;
 	}
 	
-	.tc-resizer[data-direction="horizontal"]:not(.tc-tiddler-editor-resizer) {
+	.tc-resizer[data-direction="horizontal"]:not(.tc-tiddler-editor-resizer):not(.tc-flexbox-story-column-resizer-flexbox) {
 		min-width: 20px;
 	}
 	
