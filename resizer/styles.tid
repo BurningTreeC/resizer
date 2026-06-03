@@ -1,6 +1,8 @@
 title: $:/plugins/BTC/resizer/styles
 tags: $:/tags/Stylesheet
 
+\rules only filteredtranscludeinline transcludeinline macrodef macrocallinline macrocallblock conditional
+
 /* =================================================================
    BASE RESIZER STYLES
    Common styles for all resizer components
@@ -884,7 +886,7 @@ body.tc-resizing .tc-resize-overlay {
 	box-sizing: border-box;
 }
 
-.tc-sidebar-lists {
+.tc-sidebar-lists:not(.tc-sidebar-search) {
 	overflow-x: auto;
 }
 
@@ -1425,4 +1427,441 @@ body.tc-resizing .tc-resize-overlay {
 	padding: 0 !important;
 	border-width: 0 !important;
 	overflow: hidden !important;
+}
+
+.btc-resizer-demo-box {
+	border: 1px solid <<colour border>>;
+	border-radius: 8px;
+	background: <<colour background>>;
+	overflow: hidden;
+	margin: 1em 0;
+}
+
+.btc-resizer-demo-title {
+	font-weight: bold;
+	padding: 0.45em 0.7em;
+	border-bottom: 1px solid <<colour border>>;
+	background: <<colour very-muted-foreground>>;
+}
+
+.btc-resizer-horizontal-split,
+.btc-resizer-three-pane {
+	display: flex;
+	flex-direction: row;
+	width: 100%;
+	min-width: 0;
+	min-height: 18em;
+}
+
+.btc-resizer-vertical-split {
+	display: flex;
+	flex-direction: column;
+	width: 100%;
+	min-width: 0;
+	height: 28em;
+	min-height: 0;
+}
+
+.btc-resizer-pane {
+	box-sizing: border-box;
+	min-width: 0;
+	min-height: 0;
+	padding: 0.8em;
+	overflow: auto;
+}
+
+.btc-resizer-flex-pane {
+	flex-grow: 0;
+	flex-shrink: 0;
+	box-sizing: border-box;
+	min-width: 0;
+	min-height: 0;
+	overflow: auto;
+}
+
+.btc-resizer-fill-pane {
+	flex: 1 1 auto;
+	box-sizing: border-box;
+	min-width: 0;
+	min-height: 0;
+	overflow: auto;
+}
+
+.btc-resizer-handle {
+	flex: 0 0 auto;
+	background: <<colour very-muted-foreground>>;
+}
+
+.btc-resizer-handle[data-direction="horizontal"],
+.btc-resizer-handle.tc-resizer[data-direction="horizontal"] {
+	width: 8px;
+	cursor: ew-resize;
+}
+
+.btc-resizer-handle[data-direction="vertical"],
+.btc-resizer-handle.tc-resizer[data-direction="vertical"] {
+	height: 8px;
+	cursor: ns-resize;
+}
+
+.btc-resizer-handle:hover,
+.btc-resizer-handle.tc-resizer-active {
+	background: <<colour muted-foreground>>;
+}
+
+.btc-resizer-sidebar-shell {
+	display: flex;
+	flex-direction: row;
+	min-width: 0;
+	min-height: 28em;
+	border: 1px solid <<colour border>>;
+	border-radius: 8px;
+	overflow: clip;
+}
+
+.btc-resizer-sidebar {
+	flex-grow: 0;
+	flex-shrink: 0;
+	flex-basis: var(--btc-example-sidebar-width, 20rem);
+	width: var(--btc-example-sidebar-width, 20rem);
+	min-width: 0;
+	overflow: auto;
+	box-sizing: border-box;
+	padding: 0.8em;
+	background: <<colour very-muted-foreground>>;
+}
+
+.btc-resizer-main {
+	flex: 1 1 auto;
+	min-width: 0;
+	overflow: auto;
+	box-sizing: border-box;
+	padding: 0.8em;
+}
+
+.btc-resizer-table {
+	width: 100%;
+	table-layout: fixed;
+	border-collapse: collapse;
+}
+
+.btc-resizer-table th,
+.btc-resizer-table td {
+	border: 1px solid <<colour border>>;
+	padding: 0.45em 0.55em;
+	vertical-align: top;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.btc-resizer-table th {
+	position: relative;
+	background: <<colour very-muted-foreground>>;
+}
+
+.btc-resizer-table-col-handle {
+	position: absolute;
+	top: 0;
+	right: -4px;
+	bottom: 0;
+	width: 8px;
+	z-index: 10;
+}
+
+.btc-resizer-preset-card {
+	border: 1px solid <<colour border>>;
+	border-radius: 8px;
+	padding: 1em;
+	overflow: auto;
+	box-sizing: border-box;
+	background: <<colour background>>;
+}
+
+.btc-resizer-cssvar-demo {
+	width: var(--btc-cssvar-panel-width, 22rem);
+	max-width: 100%;
+	border: 1px solid <<colour border>>;
+	border-radius: 8px;
+	padding: 1em;
+	box-sizing: border-box;
+	overflow: auto;
+}
+
+.btc-rgrid-table {
+	--btc-rgrid-columns-template: repeat(4, minmax(0, 1fr));
+	--btc-rgrid-gap: 0px;
+	--btc-rgrid-cell-gap: 0.35rem;
+	--btc-rgrid-row-min-height: 3rem;
+	--btc-rgrid-border: <<colour border>>;
+	--btc-rgrid-background: <<colour background>>;
+	--btc-rgrid-header-background: <<colour very-muted-foreground>>;
+	--btc-rgrid-muted-background: <<colour very-muted-foreground>>;
+	--btc-rgrid-handle-size: 16px;
+	--btc-rgrid-handle-line: <<colour muted-foreground>>;
+	--btc-rgrid-handle-active: <<colour foreground>>;
+
+	position: relative;
+	width: 100%;
+	max-width: 100%;
+	box-sizing: border-box;
+	overflow: visible;
+	border: 1px solid var(--btc-rgrid-border);
+	border-radius: 8px;
+	background: var(--btc-rgrid-background);
+}
+
+.btc-rgrid-content {
+	display: grid;
+	grid-template-columns: var(--btc-rgrid-columns-template);
+	grid-auto-rows: minmax(var(--btc-rgrid-row-min-height), auto);
+	gap: 0;
+	width: 100%;
+	min-width: 0;
+	box-sizing: border-box;
+	position: relative;
+	z-index: 1;
+	padding: calc(var(--btc-rgrid-cell-gap) / 2);
+	overflow: visible;
+}
+
+/*
+	This wrapper is the exact grid cell.
+	Do not put the visual border/background here.
+	The resize handle is anchored to this wrapper.
+*/
+.btc-rgrid-cell {
+	position: relative;
+	box-sizing: border-box;
+	min-width: 0;
+	min-height: 0;
+	padding: calc(var(--btc-rgrid-cell-gap) / 2);
+	border: none;
+	background: transparent;
+	overflow: visible;
+}
+
+/*
+	This is the visible cell box.
+	The visual space between cells comes from the wrapper padding.
+*/
+.btc-rgrid-cell-content {
+	min-width: 0;
+	min-height: 0;
+	height: 100%;
+	box-sizing: border-box;
+	overflow: auto;
+
+	border: 1px solid var(--btc-rgrid-border);
+	border-radius: 4px;
+	background: var(--btc-rgrid-background);
+	padding: 0.75em 0.95em;
+}
+
+.btc-rgrid-cell-header > .btc-rgrid-cell-content {
+	font-weight: bold;
+	background: var(--btc-rgrid-header-background);
+}
+
+.btc-rgrid-cell-muted > .btc-rgrid-cell-content {
+	background: var(--btc-rgrid-muted-background);
+}
+
+.btc-rgrid-cell-center > .btc-rgrid-cell-content {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	text-align: center;
+}
+
+.btc-rgrid-cell-title {
+	font-weight: bold;
+	margin-bottom: 0.35em;
+}
+
+/*
+	The handle is centered on the exact grid boundary.
+	Because both neighboring visual boxes are inset by half the cell gap,
+	this line now sits exactly in the middle of the visible space between cells.
+*/
+.btc-rgrid-cell > .tc-resizer.btc-rgrid-cell-resizer {
+	position: absolute;
+	z-index: 30;
+	top: calc(var(--btc-rgrid-cell-gap) / 2);
+	right: calc(var(--btc-rgrid-handle-size) / -2);
+	bottom: calc(var(--btc-rgrid-cell-gap) / 2);
+	left: auto;
+
+	width: var(--btc-rgrid-handle-size);
+	height: auto;
+	margin: 0;
+	padding: 0;
+
+	cursor: ew-resize;
+	background: transparent;
+	touch-action: none;
+	user-select: none;
+}
+
+/* Single visible resize line */
+.btc-rgrid-cell > .tc-resizer.btc-rgrid-cell-resizer::before {
+	content: "";
+	position: absolute;
+	top: 12%;
+	bottom: 12%;
+	left: 50%;
+	transform: translateX(-50%);
+	width: 1px;
+	border-radius: 999px;
+	background: var(--btc-rgrid-handle-line);
+	opacity: 0.38;
+	transition:
+		opacity 120ms ease,
+		width 120ms ease,
+		background-color 120ms ease;
+}
+
+/* Kill old double-line/grip decoration */
+.btc-rgrid-cell > .tc-resizer.btc-rgrid-cell-resizer::after {
+	content: none !important;
+	display: none !important;
+}
+
+.btc-rgrid-cell > .tc-resizer.btc-rgrid-cell-resizer:hover::before,
+.btc-rgrid-cell > .tc-resizer.btc-rgrid-cell-resizer.tc-resizer-active::before {
+	width: 2px;
+	background: var(--btc-rgrid-handle-active);
+	opacity: 0.85;
+}
+
+.btc-rgrid-cell:hover > .tc-resizer.btc-rgrid-cell-resizer::before {
+	opacity: 0.55;
+}
+
+/* Debug label */
+.btc-rgrid-debug .btc-rgrid-cell::after {
+	content: "c" attr(data-col) "/" attr(data-col-span) " r" attr(data-row) "/" attr(data-row-span);
+	position: absolute;
+	right: 1.1em;
+	bottom: 0.15em;
+	font-size: 0.7em;
+	opacity: 0.45;
+	pointer-events: none;
+}
+
+.btc-rgrid-table {
+	--btc-rgrid-columns-template: repeat(4, minmax(0, 1fr));
+	--btc-rgrid-rows-template: repeat(4, minmax(3rem, auto));
+	--btc-rgrid-row-min-height: 3rem;
+	--btc-rgrid-cell-gap: 0.35rem;
+	--btc-rgrid-border: <<colour border>>;
+	--btc-rgrid-background: <<colour background>>;
+	--btc-rgrid-header-background: <<colour very-muted-foreground>>;
+	--btc-rgrid-footer-background: <<colour very-muted-foreground>>;
+	--btc-rgrid-muted-background: <<colour very-muted-foreground>>;
+	--btc-rgrid-ghost-background: transparent;
+
+	position: relative;
+	width: 100%;
+	max-width: 100%;
+	box-sizing: border-box;
+	overflow: visible;
+	border: 1px solid var(--btc-rgrid-border);
+	border-radius: 8px;
+	background: var(--btc-rgrid-background);
+}
+
+.btc-rgrid-content {
+	display: grid;
+	grid-template-columns: var(--btc-rgrid-columns-template);
+	grid-template-rows: var(--btc-rgrid-rows-template);
+	grid-auto-rows: minmax(var(--btc-rgrid-row-min-height), auto);
+	gap: 0;
+	width: 100%;
+	min-width: 0;
+	box-sizing: border-box;
+	position: relative;
+	z-index: 1;
+	padding: calc(var(--btc-rgrid-cell-gap) / 2);
+	overflow: visible;
+}
+
+.btc-rgrid-cell {
+	position: relative;
+	box-sizing: border-box;
+	min-width: 0;
+	min-height: 0;
+	padding: calc(var(--btc-rgrid-cell-gap) / 2);
+	border: none;
+	background: transparent;
+	overflow: visible;
+	z-index: 2;
+}
+
+.btc-rgrid-cell-content {
+	min-width: 0;
+	min-height: 0;
+	height: 100%;
+	box-sizing: border-box;
+	overflow: auto;
+	border: 1px solid var(--btc-rgrid-border);
+	border-radius: 4px;
+	background: var(--btc-rgrid-background);
+	padding: 0.75em 0.95em;
+}
+
+.btc-rgrid-cell-header > .btc-rgrid-cell-content {
+	font-weight: bold;
+	background: var(--btc-rgrid-header-background);
+}
+
+.btc-rgrid-cell-footer > .btc-rgrid-cell-content {
+	font-weight: bold;
+	background: var(--btc-rgrid-footer-background);
+}
+
+.btc-rgrid-cell-muted > .btc-rgrid-cell-content {
+	background: var(--btc-rgrid-muted-background);
+}
+
+.btc-rgrid-cell-title {
+	font-weight: bold;
+	margin-bottom: 0.35em;
+	font-size: 0.9em;
+	opacity: 0.8;
+}
+
+.btc-rgrid-cell-ghost {
+	z-index: 0;
+	pointer-events: none;
+}
+
+.btc-rgrid-cell-ghost > .btc-rgrid-cell-content {
+	background: var(--btc-rgrid-ghost-background);
+	border-style: dashed;
+	opacity: 0.28;
+	padding: 0;
+}
+
+.btc-rgrid-cell:not(.btc-rgrid-cell-ghost) {
+	background: var(--btc-rgrid-background);
+}
+
+.btc-rgrid-debug .btc-rgrid-cell:not(.btc-rgrid-cell-ghost)::after {
+	content: attr(data-title) " c" attr(data-col) "/" attr(data-colspan) " r" attr(data-row) "/" attr(data-rowspan);
+	position: absolute;
+	right: 0.75em;
+	bottom: 0.35em;
+	font-size: 0.7em;
+	opacity: 0.45;
+	pointer-events: none;
+}
+
+.btc-rgrid-debug .btc-rgrid-cell-ghost::after {
+	content: "ghost c" attr(data-col) " r" attr(data-row);
+	position: absolute;
+	right: 0.75em;
+	bottom: 0.35em;
+	font-size: 0.65em;
+	opacity: 0.25;
+	pointer-events: none;
 }

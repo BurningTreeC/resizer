@@ -1,13 +1,16 @@
 # TiddlyWiki Resizer Widget Plugin
 
-A flexible, pointer-based resizer widget for TiddlyWiki. It can resize one tiddler, multiple tiddlers, live DOM elements, and paired split panes. It supports horizontal and vertical resizing, CSS units, `calc()` expressions, min/max constraints, pointer/touch input, double-click reset, action hooks, and a dedicated `split-pair` mode for adjacent panels such as left/right columns or top/bottom panes.
+A flexible, pointer-based resizer widget for TiddlyWiki. It can resize one tiddler, multiple tiddlers, live DOM elements, paired split panes, real HTML table columns, and CSS Grid column tracks. It supports horizontal and vertical resizing, CSS units, `calc()` expressions, min/max constraints, optional snap points, double-click preset cycling, CSS variable publishing, pointer/touch input, haptic feedback, double-click reset, action hooks, a dedicated `split-pair` mode for adjacent panels, a `table-column` mode for real HTML tables, and a `grid-track` mode for CSS Grid table-like layouts.
 
-The widget is intended for TiddlyWiki layouts where sizes are stored in state/config tiddlers and reused as CSS values. The normal `single` and `multiple` modes resize target values directly. The `split-pair` mode is different: it treats two adjacent panes as one pair, grows the first pane by the drag delta, shrinks the second pane by the same amount, and keeps the pair's total size stable.
+The widget is intended for TiddlyWiki layouts where sizes are stored in state/config tiddlers and reused as CSS values. Normal `single` and `multiple` modes resize target values directly. The `split-pair` mode treats two adjacent panes as one coupled pair: the first pane grows by the drag delta, the second pane shrinks by the same amount, and the pair's total size stays stable. The `table-column` mode resizes the real `<col>` element of an HTML table instead of trying to resize each `<td>` cell individually. The `grid-track` mode resizes the boundary between two adjacent CSS Grid column tracks, which is the right model for resizable CSS Grid tables with merged cells, ghost cells, and tiddler-driven placement.
+
+The refactored plugin keeps the public widget entry point compatible with the original monolithic widget while moving internal behavior into focused modules. Existing usage should continue to work, and the newer features are additive and opt-in.
 
 ## Contents
 
 - [Features](#features)
 - [Installation](#installation)
+- [Module Structure](#module-structure)
 - [Quick Start](#quick-start)
 - [Core Concepts](#core-concepts)
 - [Widget Attributes](#widget-attributes)
@@ -15,6 +18,13 @@ The widget is intended for TiddlyWiki layouts where sizes are stored in state/co
 - [Single-Target Resizing](#single-target-resizing)
 - [Multiple-Target Resizing](#multiple-target-resizing)
 - [Split-Pair Resizing](#split-pair-resizing)
+- [Table-Column Resizing](#table-column-resizing)
+- [Grid-Track Resizing](#grid-track-resizing)
+- [CSS Grid Table Procedures](#css-grid-table-procedures)
+- [Placed Tiddler Grid Tables](#placed-tiddler-grid-tables)
+- [Snap Points](#snap-points)
+- [Preset Cycling](#preset-cycling)
+- [CSS Variable Publishing](#css-variable-publishing)
 - [Live DOM Resizing](#live-dom-resizing)
 - [Double-Click Reset](#double-click-reset)
 - [CSS `calc()` Support](#css-calc-support)
@@ -22,6 +32,7 @@ The widget is intended for TiddlyWiki layouts where sizes are stored in state/co
 - [Constraints](#constraints)
 - [Styling](#styling)
 - [Layout Procedures](#layout-procedures)
+- [TiddlyFlex Column Management](#tiddlyflex-column-management)
 - [Debugging and Troubleshooting](#debugging-and-troubleshooting)
 - [Browser Compatibility](#browser-compatibility)
 - [Contributing](#contributing)
@@ -33,24 +44,33 @@ The widget is intended for TiddlyWiki layouts where sizes are stored in state/co
 - **Single-target resizing**: Resize one tiddler field, usually `text`, and use the saved value as a CSS size.
 - **Multiple-target resizing**: Resize several tiddlers at once using the `filter` attribute.
 - **Split-pair resizing**: Resize two adjacent panes as a coupled pair with `mode="split-pair"`.
+- **Table-column resizing**: Resize the real `<col>` of an HTML table with `mode="table-column"`.
+- **Grid-track resizing**: Resize the boundary between two adjacent CSS Grid column tracks with `mode="grid-track"`.
+- **Resizable CSS Grid tables**: Build table-like CSS Grid layouts with merged cells, explicit row/column placement, and handles on cell boundaries.
+- **Tiddler-driven placed grid tables**: Generate cells from tagged tiddlers whose `row`, `col`, `rowspan`, and `colspan` fields define placement.
+- **Ghost placeholder cells**: Fill unoccupied grid coordinates with empty ghost cells so a declared `rows × columns` system remains stable.
 - **Horizontal and vertical split pairs**: Use `leftTiddler`/`rightTiddler` for horizontal pairs and `topTiddler`/`bottomTiddler` for vertical pairs.
 - **Stable pair size**: In `split-pair` mode, the first pane grows while the second pane shrinks, preserving the pair's total width or height.
+- **Snap points**: Optionally snap sizes to configured values such as `0px`, `16rem`, `33%`, or `50%`.
+- **Double-click preset cycling**: Cycle through named size presets on double-click or double-tap.
+- **CSS variable publishing**: Publish the current value to CSS custom properties such as `--btc-sidebar-width`.
 - **CSS unit support**: Supports `px`, `%`, `em`, `rem`, `vh`, `vw`, `vmin`, and `vmax`.
-- **CSS `calc()` support**: `min`, `max`, and `default` can use `calc()` expressions such as `calc(100% - 350px)`.
+- **CSS `calc()` support**: `min`, `max`, `default`, `snap`, and `snapDistance` can use supported `calc()` expressions such as `calc(100% - 350px)`.
 - **Unit preservation**: Existing tiddler units are detected and preserved where appropriate.
-- **Smart pixel conversion**: Internal drag calculations are performed in pixels, then converted back to the chosen unit.
+- **Smart pixel conversion**: Internal drag calculations are performed in pixels, then converted back to the chosen or original unit.
 - **Min/max constraints**: Prevents panes from shrinking below or growing beyond configured limits.
 - **Live DOM preview**: Optionally updates DOM styles during drag for immediate visual feedback.
 - **Action hooks**: Provides `actions`, `onBeforeResizeStart`, `onResizeStart`, `onResize`, `onResizeEnd`, `onReset`, and `dblClickActions`.
-- **Rich action variables**: Provides pixel, unit, percentage-of-parent, delta, parent-size, handle-size, and split-pair variables.
+- **Rich action variables**: Provides pixel, unit, percentage-of-parent, delta, parent-size, handle-size, snap, preset, table-column, and split-pair variables.
 - **Pointer events**: Works with mouse, pen, and touch through pointer events.
 - **Pointer capture and document-level tracking**: Dragging continues even if the pointer leaves the handle.
 - **Touch support**: Prevents unwanted scroll gestures during drag.
 - **Haptic feedback**: Optional vibration feedback on touch devices.
 - **Double-click reset**: Reset to default/min/max/custom values, or run custom double-click actions.
 - **Handle styles**: Supports visual styles such as `solid`, `dots`, `lines`, `chevron`, and `grip` if the plugin CSS defines them.
-- **Visible portion mode**: Optionally calculates resize based on visible portion for clipped elements.
+- **Visible portion mode**: Optionally calculates resize based on the visible portion of clipped elements.
 - **Aspect ratio support**: Can maintain aspect ratio for live DOM manipulation.
+- **Compatibility-first refactor**: The public widget tiddler remains `$:/plugins/BTC/resizer/modules/widgets/resizer.js`, while internal logic is modularized.
 
 ## Installation
 
@@ -71,6 +91,37 @@ The widget module itself is expected at:
 ```text
 $:/plugins/BTC/resizer/modules/widgets/resizer.js
 ```
+
+The refactored version also includes library modules under:
+
+```text
+$:/plugins/BTC/resizer/modules/utils/
+$:/plugins/BTC/resizer/modules/interactions/
+$:/plugins/BTC/resizer/modules/widgets/
+```
+
+All module tiddlers must be present. Do not import only `resizer.js` without the required library modules.
+
+## Module Structure
+
+The current refactor keeps the public widget shell small and installs behavior onto the same `ResizerWidget.prototype` from focused modules.
+
+| Module | Purpose |
+|---|---|
+| `$:/plugins/BTC/resizer/modules/widgets/resizer.js` | Public widget entry point. Requires and installs the other modules. |
+| `$:/plugins/BTC/resizer/modules/widgets/resizer-render.js` | DOM rendering, handle creation, double-click/double-tap handling, and haptic helper. |
+| `$:/plugins/BTC/resizer/modules/widgets/resizer-lifecycle.js` | Attribute parsing, refresh handling, cleanup, and widget lifecycle methods. |
+| `$:/plugins/BTC/resizer/modules/interactions/event-handlers.js` | Pointer handling, resize operation lifecycle, split-pair flow, grid-track dispatch, live resize, and cleanup of active drags. |
+| `$:/plugins/BTC/resizer/modules/interactions/grid-track.js` | Optional CSS Grid column-boundary resizing for `mode="grid-track"`. Freezes computed grid tracks at drag start/end and saves resolved track widths. |
+| `$:/plugins/BTC/resizer/modules/utils/global-manager.js` | Shared document-level `pointermove`, `pointerup`, and `pointercancel` manager. |
+| `$:/plugins/BTC/resizer/modules/utils/units.js` | Viewport measurement, font-size measurement, unit conversion, `calc()` evaluation, value formatting, target resolution, tiddler value helpers, and constraints. |
+| `$:/plugins/BTC/resizer/modules/utils/feature-adapters.js` | Adapter methods that attach optional feature modules to the widget prototype. |
+| `$:/plugins/BTC/resizer/modules/utils/snap.js` | Optional snap-point parsing and snapping logic. |
+| `$:/plugins/BTC/resizer/modules/utils/presets.js` | Optional double-click preset cycling. |
+| `$:/plugins/BTC/resizer/modules/utils/table-column.js` | Optional real `<col>` table-column resizing. |
+| `$:/plugins/BTC/resizer/modules/utils/css-variable.js` | Optional CSS custom property publishing. |
+
+This is still a compatibility refactor, not a behavior rewrite. Existing call sites should continue to use `<$resizer ... />`.
 
 ## Quick Start
 
@@ -96,6 +147,47 @@ Then use the stored value in your layout:
 </div>
 ```
 
+### Resize one tiddler with snap points
+
+```html
+<$resizer
+  direction="horizontal"
+  tiddler="$:/state/sidebar/width"
+  selector=".my-sidebar"
+  property="flexBasis"
+  unit="rem"
+  min="0px"
+  max="40rem"
+  snap="0px 14rem 22rem 34rem"
+  snapDistance="12px"
+  snapHaptic="yes"
+  live="yes"
+/>
+```
+
+### Resize one tiddler and publish a CSS variable
+
+```html
+<$resizer
+  direction="horizontal"
+  tiddler="$:/state/sidebar/width"
+  selector=".my-sidebar"
+  property="flexBasis"
+  unit="rem"
+  cssVariable="--btc-sidebar-width"
+  cssVariableTarget="root"
+  live="yes"
+/>
+```
+
+Use the published variable:
+
+```css
+.my-sidebar {
+  flex: 0 0 var(--btc-sidebar-width, 22rem);
+}
+```
+
 ### Resize a horizontal split pair
 
 ```html
@@ -119,7 +211,7 @@ Then use the stored value in your layout:
 </div>
 ```
 
-For this structure, `element="previousSibling"` makes the left pane the primary target. If your resizer is rendered *inside* the left pane, use `element="parent"` instead.
+For this structure, `element="previousSibling"` makes the left pane the primary target. If your resizer is rendered inside the left pane, use `element="parent"` instead.
 
 ### Resize a vertical split pair
 
@@ -144,6 +236,69 @@ For this structure, `element="previousSibling"` makes the left pane the primary 
 </div>
 ```
 
+### Resize a real table column
+
+```html
+<table class="my-table" data-resizer-id="demo-table">
+  <tr>
+    <th>Name</th>
+    <th>Status</th>
+    <th>Notes</th>
+  </tr>
+  <tr>
+    <td>A</td>
+    <td>Open</td>
+    <td>Resizable notes column</td>
+  </tr>
+</table>
+
+<$resizer
+  direction="horizontal"
+  mode="table-column"
+  tableSelector=".my-table"
+  tableColumnIndex="2"
+  unit="px"
+  min="80px"
+  max="500px"
+  snap="120px 180px 240px 320px"
+  tableColumnLiveResize="yes"
+  tableColumnSave="end"
+/>
+```
+
+
+### Resize a CSS Grid column boundary
+
+`mode="grid-track"` is for CSS Grid table-like layouts. The handle is usually rendered inside a grid cell and placed visually at the right boundary of that cell. The widget resizes the boundary between `gridTrackIndex` and `gridTrackIndex + 1`: the left track grows while the right track shrinks, so the pair total remains stable.
+
+```html
+<div class="btc-rgrid-table btc-rgrid-instance-demo" style="--btc-rgrid-columns-template: var(--btc-rgrid-col-1, 25%) var(--btc-rgrid-col-2, 25%) var(--btc-rgrid-col-3, 25%) var(--btc-rgrid-col-4, 25%);">
+  <div class="btc-rgrid-content">
+    <div class="btc-rgrid-cell" style="grid-area: 1 / 1 / span 1 / span 1;">
+      <div class="btc-rgrid-cell-content">A</div>
+      <$resizer
+        mode="grid-track"
+        class="btc-rgrid-cell-resizer"
+        direction="horizontal"
+        gridSelector=".btc-rgrid-instance-demo"
+        gridTrackIndex="1"
+        gridTrackStatePrefix="$:/state/grid/demo"
+        gridTrackMin="4%"
+        gridTrackMax="90%"
+        gridTrackLive="yes"
+        gridTrackSave="end"
+        gridTrackLiveUnit="px"
+        gridTrackSaveUnit="px"
+        gridTrackFreezeOnStart="yes"
+        gridTrackFreezeOnEnd="yes"
+      />
+    </div>
+  </div>
+</div>
+```
+
+For real use, prefer the CSS Grid table procedures later in this README instead of hand-writing the grid every time.
+
 ## Core Concepts
 
 ### Direction
@@ -155,6 +310,8 @@ For this structure, `element="previousSibling"` makes the left pane the primary 
 | `horizontal` | `clientX` movement | `width` | parent width |
 | `vertical` | `clientY` movement | `height` | parent height |
 
+For flexbox layouts, explicitly use `property="flexBasis"` when possible.
+
 ### Modes
 
 | Mode | Purpose |
@@ -162,6 +319,8 @@ For this structure, `element="previousSibling"` makes the left pane the primary 
 | `single` | Resize one tiddler or one target value. |
 | `multiple` | Resize multiple tiddlers selected by `filter`. |
 | `split-pair` | Resize two adjacent panes as a coupled pair. |
+| `table-column` | Resize a real HTML table column via `<colgroup>` and `<col>`. |
+| `grid-track` | Resize a CSS Grid column boundary by changing adjacent column track variables. |
 
 ### Target element vs. state tiddler
 
@@ -187,6 +346,8 @@ primaryElement.nextElementSibling
 
 You can override this with `rightSelector` or `bottomSelector`.
 
+For `table-column`, the target is the table column itself. The widget creates or reuses a `<colgroup>` and updates the corresponding `<col>`.
+
 ## Widget Attributes
 
 ### Core Attributes
@@ -194,14 +355,14 @@ You can override this with `rightSelector` or `bottomSelector`.
 | Attribute | Description | Default |
 |---|---|---|
 | `direction` | Resize direction: `horizontal` or `vertical`. | `horizontal` |
-| `mode` | Resize mode: `single`, `multiple`, or `split-pair`. | `single` |
+| `mode` | Resize mode: `single`, `multiple`, `split-pair`, `table-column`, or `grid-track`. | `single` |
 | `tiddler` | Target tiddler for `single` mode. Also used as fallback primary tiddler in `split-pair`. | — |
-| `filter` | Filter expression or space-separated title list for multiple tiddlers. | — |
+| `filter` | Filter expression or title list for multiple tiddlers. | — |
 | `field` | Field to update in normal modes. | `text` |
 | `unit` | Output unit for generated values. | `px` |
-| `default` | Default value if no tiddler value exists. Supports `calc()`. | `200px` or `50%` depending on context |
-| `min` | Minimum value. Supports any supported unit and `calc()`. | — |
-| `max` | Maximum value. Supports any supported unit and `calc()`. | — |
+| `default` | Default value if no tiddler value exists. Supports supported units and `calc()`. | `200px` or `50%` depending on unit |
+| `min` | Minimum value. Supports supported units and `calc()`. | — |
+| `max` | Maximum value. Supports supported units and `calc()`. | — |
 
 ### Behavior Attributes
 
@@ -212,7 +373,7 @@ You can override this with `rightSelector` or `bottomSelector`.
 | `position` | Parent-size measurement style: `absolute` uses `getBoundingClientRect()`, `relative` uses offset size. | `absolute` |
 | `property` | CSS property to modify for live DOM resizing. | `width` for horizontal, `height` for vertical |
 | `aspectRatio` | Maintain aspect ratio during live DOM resize, e.g. `16:9` or `1.5`. | — |
-| `visiblePortion` | Use only visible part of target element for measurement. | `no` |
+| `visiblePortion` | Use only visible part of target element for measurement. Useful for clipped sidebars/panels. | `no` |
 | `disable` | Disable pointer interaction. Adds disabled class/attribute. | `no` |
 
 ### Target Attributes
@@ -237,6 +398,148 @@ Wrong for split-pair:
 
 ```text
 targetElement = whole split container
+```
+
+### Snap Attributes
+
+Snap points are optional. They are active only when `snap` is set.
+
+| Attribute | Description | Default |
+|---|---|---|
+| `snap` | List of snap values. Values may be separated by spaces, commas, semicolons, pipes, or newlines. Supports `calc()`. | — |
+| `snapDistance` | Maximum distance from a snap point before snapping occurs. Supports units and `calc()`. | `8px` |
+| `snapHaptic` | Trigger a short vibration when snapping, if `hapticFeedback="yes"` and the browser supports vibration. | `no` |
+
+Example:
+
+```html
+<$resizer
+  tiddler="$:/state/sidebar/width"
+  unit="rem"
+  snap="0px 14rem 22rem 34rem calc(100vw - 20rem)"
+  snapDistance="12px"
+/>
+```
+
+### Preset Cycling Attributes
+
+Preset cycling is optional. It is active only when `presetCycle="yes"` and `presets` is set. It runs on double-click/double-tap, unless `dblClickActions` is set. Existing `dblClickActions` always take priority.
+
+| Attribute | Description | Default |
+|---|---|---|
+| `presetCycle` | Enable built-in double-click preset cycling. Use `yes` or `no`. | `no` |
+| `presets` | Preset list. Use `name:value` pairs separated by semicolons, pipes, or newlines. Plain values are also accepted. | — |
+| `presetTiddler` | Optional tiddler that stores the active preset name. | — |
+| `presetField` | Field for `presetTiddler`. | `text` |
+| `presetIndexTiddler` | Optional tiddler that stores the active preset index. | — |
+| `presetIndexField` | Field for `presetIndexTiddler`. | `text` |
+
+Example:
+
+```html
+<$resizer
+  tiddler="$:/state/sidebar/width"
+  unit="rem"
+  presetCycle="yes"
+  presets="closed:0px;narrow:14rem;normal:22rem;wide:34rem"
+  presetTiddler="$:/state/sidebar/mode"
+  presetIndexTiddler="$:/state/sidebar/preset-index"
+/>
+```
+
+### CSS Variable Attributes
+
+CSS variable publishing is optional and additive. It does not replace tiddler writes or live DOM styles.
+
+| Attribute | Description | Default |
+|---|---|---|
+| `cssVariable` | CSS custom property name to publish, e.g. `--btc-sidebar-width`. A missing leading `--` is added automatically. | — |
+| `cssVariableSecondary` | Secondary variable name for secondary split-pair values. | — |
+| `cssVariableTarget` | Where to publish: `target`, `parent`, `root`, `selector`, or a direct CSS selector such as `.layout`. | `target` |
+| `cssVariableSelector` | Selector used when `cssVariableTarget="selector"`. | — |
+| `leftCssVariable` | Horizontal split-pair variable for the left pane. | — |
+| `rightCssVariable` | Horizontal split-pair variable for the right pane. | — |
+| `topCssVariable` | Vertical split-pair variable for the top pane. | — |
+| `bottomCssVariable` | Vertical split-pair variable for the bottom pane. | — |
+
+Examples:
+
+```html
+<$resizer cssVariable="--btc-sidebar-width" cssVariableTarget="root" />
+<$resizer cssVariable="btc-panel-size" cssVariableTarget="parent" />
+<$resizer cssVariable="--btc-size" cssVariableTarget="selector" cssVariableSelector=".my-layout" />
+```
+
+### Table-Column Attributes
+
+These attributes are used when `mode="table-column"`.
+
+| Attribute | Description | Default |
+|---|---|---|
+| `tableSelector` | CSS selector for the table to resize. If omitted, the widget tries to find the closest table from the clicked cell/handle. | — |
+| `tableColumnIndex` | Zero-based column index. If omitted, the index is inferred from the clicked `td`/`th`. | `0` fallback |
+| `tableColumnId` | Stable table id used in generated state tiddler names. | table `data-resizer-id`, table `id`, table class, or `table` |
+| `tableColumnTiddler` | Explicit state tiddler for the column width. | generated from prefix/table/id/index |
+| `tableColumnTiddlerPrefix` | Prefix used for generated state tiddlers. | `$:/state/resizer/table-columns/` |
+| `tableColumnLiveResize` | Apply width to the `<col>` while dragging. | value of `live` |
+| `tableColumnSave` | Save during drag or only on pointerup. Use `drag` or `end`. | `drag` |
+
+Generated tiddler format:
+
+```text
+<tableColumnTiddlerPrefix><tableId>/<columnIndex>
+```
+
+For example:
+
+```text
+$:/state/resizer/table-columns/demo-table/2
+```
+
+### Grid-Track Attributes
+
+These attributes are used when `mode="grid-track"`. This mode is for CSS Grid column boundaries, not real HTML `<table>` elements. It is especially useful for CSS Grid table procedures with merged cells.
+
+| Attribute | Description | Default |
+|---|---|---|
+| `gridSelector` | CSS selector for the grid instance whose column variables should be changed. | — |
+| `gridTrackIndex` | One-based boundary index. Resizes column `N` and column `N+1`. | `1` |
+| `gridTrackStatePrefix` | Prefix for saved column state tiddlers. Column `N` is stored as `<prefix>/col-N`. | `$:/state/grid` |
+| `gridTrackField` | Field to write on generated state tiddlers. | `text` |
+| `gridTrackUnit` | Logical unit for constraints and defaults. | value of `unit` or `%` |
+| `gridTrackMin` | Minimum size for either track in the resized pair. | value of `min` or `4%` |
+| `gridTrackMax` | Optional maximum size for the left track in the resized pair. | value of `max` |
+| `gridTrackSnap` | Optional snap values for the left track. | value of `snap` |
+| `gridTrackSnapDistance` | Distance from snap point before snapping. | value of `snapDistance` or `0px` |
+| `gridTrackCssVariablePrefix` | Prefix for CSS custom properties. Column `N` becomes `<prefix>N`. | `--btc-rgrid-col-` |
+| `gridTrackLive` | Apply track CSS variables during drag. | `yes` |
+| `gridTrackSave` | Save track state during drag, on end, or never: `drag`, `end`, `none`. | `end` |
+| `gridTrackLiveUnit` | Unit written to CSS variables while dragging. `px` is recommended for stability. | `px` |
+| `gridTrackSaveUnit` | Unit saved to state tiddlers. `px` is recommended after manual resizing. | `px` |
+| `gridTrackFreezeOnStart` | Freeze all computed grid tracks to exact pixel variables on pointerdown. | `yes` |
+| `gridTrackFreezeOnEnd` | Re-read and save browser-resolved computed tracks on pointerup. | `yes` |
+
+The grid-track mode deliberately changes the pair of adjacent tracks, not the visual cell element. A handle on the right edge of a cell spanning columns 2-4 should use `gridTrackIndex="4"`, because the resizable boundary is after column 4.
+
+Example:
+
+```html
+<$resizer
+  mode="grid-track"
+  class="btc-rgrid-cell-resizer"
+  direction="horizontal"
+  gridSelector=".btc-rgrid-instance-my-grid"
+  gridTrackIndex="2"
+  gridTrackStatePrefix="$:/state/my-grid"
+  gridTrackMin="4%"
+  gridTrackMax="90%"
+  gridTrackLive="yes"
+  gridTrackSave="end"
+  gridTrackLiveUnit="px"
+  gridTrackSaveUnit="px"
+  gridTrackFreezeOnStart="yes"
+  gridTrackFreezeOnEnd="yes"
+/>
 ```
 
 ### Split-Pair Attributes
@@ -270,7 +573,7 @@ These attributes are only used when `mode="split-pair"`.
 | `onResize` | Action string executed during resize. |
 | `onResizeEnd` | Action string executed when resize ends. |
 | `onReset` | Action string executed after reset. |
-| `dblClickActions` | Custom double-click actions. Overrides built-in reset behavior. |
+| `dblClickActions` | Custom double-click actions. Overrides preset cycling and built-in reset behavior. |
 
 ### Styling Attributes
 
@@ -284,10 +587,18 @@ These attributes are only used when `mode="split-pair"`.
 
 | Attribute | Description | Default |
 |---|---|---|
-| `resetTo` | Reset target: `default`, `min`, `max`, or `custom`. Ignored when `dblClickActions` is set. | `default` |
+| `resetTo` | Reset target: `default`, `min`, `max`, or `custom`. Ignored when `dblClickActions` is set. Also comes after preset cycling if `presetCycle="yes"`. | `default` |
 | `resetValue` | Custom reset value when `resetTo="custom"`. | — |
 | `smoothReset` | Animate reset transition. | `yes` |
 | `onReset` | Actions after reset. | — |
+
+Double-click priority is:
+
+```text
+1. dblClickActions, if set
+2. presetCycle="yes" with presets, if set
+3. built-in reset behavior
+```
 
 ### Mobile/Touch Attributes
 
@@ -319,6 +630,61 @@ Action variables are set before invoking event/action strings. They let you insp
 | `<<tv-action-delta-percent-of-parent>>` | Directional delta as percentage of parent size. | resize callbacks |
 | `<<tv-action-formatted-delta-percent-of-parent>>` | Delta percentage with `%` suffix. | resize callbacks |
 | `<<tv-action-phase>>` | Current phase such as `resize`, `resize-start`, `resize-end`, or `actions`. | split-pair callbacks |
+
+### Snap Variables
+
+When snap points are active, the operation may expose snap-related state. The most useful values are:
+
+| Variable/state | Description |
+|---|---|
+| `operation.snapResult.snapped` | `true` if the current update snapped to a point. |
+| `operation.snapResult.snapPoint` | Raw configured snap point, such as `22rem` or `50%`. |
+| `operation.snapResult.pixelValue` | Snapped pixel value. |
+| `operation.snapResult.distance` | Distance from the unsnapped value to the chosen snap point. |
+
+If you expose these in custom callbacks, prefer naming them consistently, for example:
+
+```text
+<<tv-action-snapped>>
+<<tv-action-snap-point>>
+<<tv-action-snap-distance>>
+```
+
+### Preset Variables
+
+When built-in preset cycling runs, these variables are set:
+
+| Variable | Description |
+|---|---|
+| `<<tv-action-preset-name>>` | Name of the applied preset. |
+| `<<tv-action-preset-value>>` | Value of the applied preset. |
+| `<<tv-action-preset-index>>` | Zero-based index of the applied preset. |
+
+### Table-Column Variables
+
+When `mode="table-column"` updates a column, these variables are set:
+
+| Variable | Description |
+|---|---|
+| `<<tv-action-table-column>>` | Set to `yes` for table-column updates. |
+| `<<tv-action-table-column-index>>` | Zero-based column index. |
+| `<<tv-action-table-column-tiddler>>` | State tiddler used for the column width. |
+| `<<tv-action-value-pixels>>` | Current column width in pixels. |
+| `<<tv-action-formatted-value>>` | Current column width with unit suffix. |
+
+### Grid-Track Variables
+
+When `mode="grid-track"` is active, the implementation works with these concepts internally and may expose them to callbacks if action-variable support is extended for grid-track mode.
+
+| Variable/concept | Description |
+|---|---|
+| `gridTrackIndex` | One-based left column index of the resized boundary pair. |
+| `gridTrackIndex + 1` | Right column index of the resized boundary pair. |
+| `gridTrackStatePrefix` | Prefix used for saved column tiddlers. |
+| `--btc-rgrid-col-N` | CSS variable updated for column `N`. |
+| computed track pixels | Browser-resolved grid track sizes read from `grid-template-columns`. |
+
+Current recommended practice is to let `gridTrackFreezeOnStart="yes"` and `gridTrackFreezeOnEnd="yes"` stabilize all browser-computed column widths. This prevents first-drag and end-of-drag jumps caused by switching between percentage/default tracks and explicit pixel tracks.
 
 ### Split-Pair Generic Variables
 
@@ -438,6 +804,18 @@ Vertical example:
 />
 ```
 
+For flexbox, prefer:
+
+```html
+<$resizer
+  direction="horizontal"
+  tiddler="$:/state/sidebar/width"
+  selector=".sidebar"
+  property="flexBasis"
+  live="yes"
+/>
+```
+
 ## Multiple-Target Resizing
 
 Use `filter` to resize several tiddlers at once.
@@ -511,6 +889,40 @@ So the pair stays stable while the divider moves.
   />
   <div class="pane" style.width={{$:/state/split/right}}>Right</div>
 </div>
+```
+
+### Horizontal split pair with CSS variables
+
+```html
+<div class="split split-horizontal btc-split">
+  <div class="pane left-pane">Left</div>
+  <$resizer
+    class="splitter splitter-vertical"
+    direction="horizontal"
+    mode="split-pair"
+    unit="%"
+    element="previousSibling"
+    leftTiddler="$:/state/split/left"
+    rightTiddler="$:/state/split/right"
+    leftCssVariable="--btc-left-width"
+    rightCssVariable="--btc-right-width"
+    cssVariableTarget="root"
+    min="15%"
+    splitPairLiveResize="yes"
+    splitPairSave="end"
+  />
+  <div class="pane right-pane">Right</div>
+</div>
+```
+
+```css
+.left-pane {
+  flex: 0 0 var(--btc-left-width, 50%);
+}
+
+.right-pane {
+  flex: 0 0 var(--btc-right-width, 50%);
+}
 ```
 
 ### Vertical split pair
@@ -612,6 +1024,515 @@ Do not use `split-pair` if you only want to change one stored value. Use normal 
 
 Do not also run Wikitext `onResize` actions that rewrite the same pair tiddlers unless you intentionally want custom override logic. Otherwise you will have two systems writing sizes at once.
 
+## Table-Column Resizing
+
+`mode="table-column"` resizes an HTML table column by creating or reusing a `<colgroup>` and changing the width of the correct `<col>`.
+
+This is the correct model for real table resizing. Do not resize every `<td>` in a column individually. Cells are table contents; the column model belongs in `<colgroup>`.
+
+### Basic table-column example
+
+```html
+<table class="my-table" data-resizer-id="issues">
+  <tr>
+    <th>Issue</th>
+    <th>Status</th>
+    <th>Notes</th>
+  </tr>
+  <tr>
+    <td>#1</td>
+    <td>Open</td>
+    <td>Long note text</td>
+  </tr>
+</table>
+
+<$resizer
+  direction="horizontal"
+  mode="table-column"
+  tableSelector=".my-table"
+  tableColumnIndex="2"
+  unit="px"
+  min="80px"
+  max="500px"
+  tableColumnLiveResize="yes"
+  tableColumnSave="end"
+/>
+```
+
+### Column index detection
+
+If `tableColumnIndex` is omitted, the widget tries to infer the column index from the clicked `td` or `th`.
+
+This is useful when the resizer handle is rendered inside a cell:
+
+```html
+<th>
+  Notes
+  <$resizer
+    mode="table-column"
+    direction="horizontal"
+    unit="px"
+    min="80px"
+    max="500px"
+    tableColumnLiveResize="yes"
+  />
+</th>
+```
+
+### Stable table ids
+
+Use `tableColumnId` or `data-resizer-id` for stable state tiddler names:
+
+```html
+<table class="my-table" data-resizer-id="project-table">
+```
+
+or:
+
+```html
+<$resizer
+  mode="table-column"
+  tableSelector=".my-table"
+  tableColumnId="project-table"
+/>
+```
+
+Without a stable id, class names can become part of the generated tiddler title. That works, but it is less predictable.
+
+### Recommended table CSS
+
+```css
+.my-table {
+  table-layout: fixed;
+  width: 100%;
+}
+
+.my-table th,
+.my-table td {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+```
+
+The widget also sets `table.style.tableLayout = "fixed"` during live column resizing if no table layout is already set.
+
+### Save behavior
+
+Use `tableColumnSave="drag"` if you want the state tiddler updated continuously.
+
+Use `tableColumnSave="end"` if you want a smoother drag with one final write on pointerup.
+
+```html
+<$resizer
+  mode="table-column"
+  tableColumnSave="end"
+  tableColumnLiveResize="yes"
+/>
+```
+
+## Grid-Track Resizing
+
+`mode="grid-track"` is for CSS Grid layouts where columns are defined by CSS variables such as:
+
+```css
+--btc-rgrid-columns-template: var(--btc-rgrid-col-1, 25%) var(--btc-rgrid-col-2, 25%) var(--btc-rgrid-col-3, 25%) var(--btc-rgrid-col-4, 25%);
+```
+
+A grid-track handle resizes a **boundary** between two adjacent tracks. If the handle uses `gridTrackIndex="2"`, then column 2 and column 3 are resized as a pair:
+
+```text
+column 2 grows  -> column 3 shrinks
+column 2 shrinks -> column 3 grows
+```
+
+The pair total is preserved, so the grid stays stable. This is different from resizing a single DOM element. The visual handle may be placed on the edge of a cell, but the resized thing is the underlying grid track boundary.
+
+### Why freeze on start and end?
+
+A CSS Grid table often starts with percentage defaults such as `25% 25% 25% 25%`. After manual resizing, pixel tracks are more stable because they match the browser's computed layout exactly. `gridTrackFreezeOnStart="yes"` freezes all current tracks to exact pixel variables before the drag moves. `gridTrackFreezeOnEnd="yes"` saves the final browser-resolved track values on pointerup.
+
+Recommended settings:
+
+```html
+<$resizer
+  mode="grid-track"
+  gridTrackLiveUnit="px"
+  gridTrackSaveUnit="px"
+  gridTrackFreezeOnStart="yes"
+  gridTrackFreezeOnEnd="yes"
+/>
+```
+
+### Handle placement
+
+The handle should be visually placed at a grid boundary. For CSS Grid table procedures, render the handle inside the cell that ends at that boundary. For the last visual cell in a row, do not render a handle because there is no column to the right.
+
+For a cell with `col="2"` and `colSpan="3"`, the right boundary is after column 4:
+
+```text
+boundaryIndex = col + colSpan - 1
+```
+
+So the handle should use:
+
+```html
+gridTrackIndex="4"
+```
+
+## CSS Grid Table Procedures
+
+The plugin can be used with Wikitext procedures that create CSS Grid table-like layouts. These are not native HTML `<table>` elements; they are CSS Grid layouts that support merged cells naturally.
+
+A minimal procedure layer usually has:
+
+```text
+btc.rgrid.track.table
+btc.rgrid.track.cell
+btc.rgrid.track.header
+btc.rgrid.track.handle
+```
+
+The table procedure defines the grid and state prefix:
+
+```html
+<$transclude
+  $variable="btc.rgrid.track.table"
+  gridId="my-grid"
+  columns="4"
+  statePrefix="$:/state/my-grid"
+  content="""
+<$transclude $variable="btc.rgrid.track.cell" col="1" row="1" content="A"/>
+<$transclude $variable="btc.rgrid.track.cell" col="2" row="1" colSpan="2" content="B spans two columns"/>
+<$transclude $variable="btc.rgrid.track.cell" col="4" row="1" last="yes" content="C"/>
+"""
+/>
+```
+
+A cell procedure should calculate:
+
+```text
+boundaryIndex = col + colSpan - 1
+```
+
+and render a handle unless the cell is the last visual cell in the row:
+
+```html
+<$resizer
+  mode="grid-track"
+  class="btc-rgrid-cell-resizer"
+  direction="horizontal"
+  gridSelector=<<btcRgridSelector>>
+  gridTrackIndex=<<boundaryIndex>>
+  gridTrackStatePrefix=<<btcRgridStatePrefix>>
+  gridTrackMin=<<btcRgridMinColSize>>
+  gridTrackMax=<<btcRgridMaxColSize>>
+  gridTrackLive="yes"
+  gridTrackSave="end"
+  gridTrackLiveUnit="px"
+  gridTrackSaveUnit="px"
+  gridTrackFreezeOnStart="yes"
+  gridTrackFreezeOnEnd="yes"
+/>
+```
+
+### Recommended CSS Grid table styling
+
+For exact handle positioning, keep the actual CSS Grid `gap` at `0` and create visual spacing with an inner cell box. This keeps grid boundaries mathematically exact while still giving visual breathing room between cells.
+
+```css
+.btc-rgrid-content {
+  display: grid;
+  grid-template-columns: var(--btc-rgrid-columns-template);
+  gap: 0;
+  padding: calc(var(--btc-rgrid-cell-gap) / 2);
+}
+
+.btc-rgrid-cell {
+  position: relative;
+  padding: calc(var(--btc-rgrid-cell-gap) / 2);
+  overflow: visible;
+}
+
+.btc-rgrid-cell-content {
+  border: 1px solid var(--btc-rgrid-border);
+  border-radius: 4px;
+  padding: 0.75em 0.95em;
+}
+
+.btc-rgrid-cell > .tc-resizer.btc-rgrid-cell-resizer {
+  position: absolute;
+  top: calc(var(--btc-rgrid-cell-gap) / 2);
+  right: calc(var(--btc-rgrid-handle-size) / -2);
+  bottom: calc(var(--btc-rgrid-cell-gap) / 2);
+  width: var(--btc-rgrid-handle-size);
+  cursor: ew-resize;
+}
+```
+
+## Placed Tiddler Grid Tables
+
+A placed grid table reads cell tiddlers from a tag. Each tiddler defines its own coordinate and span fields:
+
+```text
+tags: MyTable
+row: 2
+col: 1
+rowspan: 1
+colspan: 2
+order: 10
+```
+
+The text of the tiddler is rendered as the cell content. Additional tags control visual role:
+
+| Tag | Effect |
+|---|---|
+| `Header` | Header styling. |
+| `Footer` | Footer styling. |
+| `Muted` | Muted/background styling. |
+
+The table procedure defines the coordinate system:
+
+```html
+<$transclude
+  $variable="btc.rgrid.placed.table"
+  gridId="project-table"
+  tag="MyTable"
+  columns="4"
+  rows="6"
+  statePrefix="$:/state/project-table"
+  showTitles="no"
+/>
+```
+
+### Ghost cells
+
+Placed grid tables should render ghost cells for empty coordinates. A ghost cell is an empty placeholder that keeps the declared `rows × columns` system visible and stable. Ghost cells should only render where no real cell covers that coordinate. If a real cell spans two columns and two rows, the ghosts underneath those covered coordinates should not be rendered.
+
+Conceptually:
+
+```text
+1. For each coordinate row/col, check whether any tagged real cell covers it.
+2. If no real cell covers it, render a ghost cell.
+3. Render real cells with explicit `grid-area` values.
+4. Render resize handles on ghost and real cells unless their boundary is the last column.
+```
+
+Use `grid-area` for both ghosts and real cells:
+
+```html
+style.grid-area={{{ [<row>addsuffix[ / ]addsuffix<col>addsuffix[ / span ]addsuffix<rowspan>addsuffix[ / span ]addsuffix<colspan>] }}}
+```
+
+For ghost cells:
+
+```html
+style.grid-area={{{ [<row>addsuffix[ / ]addsuffix<col>addsuffix[ / span 1 / span 1]] }}}
+```
+
+### Resize handles in placed tables
+
+Real cells and ghost cells can both render grid-track handles. For a real cell:
+
+```text
+boundaryIndex = col + colspan - 1
+```
+
+For a ghost cell:
+
+```text
+boundaryIndex = col
+```
+
+Do not render a handle when `boundaryIndex >= columns`, because there is no column to the right.
+
+This lets placed grid tables resize like manually-authored grid tables, while preserving the tiddler-driven `row`, `col`, `rowspan`, and `colspan` model.
+
+## Snap Points
+
+Snap points let the drag value lock to useful sizes when the pointer is close enough.
+
+Example:
+
+```html
+<$resizer
+  tiddler="$:/state/sidebar/width"
+  unit="rem"
+  min="0px"
+  max="42rem"
+  snap="0px 14rem 22rem 34rem"
+  snapDistance="10px"
+/>
+```
+
+Useful snap patterns:
+
+```html
+snap="0px 16rem 24rem 32rem"
+snap="25% 33.333333% 50% 66.666667% 75%"
+snap="calc(100vw - 40rem) calc(100vw - 24rem)"
+```
+
+Separators accepted by the parser:
+
+```text
+space, comma, semicolon, pipe, newline
+```
+
+Because `calc()` may contain spaces, keep complex `calc()` expressions simple and test them in the browser console if a snap point does not behave as expected.
+
+### Snap and constraints
+
+The resize flow applies min/max constraints and snap logic as part of the value calculation. If a snap point lies outside `min`/`max`, the final value may still be constrained.
+
+### Snap and haptics
+
+```html
+<$resizer
+  snap="0px 20rem 50%"
+  snapHaptic="yes"
+  hapticFeedback="yes"
+/>
+```
+
+Haptic feedback depends on browser and device support. Desktop browsers commonly ignore vibration.
+
+## Preset Cycling
+
+Preset cycling lets a double-click or double-tap step through named layout states.
+
+```html
+<$resizer
+  tiddler="$:/state/sidebar/width"
+  selector=".sidebar"
+  property="flexBasis"
+  unit="rem"
+  live="yes"
+  presetCycle="yes"
+  presets="closed:0px;narrow:14rem;normal:22rem;wide:34rem"
+  presetTiddler="$:/state/sidebar/mode"
+  presetIndexTiddler="$:/state/sidebar/preset-index"
+/>
+```
+
+The parser accepts:
+
+```text
+closed:0px;narrow:14rem;normal:22rem;wide:34rem
+```
+
+or:
+
+```text
+closed:0px
+narrow:14rem
+normal:22rem
+wide:34rem
+```
+
+Plain unnamed presets also work:
+
+```html
+presets="0px;14rem;22rem;34rem"
+```
+
+In that case, preset names are generated from the zero-based index.
+
+### Double-click priority
+
+Preset cycling does not break existing custom double-click behavior. The order is:
+
+```text
+1. dblClickActions, if present
+2. presetCycle="yes" with usable presets
+3. built-in reset behavior
+```
+
+So if you want preset cycling, do not also set `dblClickActions` on the same handle unless you intentionally want to override the built-in preset feature.
+
+## CSS Variable Publishing
+
+CSS variable publishing lets the widget update custom properties while still writing tiddler state.
+
+### Root-level variable
+
+```html
+<$resizer
+  tiddler="$:/state/sidebar/width"
+  selector=".sidebar"
+  property="flexBasis"
+  unit="rem"
+  cssVariable="--btc-sidebar-width"
+  cssVariableTarget="root"
+  live="yes"
+/>
+```
+
+```css
+.sidebar {
+  flex: 0 0 var(--btc-sidebar-width, 22rem);
+}
+```
+
+### Parent-level variable
+
+```html
+<$resizer
+  selector=".sidebar"
+  cssVariable="--sidebar-width"
+  cssVariableTarget="parent"
+/>
+```
+
+This publishes the variable on the target element's parent.
+
+### Selector target
+
+```html
+<$resizer
+  selector=".sidebar"
+  cssVariable="--sidebar-width"
+  cssVariableTarget="selector"
+  cssVariableSelector=".layout-root"
+/>
+```
+
+You can also pass a selector directly as `cssVariableTarget`:
+
+```html
+<$resizer
+  selector=".sidebar"
+  cssVariable="--sidebar-width"
+  cssVariableTarget=".layout-root"
+/>
+```
+
+### Split-pair variables
+
+```html
+<$resizer
+  mode="split-pair"
+  direction="horizontal"
+  element="previousSibling"
+  leftTiddler="$:/state/left"
+  rightTiddler="$:/state/right"
+  leftCssVariable="--left-width"
+  rightCssVariable="--right-width"
+  cssVariableTarget="root"
+  splitPairLiveResize="yes"
+/>
+```
+
+For vertical layouts:
+
+```html
+<$resizer
+  mode="split-pair"
+  direction="vertical"
+  topCssVariable="--top-height"
+  bottomCssVariable="--bottom-height"
+/>
+```
+
 ## Live DOM Resizing
 
 Normal `live="yes"` directly updates the selected target's CSS property while dragging.
@@ -626,6 +1547,12 @@ Normal `live="yes"` directly updates the selected target's CSS property while dr
 />
 ```
 
+For flex layouts, prefer:
+
+```html
+property="flexBasis"
+```
+
 For `split-pair`, prefer:
 
 ```html
@@ -635,9 +1562,18 @@ splitPairSave="end"
 
 This updates both panes and their `flex-basis` while dragging, but saves the final state tiddlers only once at the end of the drag.
 
+For `table-column`, prefer:
+
+```html
+tableColumnLiveResize="yes"
+tableColumnSave="end"
+```
+
+This updates the `<col>` while dragging, then writes the final width once.
+
 ## Double-Click Reset
 
-Double-click a resizer handle to reset the value.
+Double-click a resizer handle to reset the value, unless `dblClickActions` or preset cycling is active.
 
 ### Reset to default
 
@@ -685,7 +1621,7 @@ Double-click a resizer handle to reset the value.
 
 ### Run custom double-click actions
 
-`dblClickActions` overrides built-in reset behavior.
+`dblClickActions` overrides preset cycling and built-in reset behavior.
 
 ```html
 <$resizer
@@ -699,7 +1635,7 @@ Double-click a resizer handle to reset the value.
 
 ## CSS `calc()` Support
 
-The widget supports `calc()` in `min`, `max`, and `default`.
+The widget supports `calc()` in `min`, `max`, `default`, snap points, and `snapDistance`.
 
 ```html
 <$resizer
@@ -708,6 +1644,8 @@ The widget supports `calc()` in `min`, `max`, and `default`.
   default="calc(50vw - 100px)"
   min="calc(200px + handleWidth)"
   max="calc(100vw - 350px - handleWidth)"
+  snap="calc(100vw - 40rem) 50% 75%"
+  snapDistance="calc(handleSize + 4px)"
 />
 ```
 
@@ -726,6 +1664,8 @@ Examples:
 <$resizer max="calc(100% - handleSize)" />
 <$resizer default="calc(50% - handleSize / 2)" />
 ```
+
+The `calc()` evaluator is intentionally limited. It supports nested `calc()`, parentheses, `+`, `-`, `*`, `/`, supported units, and the handle variables above. It is not a complete browser-grade CSS parser.
 
 ## Units and Conversion
 
@@ -775,6 +1715,10 @@ primaryMax = pairSize - secondaryMin
 If `max` is set, it additionally limits the primary pane.
 
 For most split-pair layouts, prefer setting only `min` first. Add `max` only when you need a hard maximum for the first pane.
+
+### Table-column mode
+
+`min` and `max` constrain the column width. If `snap` is also set, the snapped value is still subject to the effective min/max range.
 
 ## Styling
 
@@ -830,9 +1774,86 @@ Example styling:
 }
 ```
 
+### Handle style examples
+
+The widget adds:
+
+```html
+data-handle-style="grip"
+```
+
+when `handleStyle="grip"` is used. You can style it with CSS:
+
+```css
+.tc-resizer[data-handle-style="grip"]::after {
+  content: "";
+  position: absolute;
+  inset: 2px;
+  border-radius: 999px;
+  background: currentColor;
+  opacity: 0.25;
+}
+```
+
+### Table-column handle styling
+
+If you render a resizer inside a table header, keep the handle small and positioned at the right edge:
+
+```css
+th .tc-resizer[data-direction="horizontal"] {
+  position: absolute;
+  top: 0;
+  right: -4px;
+  width: 8px;
+  height: 100%;
+  cursor: col-resize;
+}
+
+th {
+  position: relative;
+}
+```
+
+### CSS Grid table handle styling
+
+For `mode="grid-track"`, the handle is a normal `.tc-resizer` with an additional class such as `btc-rgrid-cell-resizer`. Keep the visible line simple and kill any old double-line `::after` grip decoration.
+
+```css
+.btc-rgrid-cell > .tc-resizer.btc-rgrid-cell-resizer {
+  position: absolute;
+  z-index: 30;
+  top: calc(var(--btc-rgrid-cell-gap) / 2);
+  right: calc(var(--btc-rgrid-handle-size) / -2);
+  bottom: calc(var(--btc-rgrid-cell-gap) / 2);
+  width: var(--btc-rgrid-handle-size);
+  cursor: ew-resize;
+  background: transparent;
+  touch-action: none;
+  user-select: none;
+}
+
+.btc-rgrid-cell > .tc-resizer.btc-rgrid-cell-resizer::before {
+  content: "";
+  position: absolute;
+  top: 12%;
+  bottom: 12%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 1px;
+  border-radius: 999px;
+  background: var(--btc-rgrid-handle-line);
+  opacity: 0.38;
+}
+
+.btc-rgrid-cell > .tc-resizer.btc-rgrid-cell-resizer::after {
+  content: none !important;
+  display: none !important;
+}
+```
+
 ## Layout Procedures
 
-The plugin may include prebuilt layout procedures. Their exact availability depends on the installed plugin tiddlers, but typical procedures include horizontal split panels, vertical split panels, three-column panels, and collapsible master-detail panels.
+The plugin may include prebuilt layout procedures. Their exact availability depends on the installed plugin tiddlers, but typical procedures include horizontal split panels, vertical split panels, three-column panels, collapsible master-detail panels, and table-column helpers.
 
 ### `horizontal-split-panel`
 
@@ -967,6 +1988,25 @@ Creates a resizable master/detail layout with collapse state.
 | `collapseStateTiddler` | Tiddler storing collapsed state. | `$:/state/cmd/collapsed` |
 | `class` | Extra container classes. | empty |
 
+### Suggested `resizable-table-column` procedure
+
+If you add a Wikitext procedure around `mode="table-column"`, keep it thin. The widget already handles the table logic.
+
+```html
+\procedure resizable-table-column(tableSelector columnIndex min:"80px" max:"500px" unit:"px")
+<$resizer
+  mode="table-column"
+  direction="horizontal"
+  tableSelector=<<tableSelector>>
+  tableColumnIndex=<<columnIndex>>
+  unit=<<unit>>
+  min=<<min>>
+  max=<<max>>
+  tableColumnLiveResize="yes"
+  tableColumnSave="end"
+/>
+\end
+```
 
 ## TiddlyFlex Column Management
 
@@ -1105,6 +2145,28 @@ If the resizer is between panes, use:
 element="previousSibling"
 ```
 
+### Every `<td>` is resizing independently
+
+Use `mode="table-column"` instead. Table columns should be resized through `<colgroup>` and `<col>`, not by writing widths to every cell.
+
+```html
+<$resizer
+  mode="table-column"
+  tableSelector=".my-table"
+  tableColumnIndex="1"
+/>
+```
+
+### Table-column mode does nothing
+
+Check these points:
+
+- `mode="table-column"` is set.
+- `tableSelector` matches exactly one table, or the handle is inside a `td`/`th`.
+- `tableColumnIndex` is zero-based.
+- The table is not being completely re-rendered by unrelated Wikitext while dragging.
+- If the table is generated dynamically, use a stable `tableColumnId` or `data-resizer-id`.
+
 ### Other panes flicker during drag
 
 Flexbox may be shrinking or rebalancing panes. Use fixed flex behavior:
@@ -1154,11 +2216,88 @@ splitPairLiveResize="yes"
 splitPairSave="end"
 ```
 
+For table columns, use:
+
+```html
+tableColumnLiveResize="yes"
+tableColumnSave="end"
+```
+
 This keeps the drag visually live by mutating DOM styles, but delays state tiddler writes until pointer release. That avoids a TiddlyWiki refresh on every pointermove.
+
+### Snap points are not working
+
+Check these points:
+
+- `snap` is set.
+- `snapDistance` is large enough. Try `snapDistance="20px"` while testing.
+- Snap points use supported units.
+- `min`/`max` are not forcing the value away from the snap point.
+- Complex `calc()` snap points are valid for the widget's limited evaluator.
+
+### Preset cycling does not run
+
+Check double-click priority:
+
+```text
+dblClickActions overrides preset cycling.
+```
+
+Also check:
+
+- `presetCycle="yes"` is set.
+- `presets` is not empty.
+- The target tiddler exists or can be written.
+- The browser is not converting double-tap into zoom behavior. The handle uses pointer/touch prevention, but mobile browser behavior can vary.
+
+### CSS variable does not update
+
+Check:
+
+- The variable name is correct. `sidebar-width` becomes `--sidebar-width` automatically, but explicit `--sidebar-width` is clearer.
+- `cssVariableTarget` points to the element your CSS actually reads from.
+- For `cssVariableTarget="selector"`, `cssVariableSelector` must match at least one element.
+- CSS variables inherit downward, not upward. Publishing on the target itself will not affect parent styling.
 
 ### Avoid double-writing sizes
 
 In `split-pair` mode, the widget already writes both paired tiddlers. Do not also use `onResize` actions that write those same tiddlers, unless you are intentionally overriding the built-in pair logic.
+
+In `table-column` mode, avoid separate actions that rewrite the same generated `tableColumnTiddler` during drag unless you need custom behavior.
+
+
+### Grid-track handles render but do not resize
+
+Check these points:
+
+- `mode="grid-track"` is set on the handle.
+- The installed package includes `$:/plugins/BTC/resizer/modules/interactions/grid-track.js`.
+- `event-handlers.js` dispatches pointerdown to `executeGridTrackMode()` when `mode="grid-track"`.
+- `resizer-lifecycle.js` parses the `gridTrack*` attributes.
+- `gridSelector` matches the grid instance, for example `.btc-rgrid-instance-my-grid`.
+- The grid element contains a `.btc-rgrid-content` element whose computed `grid-template-columns` can be read.
+- `gridTrackIndex` is not the last column; it must have a right neighbor.
+
+### Grid-track handles are visually misplaced
+
+Avoid using CSS Grid `gap` for the structural spacing if you need exact handle alignment. Use `gap: 0` on the grid and create visual spacing with wrapper padding and an inner `.btc-rgrid-cell-content` box. The handle should be anchored to the exact grid boundary, not to a visual gap calculated by the browser.
+
+### Grid-track resize jumps on first drag or on pointerup
+
+Use the stable pixel-freeze settings:
+
+```html
+gridTrackLiveUnit="px"
+gridTrackSaveUnit="px"
+gridTrackFreezeOnStart="yes"
+gridTrackFreezeOnEnd="yes"
+```
+
+These settings freeze the browser-computed grid tracks before drag and save browser-resolved track widths at the end.
+
+### Ghost cells show through real merged cells
+
+Do not render all ghosts blindly underneath real cells. Generate ghosts only for coordinates not covered by any real tiddler cell. A real cell with `row="2" col="2" rowspan="2" colspan="3"` covers six coordinates, and no ghosts should render for those coordinates.
 
 ## Browser Compatibility
 
@@ -1167,6 +2306,9 @@ In `split-pair` mode, the widget already writes both paired tiddlers. Do not als
 - Uses `getBoundingClientRect()` for accurate measurements.
 - Uses `visualViewport` when available for viewport units.
 - Uses the Vibration API for optional haptic feedback where supported.
+- CSS variable publishing requires CSS custom property support.
+- Table-column mode uses standard `<colgroup>` and `<col>` elements.
+- Grid-track mode uses standard CSS Grid, CSS custom properties, pointer events, and computed `grid-template-columns` measurements.
 
 ## Contributing
 
@@ -1176,6 +2318,11 @@ Contributions are welcome. Useful areas for improvement include:
 - more prebuilt layout procedures,
 - stronger visual debugging helpers,
 - tests for split-pair edge cases,
+- tests for table-column mode with `colspan`,
+- tests for grid-track mode with merged cells and ghost cells,
+- improved placed-grid table procedures and validators,
+- exposing snap action variables directly in all callbacks,
+- optional ghost preview mode,
 - improved documentation examples for complex TiddlyWiki layouts.
 
 ## License

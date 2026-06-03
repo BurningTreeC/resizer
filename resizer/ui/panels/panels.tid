@@ -637,3 +637,589 @@ code-body: yes
 </$let>
 \end
 
+\procedure btc.resizer.horizontal-split(statePrefix:"$:/state/btc/resizer/examples/horizontal",leftSize:"40%",rightSize:"60%",min:"12rem",max:"85%",height:"24em",title:"Horizontal split pair",leftContent:"Left Pane",rightContent:"Right Pane")
+<$let
+	leftState={{{ [<statePrefix>addsuffix[/left]] }}}
+	rightState={{{ [<statePrefix>addsuffix[/right]] }}}
+>
+	<div class="btc-resizer-demo-box">
+		<div class="btc-resizer-demo-title"><<title>></div>
+		<div class="btc-resizer-horizontal-split" style.min-height=<<height>>>
+			<div
+				class="btc-resizer-flex-pane btc-resizer-pane"
+				style.width={{{ [<leftState>get[text]else<leftSize>] }}}
+				style.flex-basis={{{ [<leftState>get[text]else<leftSize>] }}}
+			>
+
+				<$transclude $variable="leftContent" $mode="block"/>
+
+			</div>
+			<$resizer
+				class="btc-resizer-handle"
+				direction="horizontal"
+				mode="split-pair"
+				element="previousSibling"
+				unit="%"
+				min=<<min>>
+				max=<<max>>
+				default=<<leftSize>>
+				leftTiddler=<<leftState>>
+				rightTiddler=<<rightState>>
+				leftField="text"
+				rightField="text"
+				splitPairLiveResize="yes"
+				splitPairSave="end"
+				snap="20% 25% 33.333333% 40% 50% 60% 66.666667% 75% 80%"
+				snapDistance="12px"
+				snapHaptic="yes"
+				cssVariable="--btc-horizontal-left"
+				cssVariableSecondary="--btc-horizontal-right"
+				cssVariableTarget="parent"
+			/>
+			<div
+				class="btc-resizer-flex-pane btc-resizer-pane"
+				style.width={{{ [<rightState>get[text]else<rightSize>] }}}
+				style.flex-basis={{{ [<rightState>get[text]else<rightSize>] }}}
+			>
+
+				<$transclude $variable="rightContent" $mode="block"/>
+
+			</div>
+		</div>
+	</div>
+</$let>
+\end
+
+\procedure btc.resizer.vertical-split(statePrefix:"$:/state/btc/resizer/examples/vertical",topSize:"55%",bottomSize:"45%",min:"6rem",max:"85%",height:"30em",title:"Vertical split pair",topContent:"Top pane",bottomContent:"Bottom pane")
+<$let
+	topState={{{ [<statePrefix>addsuffix[/top]] }}}
+	bottomState={{{ [<statePrefix>addsuffix[/bottom]] }}}
+>
+	<div class="btc-resizer-demo-box">
+		<div class="btc-resizer-demo-title"><<title>></div>
+		<div class="btc-resizer-vertical-split" style.height=<<height>>>
+			<div
+				class="btc-resizer-flex-pane btc-resizer-pane"
+				style.height={{{ [<topState>get[text]else<topSize>] }}}
+				style.flex-basis={{{ [<topState>get[text]else<topSize>] }}}
+			>
+
+				<$transclude $variable="topContent" $mode="block"/>
+
+			</div>
+			<$resizer
+				class="btc-resizer-handle"
+				direction="vertical"
+				mode="split-pair"
+				element="previousSibling"
+				unit="%"
+				min=<<min>>
+				max=<<max>>
+				default=<<topSize>>
+				topTiddler=<<topState>>
+				bottomTiddler=<<bottomState>>
+				topField="text"
+				bottomField="text"
+				splitPairLiveResize="yes"
+				splitPairSave="end"
+				snap="20% 25% 33.333333% 50% 66.666667% 75% 80%"
+				snapDistance="10px"
+				cssVariable="--btc-vertical-top"
+				cssVariableSecondary="--btc-vertical-bottom"
+				cssVariableTarget="parent"
+			/>
+			<div
+				class="btc-resizer-flex-pane btc-resizer-pane"
+				style.height={{{ [<bottomState>get[text]else<bottomSize>] }}}
+				style.flex-basis={{{ [<bottomState>get[text]else<bottomSize>] }}}
+			>
+			
+				<$transclude $variable="bottomContent" $mode="block"/>
+
+			</div>
+		</div>
+	</div>
+</$let>
+\end
+
+\procedure btc.resizer.sidebar-workbench(sizeTiddler:"$:/state/btc/resizer/examples/sidebar-width",modeTiddler:"$:/state/btc/resizer/examples/sidebar-mode",indexTiddler:"$:/state/btc/resizer/examples/sidebar-preset-index",defaultSize:"20rem",min:"0px",max:"42rem",title:"Resizable sidebar workbench",sidebarContent:"Sidebar",mainContent:"Main area")
+<div class="btc-resizer-demo-box">
+	<div class="btc-resizer-demo-title"><<title>></div>
+	<div
+		class="btc-resizer-sidebar-shell"
+		style.--btc-example-sidebar-width={{{ [<sizeTiddler>get[text]else<defaultSize>] }}}
+	>
+		<div class="btc-resizer-sidebar">
+
+			<$transclude $variable="sidebarContent" $mode="block"/>
+
+		</div>
+		<$resizer
+			class="btc-resizer-handle"
+			direction="horizontal"
+			element="previousSibling"
+			tiddler=<<sizeTiddler>>
+			field="text"
+			unit="rem"
+			min=<<min>>
+			max=<<max>>
+			default=<<defaultSize>>
+			live="no"
+			snap="0px 12rem 16rem 20rem 28rem 36rem"
+			snapDistance="12px"
+			presetCycle="yes"
+			presets="closed:0px;narrow:12rem;normal:20rem;wide:32rem"
+			presetTiddler=<<modeTiddler>>
+			presetIndexTiddler=<<indexTiddler>>
+			cssVariable="--btc-example-sidebar-width"
+			cssVariableTarget="parent"
+			resetTo="default"
+		/>
+		<div class="btc-resizer-main">
+
+			<$transclude $variable="mainContent" $mode="block"/>
+
+		</div>
+	</div>
+</div>
+\end
+
+\procedure btc.resizer.three-pane-workbench(statePrefix:"$:/state/btc/resizer/examples/three-pane",leftSize:"18rem",rightSize:"24rem",title:"Three-pane workbench",leftContent:"Navigation",centerContent:"Editor",rightContent:"Inspector")
+<$let
+	leftState={{{ [<statePrefix>addsuffix[/left]] }}}
+	centerState={{{ [<statePrefix>addsuffix[/center]] }}}
+	rightState={{{ [<statePrefix>addsuffix[/right]] }}}
+	centerSize={{{ [[calc(100% - ]addsuffix<leftSize>addsuffix[ - ]addsuffix<rightSize>addsuffix[)]] }}}
+>
+	<div class="btc-resizer-demo-box">
+		<div class="btc-resizer-demo-title"><<title>></div>
+		<div class="btc-resizer-three-pane" style.min-height="28em">
+			<div
+				class="btc-resizer-flex-pane btc-resizer-pane"
+				style.width={{{ [<leftState>get[text]else<leftSize>] }}}
+				style.flex-basis={{{ [<leftState>get[text]else<leftSize>] }}}
+			>
+
+				<$transclude $variable="leftContent" $mode="block"/>
+			
+			</div>
+			<$resizer
+				class="btc-resizer-handle"
+				direction="horizontal"
+				mode="split-pair"
+				element="previousSibling"
+				unit="rem"
+				min="10rem"
+				max="40rem"
+				leftTiddler=<<leftState>>
+				rightTiddler=<<centerState>>
+				splitPairLiveResize="yes"
+				splitPairSave="end"
+				snap="12rem 16rem 20rem 24rem 32rem"
+				snapDistance="10px"
+				leftCssVariable="--btc-three-left-width"
+				rightCssVariable="--btc-three-center-width"
+				cssVariableTarget="parent"
+			/>
+			<div
+				class="btc-resizer-flex-pane btc-resizer-pane"
+				style.width={{{ [<centerState>get[text]else<centerSize>] }}}
+				style.flex-basis={{{ [<centerState>get[text]else<centerSize>] }}}
+			>
+
+				<$transclude $variable="centerContent" $mode="block"/>
+			
+			</div>
+			<$resizer
+				class="btc-resizer-handle"
+				direction="horizontal"
+				mode="split-pair"
+				element="previousSibling"
+				unit="rem"
+				min="12rem"
+				max="48rem"
+				leftTiddler=<<centerState>>
+				rightTiddler=<<rightState>>
+				splitPairLiveResize="yes"
+				splitPairSave="end"
+				snap="16rem 20rem 24rem 28rem 36rem"
+				snapDistance="10px"
+				leftCssVariable="--btc-three-center-width"
+				rightCssVariable="--btc-three-right-width"
+				cssVariableTarget="parent"
+			/>
+			<div
+				class="btc-resizer-flex-pane btc-resizer-pane"
+				style.width={{{ [<rightState>get[text]else<rightSize>] }}}
+				style.flex-basis={{{ [<rightState>get[text]else<rightSize>] }}}
+			>
+
+				<$transclude $variable="rightContent" $mode="block"/>
+			
+			</div>
+		</div>
+	</div>
+</$let>
+\end
+
+\procedure btc.resizer.preset-panel(stateTiddler:"$:/state/btc/resizer/examples/preset-panel-width",modeTiddler:"$:/state/btc/resizer/examples/preset-panel-mode",indexTiddler:"$:/state/btc/resizer/examples/preset-panel-index",defaultSize:"22rem",title:"Preset-cycling panel",content:"Double-click the handle to cycle through closed, compact, normal, and wide.")
+<div class="btc-resizer-demo-box">
+	<div class="btc-resizer-demo-title"><<title>></div>
+	<div style.display="flex" style.min-width="0" style.min-height="16em">
+		<div
+			class="btc-resizer-preset-card"
+			style.flex-grow="0"
+			style.flex-shrink="0"
+			style.width={{{ [<stateTiddler>get[text]else<defaultSize>] }}}
+			style.flex-basis={{{ [<stateTiddler>get[text]else<defaultSize>] }}}
+		>
+
+			<$transclude $variable="content" $mode="block"/>
+		
+			<p>Current preset: <$text text={{{ [<modeTiddler>get[text]else[normal]] }}}/></p>
+			<p>Current size: <$text text={{{ [<stateTiddler>get[text]else<defaultSize>] }}}/></p>
+		</div>
+		<$resizer
+			class="btc-resizer-handle"
+			direction="horizontal"
+			element="previousSibling"
+			tiddler=<<stateTiddler>>
+			field="text"
+			unit="rem"
+			min="0px"
+			max="40rem"
+			default=<<defaultSize>>
+			live="yes"
+			property="flexBasis"
+			presetCycle="yes"
+			presets="closed:0px;compact:14rem;normal:22rem;wide:34rem"
+			presetTiddler=<<modeTiddler>>
+			presetIndexTiddler=<<indexTiddler>>
+			snap="0px 14rem 22rem 34rem"
+			snapDistance="12px"
+		/>
+		<div class="btc-resizer-fill-pane btc-resizer-pane">
+			This flexible area absorbs the remaining space.
+		</div>
+	</div>
+</div>
+\end
+
+\procedure btc.resizer.cssvar-panel(stateTiddler:"$:/state/btc/resizer/examples/cssvar-panel-width",defaultSize:"22rem",title:"CSS variable publishing",content:"The resizer writes the size to a state tiddler and publishes it as `--btc-cssvar-panel-width`.")
+<div class="btc-resizer-demo-box">
+	<div class="btc-resizer-demo-title"><<title>></div>
+	<div style.display="flex" style.min-width="0" style.align-items="stretch">
+		<div
+			class="btc-resizer-cssvar-demo"
+			style.--btc-cssvar-panel-width={{{ [<stateTiddler>get[text]else<defaultSize>] }}}
+		>
+
+			<$transclude $variable="content" $mode="block"/>
+
+			<p>Width tiddler: `<$text text=<<stateTiddler>>/>`</p>
+			<p>Current value: <$text text={{{ [<stateTiddler>get[text]else<defaultSize>] }}}/></p>
+		</div>
+		<$resizer
+			class="btc-resizer-handle"
+			direction="horizontal"
+			element="previousSibling"
+			tiddler=<<stateTiddler>>
+			field="text"
+			unit="rem"
+			min="12rem"
+			max="42rem"
+			default=<<defaultSize>>
+			live="yes"
+			property="width"
+			cssVariable="--btc-cssvar-panel-width"
+			cssVariableTarget="target"
+			snap="12rem 18rem 22rem 28rem 34rem 42rem"
+			snapDistance="10px"
+		/>
+		<div class="btc-resizer-fill-pane btc-resizer-pane">
+			The neighboring pane does not need to know the width directly.
+		</div>
+	</div>
+</div>
+\end
+
+\function btc.rgrid.track.default-col-size(columns)
+	[[100]divide<columns>fixed[6]addsuffix[%]]
+\end
+
+\function btc.rgrid.track.template(columns,defaultColSize)
+	[range[1],<columns>]
+	:map[[minmax(0, var(--btc-rgrid-col-]addsuffix<currentTiddler>addsuffix[, ]addsuffix<defaultColSize>addsuffix[))]]
+	+[join[ ]]
+\end
+
+\function btc.rgrid.track.variables(statePrefix,columns,defaultColSize)
+	[range[1],<columns>]
+	:map[<statePrefix>addsuffix[/col-]addsuffix<currentTiddler>get[text]else<defaultColSize>addprefix[: ]addprefix<currentTiddler>addprefix[--btc-rgrid-col-]addsuffix[;]]
+	+[join[ ]]
+\end
+
+\procedure btc.rgrid.track.table(gridId:"default",columns:"4",statePrefix:"$:/state/btc/resizer/rgrid/default",defaultColSize:"",minColSize:"4%",maxColSize:"90%",unit:"%",gap:"0.25rem",rowMinHeight:"3rem",class:"",content:"")
+<$let
+	effectiveDefaultColSize={{{ [<defaultColSize>!is[blank]then<defaultColSize>] ~[function[btc.rgrid.track.default-col-size],<columns>] }}}
+	btcRgridGridId=<<gridId>>
+	btcRgridColumns=<<columns>>
+	btcRgridStatePrefix=<<statePrefix>>
+	btcRgridDefaultColSize=<<effectiveDefaultColSize>>
+	btcRgridMinColSize=<<minColSize>>
+	btcRgridMaxColSize=<<maxColSize>>
+	btcRgridUnit=<<unit>>
+	btcRgridSelector={{{ [[.btc-rgrid-instance-]addsuffix<gridId>] }}}
+	btcRgridColumnTemplate={{{ [function[btc.rgrid.track.template],<columns>,<effectiveDefaultColSize>] }}}
+	btcRgridColumnVariables={{{ [function[btc.rgrid.track.variables],<statePrefix>,<columns>,<effectiveDefaultColSize>] }}}
+	btcRgridStyle={{{ [[--btc-rgrid-columns-template: ]addsuffix<btcRgridColumnTemplate>addsuffix[; --btc-rgrid-gap: ]addsuffix<gap>addsuffix[; --btc-rgrid-row-min-height: ]addsuffix<rowMinHeight>addsuffix[; ]addsuffix<btcRgridColumnVariables>] }}}
+>
+<div
+	class={{{ [[btc-rgrid-table btc-rgrid-instance-]addsuffix<gridId>addsuffix[ ]addsuffix<class>] }}}
+	style=<<btcRgridStyle>>
+	data-btc-rgrid-id=<<gridId>>
+>
+	<div class="btc-rgrid-content">
+		<$transclude $variable="content"/>
+	</div>
+</div>
+</$let>
+\end
+
+\procedure btc.rgrid.track.cell(col:"auto",row:"auto",colSpan:"1",rowSpan:"1",last:"no",resize:"yes",class:"",title:"",content:"")
+<$let boundaryIndex={{{ [<col>match[auto]then[]] ~[<col>add<colSpan>subtract[1]] }}}>
+<div
+	class={{{ [[btc-rgrid-cell ]addsuffix<class>] }}}
+	data-col=<<col>>
+	data-row=<<row>>
+	data-col-span=<<colSpan>>
+	data-row-span=<<rowSpan>>
+	style.grid-column={{{ [<col>addsuffix[ / span ]addsuffix<colSpan>] }}}
+	style.grid-row={{{ [<row>addsuffix[ / span ]addsuffix<rowSpan>] }}}
+>
+	<div class="btc-rgrid-cell-content">
+		<$list filter="[<title>!is[blank]]">
+			<div class="btc-rgrid-cell-title"><<title>></div>
+		</$list>
+		<$transclude $variable="content" $mode="block"/>
+	</div>
+	<$list filter="[<resize>match[yes]]">
+		<$list filter="[<last>!match[yes]]">
+			<$list filter="[<boundaryIndex>!is[blank]]">
+				<$transclude $variable="btc.rgrid.track.handle" index=<<boundaryIndex>>/>
+			</$list>
+		</$list>
+	</$list>
+</div>
+</$let>
+\end
+
+\procedure btc.rgrid.track.header(col:"auto",row:"auto",colSpan:"1",rowSpan:"1",last:"no",resize:"yes",class:"",content:"")
+<$transclude
+	$variable="btc.rgrid.track.cell"
+	col=<<col>>
+	row=<<row>>
+	colSpan=<<colSpan>>
+	rowSpan=<<rowSpan>>
+	last=<<last>>
+	resize=<<resize>>
+	class={{{ [[btc-rgrid-cell-header ]addsuffix<class>] }}}
+	content=<<content>>
+/>
+\end
+
+\procedure btc.rgrid.track.handle(index:"1")
+<$resizer
+	mode="grid-track"
+	class="btc-rgrid-cell-resizer"
+	direction="horizontal"
+	gridSelector=<<btcRgridSelector>>
+	gridTrackIndex=<<index>>
+	gridTrackStatePrefix=<<btcRgridStatePrefix>>
+	gridTrackUnit=<<btcRgridUnit>>
+	gridTrackMin=<<btcRgridMinColSize>>
+	gridTrackMax=<<btcRgridMaxColSize>>
+	gridTrackLive="yes"
+	gridTrackSave="end"
+	gridTrackLiveUnit="px"
+	gridTrackSaveUnit="px"
+	gridTrackFreezeOnStart="yes"
+	gridTrackFreezeOnEnd="yes"
+/>
+\end
+
+\function btc.rgrid.placed.default-col-size(columns)
+	[[100]divide<columns>fixed[6]addsuffix[%]]
+\end
+
+\function btc.rgrid.placed.columns-template(columns,defaultColSize)
+	[range[1],<columns>]
+	:map[[minmax(0, var(--btc-rgrid-col-]addsuffix<currentTiddler>addsuffix[, ]addsuffix<defaultColSize>addsuffix[))]]
+	+[join[ ]]
+\end
+
+\function btc.rgrid.placed.column-variables(statePrefix,columns,defaultColSize)
+	[range[1],<columns>]
+	:map[<statePrefix>addsuffix[/col-]addsuffix<currentTiddler>get[text]else<defaultColSize>addprefix[: ]addprefix<currentTiddler>addprefix[--btc-rgrid-col-]addsuffix[;]]
+	+[join[ ]]
+\end
+
+\function btc.rgrid.placed.rows-template(rows,defaultRowSize)
+	[range[1],<rows>]
+	:map[[minmax(var(--btc-rgrid-row-min-height), ]addsuffix<defaultRowSize>addsuffix[)]]
+	+[join[ ]]
+\end
+
+\function btc.rgrid.placed.occupied(tag,row,col)
+	[tag<tag>]
+	:filter[<currentTiddler>get[row]else[0]compare:integer:lteq<row>]
+	:filter[<currentTiddler>get[col]else[0]compare:integer:lteq<col>]
+	:filter[<currentTiddler>get[row]else[0]add{!!rowspan}subtract[1]compare:integer:gteq<row>]
+	:filter[<currentTiddler>get[col]else[0]add{!!colspan}subtract[1]compare:integer:gteq<col>]
+	+[limit[1]]
+\end
+
+\procedure btc.rgrid.placed.table(gridId:"placed-default",tag:"TableCell",columns:"4",rows:"4",statePrefix:"$:/state/btc/rgrid/placed/default",defaultColSize:"",defaultRowSize:"auto",rowMinHeight:"3rem",cellGap:"0.35rem",minColSize:"4%",maxColSize:"90%",unit:"%",class:"",sortField:"order",showTitles:"no")
+<$let
+	effectiveDefaultColSize={{{ [<defaultColSize>!is[blank]then<defaultColSize>] ~[function[btc.rgrid.placed.default-col-size],<columns>] }}}
+	btcRgridGridId=<<gridId>>
+	btcRgridColumns=<<columns>>
+	btcRgridStatePrefix=<<statePrefix>>
+	btcRgridDefaultColSize=<<effectiveDefaultColSize>>
+	btcRgridMinColSize=<<minColSize>>
+	btcRgridMaxColSize=<<maxColSize>>
+	btcRgridUnit=<<unit>>
+	btcRgridSelector={{{ [[.btc-rgrid-instance-]addsuffix<gridId>] }}}
+	btcRgridColumnTemplate={{{ [function[btc.rgrid.placed.columns-template],<columns>,<effectiveDefaultColSize>] }}}
+	btcRgridColumnVariables={{{ [function[btc.rgrid.placed.column-variables],<statePrefix>,<columns>,<effectiveDefaultColSize>] }}}
+	btcRgridRowsTemplate={{{ [function[btc.rgrid.placed.rows-template],<rows>,<defaultRowSize>] }}}
+	btcRgridStyle={{{ [[--btc-rgrid-columns-template: ]addsuffix<btcRgridColumnTemplate>addsuffix[; --btc-rgrid-rows-template: ]addsuffix<btcRgridRowsTemplate>addsuffix[; --btc-rgrid-row-min-height: ]addsuffix<rowMinHeight>addsuffix[; --btc-rgrid-cell-gap: ]addsuffix<cellGap>addsuffix[; ]addsuffix<btcRgridColumnVariables>] }}}
+>
+<div
+	class={{{ [[btc-rgrid-table btc-rgrid-instance-]addsuffix<gridId>addsuffix[ ]addsuffix<class>] }}}
+	style=<<btcRgridStyle>>
+	data-btc-rgrid-id=<<gridId>>
+	data-tag=<<tag>>
+	data-columns=<<columns>>
+	data-rows=<<rows>>
+>
+	<div class="btc-rgrid-content">
+		<$list filter="[range[1],<rows>]">
+			<$let ghostRow=<<currentTiddler>>>
+				<$list filter="[range[1],<columns>]">
+					<$let ghostCol=<<currentTiddler>>>
+						<$list filter="[function[btc.rgrid.placed.occupied],<tag>,<ghostRow>,<ghostCol>count[]match[0]]">
+							<$transclude
+								$variable="btc.rgrid.placed.ghost"
+								row=<<ghostRow>>
+								col=<<ghostCol>>
+							/>
+						</$list>
+					</$let>
+				</$list>
+			</$let>
+		</$list>
+
+		<$list filter="[tag<tag>sortan<sortField>]">
+			<$transclude
+				$variable="btc.rgrid.placed.cell"
+				tiddler=<<currentTiddler>>
+				showTitle=<<showTitles>>
+			/>
+		</$list>
+	</div>
+</div>
+</$let>
+\end
+
+\procedure btc.rgrid.placed.ghost(row:"1",col:"1")
+<$let
+	boundaryIndex=<<col>>
+	isLastColumn={{{ [<col>compare:integer:gteq<btcRgridColumns>then[yes]else[no]] }}}
+>
+<div
+	class="btc-rgrid-cell btc-rgrid-cell-ghost"
+	data-ghost="yes"
+	data-row=<<row>>
+	data-col=<<col>>
+	data-boundary-index=<<boundaryIndex>>
+	style.grid-area={{{ [<row>addsuffix[ / ]addsuffix<col>addsuffix[ / span 1 / span 1]] }}}
+>
+	<div class="btc-rgrid-cell-content"></div>
+
+	<$list filter="[<isLastColumn>!match[yes]]">
+		<$transclude
+			$variable="btc.rgrid.placed.handle"
+			index=<<boundaryIndex>>
+		/>
+	</$list>
+</div>
+</$let>
+\end
+
+\procedure btc.rgrid.placed.cell(tiddler:"",showTitle:"no")
+<$let
+	col={{{ [<tiddler>get[col]else[1]] }}}
+	row={{{ [<tiddler>get[row]else[1]] }}}
+	colspan={{{ [<tiddler>get[colspan]else[1]] }}}
+	rowspan={{{ [<tiddler>get[rowspan]else[1]] }}}
+	boundaryIndex={{{ [<tiddler>get[col]else[1]add{!!colspan}subtract[1]] }}}
+	isLastColumn={{{ [<boundaryIndex>compare:integer:gteq<btcRgridColumns>then[yes]else[no]] }}}
+	cellClass={{{
+		[<tiddler>tag[Header]then[btc-rgrid-cell-header]]
+		[<tiddler>tag[Footer]then[btc-rgrid-cell-footer]]
+		[<tiddler>tag[Muted]then[btc-rgrid-cell-muted]]
+		+[join[ ]]
+	}}}
+>
+<div
+	class={{{ [[btc-rgrid-cell btc-rgrid-cell-real ]addsuffix<cellClass>] }}}
+	data-title=<<tiddler>>
+	data-col=<<col>>
+	data-row=<<row>>
+	data-colspan=<<colspan>>
+	data-rowspan=<<rowspan>>
+	data-boundary-index=<<boundaryIndex>>
+	style.grid-area={{{ [<row>addsuffix[ / ]addsuffix<col>addsuffix[ / span ]addsuffix<rowspan>addsuffix[ / span ]addsuffix<colspan>] }}}
+>
+	<div class="btc-rgrid-cell-content">
+		<$list filter="[<showTitle>match[yes]]">
+			<div class="btc-rgrid-cell-title">
+				<$link to=<<tiddler>>>
+					<$text text=<<tiddler>>/>
+				</$link>
+			</div>
+		</$list>
+		<$transclude tiddler=<<tiddler>> mode="block"/>
+	</div>
+
+	<$list filter="[<isLastColumn>!match[yes]]">
+		<$transclude
+			$variable="btc.rgrid.placed.handle"
+			index=<<boundaryIndex>>
+		/>
+	</$list>
+</div>
+</$let>
+\end
+
+\procedure btc.rgrid.placed.handle(index:"1")
+<$resizer
+	mode="grid-track"
+	class="btc-rgrid-cell-resizer"
+	direction="horizontal"
+	gridSelector=<<btcRgridSelector>>
+	gridTrackIndex=<<index>>
+	gridTrackStatePrefix=<<btcRgridStatePrefix>>
+	gridTrackUnit=<<btcRgridUnit>>
+	gridTrackMin=<<btcRgridMinColSize>>
+	gridTrackMax=<<btcRgridMaxColSize>>
+	gridTrackLive="yes"
+	gridTrackSave="end"
+	gridTrackLiveUnit="px"
+	gridTrackSaveUnit="px"
+	gridTrackFreezeOnStart="yes"
+	gridTrackFreezeOnEnd="yes"
+/>
+\end
+
