@@ -128,7 +128,7 @@ body.tc-resizing .tc-edit-texteditor textarea {
 		}
 
 		.tc-story-river {
-			max-width: calc(100% - {{$:/themes/tiddlywiki/vanilla/metrics/sidebarminwidth}} + {{$:/themes/tiddlywiki/vanilla/metrics/storywidth}} - {{$:/$:/themes/tiddlywiki/vanilla/metrics/storyright}} + {{$:/themes/tiddlywiki/vanilla/metrics/storyleft}});
+			max-width: calc(100% - {{$:/themes/tiddlywiki/vanilla/metrics/sidebarminwidth}} + {{$:/themes/tiddlywiki/vanilla/metrics/storywidth}} - {{$:/themes/tiddlywiki/vanilla/metrics/storyright}} + {{$:/themes/tiddlywiki/vanilla/metrics/storyleft}});
 		}
 
 	<% endif %>
@@ -444,7 +444,7 @@ body.tc-resizing .tc-edit-texteditor textarea {
    ================================================================= */
 
 /* Dots pattern */
-.tc-resizer[data-handle-style="dots"]::before,
+.tc-resizer[data-handle-style="dots"]:not(.btc-rgrid-cell-resizer)::before,
 .tc-sidebar-resizer[data-handle-style="dots"]::before,
 .tc-panel-splitter-vertical[data-handle-style="dots"]::before {
 	width: 5px;
@@ -463,7 +463,7 @@ body.tc-resizing .tc-edit-texteditor textarea {
 }
 
 /* Lines pattern */
-.tc-resizer[data-handle-style="lines"]::before,
+.tc-resizer[data-handle-style="lines"]:not(.btc-rgrid-cell-resizer)::before,
 .tc-sidebar-resizer[data-handle-style="lines"]::before,
 .tc-panel-splitter-vertical[data-handle-style="lines"]::before {
 	width: 1px;
@@ -490,7 +490,7 @@ body.tc-resizing .tc-edit-texteditor textarea {
 }
 
 /* Chevron pattern */
-.tc-resizer[data-handle-style="chevron"]::before,
+.tc-resizer[data-handle-style="chevron"]:not(.btc-rgrid-cell-resizer)::before,
 .tc-sidebar-resizer[data-handle-style="chevron"]::before,
 .tc-panel-splitter-vertical[data-handle-style="chevron"]::before {
 	content: "❯";
@@ -515,7 +515,7 @@ body.tc-resizing .tc-edit-texteditor textarea {
 }
 
 /* Grip pattern (dots grid) */
-.tc-resizer[data-handle-style="grip"]::before,
+.tc-resizer[data-handle-style="grip"]:not(.btc-rgrid-cell-resizer)::before,
 .tc-sidebar-resizer[data-handle-style="grip"]::before,
 .tc-panel-splitter-vertical[data-handle-style="grip"]::before {
 	content: "⋮";
@@ -540,21 +540,21 @@ body.tc-resizing .tc-edit-texteditor textarea {
 }
 
 /* Hover states for all handle styles */
-.tc-resizer[data-handle-style]:hover::before,
+.tc-resizer[data-handle-style]:not(.btc-rgrid-cell-resizer):hover::before,
 .tc-sidebar-resizer[data-handle-style]:hover::before,
 .tc-panel-splitter-vertical[data-handle-style]:hover::before,
 .tc-panel-splitter-horizontal[data-handle-style]:hover::before,
-.tc-resizer[data-handle-style].tc-resizer-active::before,
+.tc-resizer[data-handle-style]:not(.btc-rgrid-cell-resizer).tc-resizer-active::before,
 .tc-sidebar-resizer[data-handle-style].tc-resizer-active::before,
 .tc-panel-splitter-vertical[data-handle-style].tc-resizer-active::before,
 .tc-panel-splitter-horizontal[data-handle-style].tc-resizer-active::before {
 	color: <<colour muted-foreground>>;
 }
 
-.tc-resizer[data-handle-style="dots"]:hover::before,
+.tc-resizer[data-handle-style="dots"]:not(.btc-rgrid-cell-resizer):hover::before,
 .tc-sidebar-resizer[data-handle-style="dots"]:hover::before,
 .tc-panel-splitter-vertical[data-handle-style="dots"]:hover::before,
-.tc-resizer[data-handle-style="dots"].tc-resizer-active::before,
+.tc-resizer[data-handle-style="dots"]:not(.btc-rgrid-cell-resizer).tc-resizer-active::before,
 .tc-sidebar-resizer[data-handle-style="dots"].tc-resizer-active::before,
 .tc-panel-splitter-vertical[data-handle-style="dots"].tc-resizer-active::before {
 	background: <<colour muted-foreground>>;
@@ -567,10 +567,10 @@ body.tc-resizing .tc-edit-texteditor textarea {
 	box-shadow: 10px 0 0 <<colour muted-foreground>>, 20px 0 0 <<colour muted-foreground>>, -10px 0 0 <<colour muted-foreground>>, -20px 0 0 <<colour muted-foreground>>;
 }
 
-.tc-resizer[data-handle-style="lines"]:hover::before,
+.tc-resizer[data-handle-style="lines"]:not(.btc-rgrid-cell-resizer):hover::before,
 .tc-sidebar-resizer[data-handle-style="lines"]:hover::before,
 .tc-panel-splitter-vertical[data-handle-style="lines"]:hover::before,
-.tc-resizer[data-handle-style="lines"].tc-resizer-active::before,
+.tc-resizer[data-handle-style="lines"]:not(.btc-rgrid-cell-resizer).tc-resizer-active::before,
 .tc-sidebar-resizer[data-handle-style="lines"].tc-resizer-active::before,
 .tc-panel-splitter-vertical[data-handle-style="lines"].tc-resizer-active::before {
 	background: repeating-linear-gradient(
@@ -710,7 +710,7 @@ body.tc-resizing .tc-edit-texteditor textarea {
 	}*/
 	
 	/* Active state for touch */
-	.tc-resizer.tc-resizer-active {
+	.tc-resizer.tc-resizer-active:not(.btc-rgrid-cell-resizer) {
 		opacity: 1 !important;
 		background-color: <<colour primary>>;
 	}
@@ -1589,176 +1589,19 @@ body.tc-resizing .tc-resize-overlay {
 
 .btc-rgrid-table {
 	--btc-rgrid-columns-template: repeat(4, minmax(0, 1fr));
+	--btc-rgrid-rows-template: repeat(4, minmax(3rem, auto));
 	--btc-rgrid-gap: 0px;
 	--btc-rgrid-cell-gap: 0.35rem;
 	--btc-rgrid-row-min-height: 3rem;
 	--btc-rgrid-border: <<colour border>>;
 	--btc-rgrid-background: <<colour background>>;
 	--btc-rgrid-header-background: <<colour very-muted-foreground>>;
-	--btc-rgrid-muted-background: <<colour very-muted-foreground>>;
-	--btc-rgrid-handle-size: 16px;
-	--btc-rgrid-handle-line: <<colour muted-foreground>>;
-	--btc-rgrid-handle-active: <<colour foreground>>;
-
-	position: relative;
-	width: 100%;
-	max-width: 100%;
-	box-sizing: border-box;
-	overflow: visible;
-	border: 1px solid var(--btc-rgrid-border);
-	border-radius: 8px;
-	background: var(--btc-rgrid-background);
-}
-
-.btc-rgrid-content {
-	display: grid;
-	grid-template-columns: var(--btc-rgrid-columns-template);
-	grid-auto-rows: minmax(var(--btc-rgrid-row-min-height), auto);
-	gap: 0;
-	width: 100%;
-	min-width: 0;
-	box-sizing: border-box;
-	position: relative;
-	z-index: 1;
-	padding: calc(var(--btc-rgrid-cell-gap) / 2);
-	overflow: visible;
-}
-
-/*
-	This wrapper is the exact grid cell.
-	Do not put the visual border/background here.
-	The resize handle is anchored to this wrapper.
-*/
-.btc-rgrid-cell {
-	position: relative;
-	box-sizing: border-box;
-	min-width: 0;
-	min-height: 0;
-	padding: calc(var(--btc-rgrid-cell-gap) / 2);
-	border: none;
-	background: transparent;
-	overflow: visible;
-}
-
-/*
-	This is the visible cell box.
-	The visual space between cells comes from the wrapper padding.
-*/
-.btc-rgrid-cell-content {
-	min-width: 0;
-	min-height: 0;
-	height: 100%;
-	box-sizing: border-box;
-	overflow: auto;
-
-	border: 1px solid var(--btc-rgrid-border);
-	border-radius: 4px;
-	background: var(--btc-rgrid-background);
-	padding: 0.75em 0.95em;
-}
-
-.btc-rgrid-cell-header > .btc-rgrid-cell-content {
-	font-weight: bold;
-	background: var(--btc-rgrid-header-background);
-}
-
-.btc-rgrid-cell-muted > .btc-rgrid-cell-content {
-	background: var(--btc-rgrid-muted-background);
-}
-
-.btc-rgrid-cell-center > .btc-rgrid-cell-content {
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	text-align: center;
-}
-
-.btc-rgrid-cell-title {
-	font-weight: bold;
-	margin-bottom: 0.35em;
-}
-
-/*
-	The handle is centered on the exact grid boundary.
-	Because both neighboring visual boxes are inset by half the cell gap,
-	this line now sits exactly in the middle of the visible space between cells.
-*/
-.btc-rgrid-cell > .tc-resizer.btc-rgrid-cell-resizer {
-	position: absolute;
-	z-index: 30;
-	top: calc(var(--btc-rgrid-cell-gap) / 2);
-	right: calc(var(--btc-rgrid-handle-size) / -2);
-	bottom: calc(var(--btc-rgrid-cell-gap) / 2);
-	left: auto;
-
-	width: var(--btc-rgrid-handle-size);
-	height: auto;
-	margin: 0;
-	padding: 0;
-
-	cursor: ew-resize;
-	background: transparent;
-	touch-action: none;
-	user-select: none;
-}
-
-/* Single visible resize line */
-.btc-rgrid-cell > .tc-resizer.btc-rgrid-cell-resizer::before {
-	content: "";
-	position: absolute;
-	top: 12%;
-	bottom: 12%;
-	left: 50%;
-	transform: translateX(-50%);
-	width: 1px;
-	border-radius: 999px;
-	background: var(--btc-rgrid-handle-line);
-	opacity: 0.38;
-	transition:
-		opacity 120ms ease,
-		width 120ms ease,
-		background-color 120ms ease;
-}
-
-/* Kill old double-line/grip decoration */
-.btc-rgrid-cell > .tc-resizer.btc-rgrid-cell-resizer::after {
-	content: none !important;
-	display: none !important;
-}
-
-.btc-rgrid-cell > .tc-resizer.btc-rgrid-cell-resizer:hover::before,
-.btc-rgrid-cell > .tc-resizer.btc-rgrid-cell-resizer.tc-resizer-active::before {
-	width: 2px;
-	background: var(--btc-rgrid-handle-active);
-	opacity: 0.85;
-}
-
-.btc-rgrid-cell:hover > .tc-resizer.btc-rgrid-cell-resizer::before {
-	opacity: 0.55;
-}
-
-/* Debug label */
-.btc-rgrid-debug .btc-rgrid-cell::after {
-	content: "c" attr(data-col) "/" attr(data-col-span) " r" attr(data-row) "/" attr(data-row-span);
-	position: absolute;
-	right: 1.1em;
-	bottom: 0.15em;
-	font-size: 0.7em;
-	opacity: 0.45;
-	pointer-events: none;
-}
-
-.btc-rgrid-table {
-	--btc-rgrid-columns-template: repeat(4, minmax(0, 1fr));
-	--btc-rgrid-rows-template: repeat(4, minmax(3rem, auto));
-	--btc-rgrid-row-min-height: 3rem;
-	--btc-rgrid-cell-gap: 0.35rem;
-	--btc-rgrid-border: <<colour border>>;
-	--btc-rgrid-background: <<colour background>>;
-	--btc-rgrid-header-background: <<colour very-muted-foreground>>;
 	--btc-rgrid-footer-background: <<colour very-muted-foreground>>;
 	--btc-rgrid-muted-background: <<colour very-muted-foreground>>;
 	--btc-rgrid-ghost-background: transparent;
+	--btc-rgrid-handle-size: 16px;
+	--btc-rgrid-handle-line: <<colour muted-foreground>>;
+	--btc-rgrid-handle-active: <<colour foreground>>;
 
 	position: relative;
 	width: 100%;
@@ -1785,6 +1628,15 @@ body.tc-resizing .tc-resize-overlay {
 	overflow: visible;
 }
 
+/*
+	This wrapper is the exact grid cell.
+
+	Important:
+	- The wrapper owns the grid placement.
+	- The wrapper anchors the resize handle.
+	- The wrapper must stay visually transparent.
+	- The visible cell box is .btc-rgrid-cell-content.
+*/
 .btc-rgrid-cell {
 	position: relative;
 	box-sizing: border-box;
@@ -1797,30 +1649,49 @@ body.tc-resizing .tc-resize-overlay {
 	z-index: 2;
 }
 
+/*
+	This is the visible cell box.
+
+	The visual space between cells comes from the wrapper padding.
+	Do not use CSS grid gap for this table, otherwise the resize handle
+	position becomes harder to make exact.
+*/
 .btc-rgrid-cell-content {
 	min-width: 0;
 	min-height: 0;
 	height: 100%;
 	box-sizing: border-box;
 	overflow: auto;
+
 	border: 1px solid var(--btc-rgrid-border);
 	border-radius: 4px;
 	background: var(--btc-rgrid-background);
 	padding: 0.75em 0.95em;
 }
 
+/* Header cells */
 .btc-rgrid-cell-header > .btc-rgrid-cell-content {
 	font-weight: bold;
 	background: var(--btc-rgrid-header-background);
 }
 
+/* Footer cells */
 .btc-rgrid-cell-footer > .btc-rgrid-cell-content {
 	font-weight: bold;
 	background: var(--btc-rgrid-footer-background);
 }
 
+/* Muted cells */
 .btc-rgrid-cell-muted > .btc-rgrid-cell-content {
 	background: var(--btc-rgrid-muted-background);
+}
+
+/* Centered cells */
+.btc-rgrid-cell-center > .btc-rgrid-cell-content {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	text-align: center;
 }
 
 .btc-rgrid-cell-title {
@@ -1830,9 +1701,18 @@ body.tc-resizing .tc-resize-overlay {
 	opacity: 0.8;
 }
 
+/*
+	Ghost cells.
+
+	Ghost cells must allow pointer events because their resize handles
+	need to be draggable. Only the ghost content itself ignores pointer
+	events. Ghost wrappers are intentionally above real cells because
+	ghosts are not rendered underneath real placed cells; the higher layer
+	keeps placeholder resize handles reliably clickable.
+*/
 .btc-rgrid-cell-ghost {
-	z-index: 0;
-	pointer-events: none;
+	z-index: 3;
+	pointer-events: auto;
 }
 
 .btc-rgrid-cell-ghost > .btc-rgrid-cell-content {
@@ -1840,13 +1720,201 @@ body.tc-resizing .tc-resize-overlay {
 	border-style: dashed;
 	opacity: 0.28;
 	padding: 0;
+	pointer-events: none;
+}
+
+.btc-rgrid-cell-ghost > .tc-resizer.btc-rgrid-cell-resizer {
+	pointer-events: auto;
+	z-index: 40;
+}
+
+/*
+	Real cells stay visually above normal wrappers, but do not need to sit
+	above ghost placeholders because occupied ghost cells are suppressed by
+	the Wikitext procedure.
+*/
+.btc-rgrid-cell-real {
+	z-index: 2;
+	background: transparent;
 }
 
 .btc-rgrid-cell:not(.btc-rgrid-cell-ghost) {
-	background: var(--btc-rgrid-background);
+	background: transparent;
 }
 
-.btc-rgrid-debug .btc-rgrid-cell:not(.btc-rgrid-cell-ghost)::after {
+/* Grid resize handle */
+.btc-rgrid-cell > .tc-resizer.btc-rgrid-cell-resizer {
+	position: absolute;
+	z-index: 30;
+	top: calc(var(--btc-rgrid-cell-gap) / 2);
+	right: calc(var(--btc-rgrid-handle-size) / -2);
+	bottom: calc(var(--btc-rgrid-cell-gap) / 2);
+	left: auto;
+
+	width: var(--btc-rgrid-handle-size);
+	height: auto;
+	min-width: 0;
+	min-height: 0;
+	margin: 0;
+	padding: 0;
+
+	cursor: ew-resize;
+	background: transparent !important;
+	touch-action: none;
+	user-select: none;
+	-webkit-user-select: none;
+	-webkit-tap-highlight-color: transparent;
+	animation: none;
+}
+
+/* Base line */
+.btc-rgrid-cell > .tc-resizer.btc-rgrid-cell-resizer::before {
+	content: "" !important;
+	position: absolute !important;
+	top: 12% !important;
+	right: auto !important;
+	bottom: 12% !important;
+	left: 50% !important;
+
+	width: 1px !important;
+	height: auto !important;
+	min-height: 0 !important;
+	max-height: none !important;
+
+	transform: translateX(-50%) !important;
+	border-radius: 999px;
+	background: var(--btc-rgrid-handle-line) !important;
+	box-shadow: none !important;
+
+	color: inherit !important;
+	font-size: inherit !important;
+	font-weight: normal !important;
+	letter-spacing: normal !important;
+	line-height: normal !important;
+	text-indent: 0 !important;
+	white-space: normal !important;
+
+	opacity: 0.38;
+	transition:
+		opacity 120ms ease,
+		background-color 120ms ease;
+}
+
+/* Kill all generic after/grip decorations */
+.btc-rgrid-cell > .tc-resizer.btc-rgrid-cell-resizer::after {
+	content: none !important;
+	display: none !important;
+}
+
+/*
+	Neutralize all generic handle styles for grid handles.
+
+	This prevents misplaced "⋮", "⋯⋯", dot grids, line gradients, chevrons,
+	active background fills, or shorter hover lines from leaking into the
+	CSS Grid table handles.
+*/
+.btc-rgrid-cell > .tc-resizer.btc-rgrid-cell-resizer[data-handle-style]::before,
+.btc-rgrid-cell > .tc-resizer.btc-rgrid-cell-resizer[data-handle-style="grip"]::before,
+.btc-rgrid-cell > .tc-resizer.btc-rgrid-cell-resizer[data-handle-style="dots"]::before,
+.btc-rgrid-cell > .tc-resizer.btc-rgrid-cell-resizer[data-handle-style="lines"]::before,
+.btc-rgrid-cell > .tc-resizer.btc-rgrid-cell-resizer[data-handle-style="chevron"]::before {
+	content: "" !important;
+	position: absolute !important;
+	top: 12% !important;
+	right: auto !important;
+	bottom: 12% !important;
+	left: 50% !important;
+
+	width: 1px !important;
+	height: auto !important;
+	min-height: 0 !important;
+	max-height: none !important;
+
+	transform: translateX(-50%) !important;
+	border-radius: 999px;
+	background: var(--btc-rgrid-handle-line) !important;
+	box-shadow: none !important;
+
+	color: inherit !important;
+	font-size: inherit !important;
+	font-weight: normal !important;
+	letter-spacing: normal !important;
+	line-height: normal !important;
+	text-indent: 0 !important;
+	white-space: normal !important;
+
+	opacity: 0.38;
+}
+
+.btc-rgrid-cell > .tc-resizer.btc-rgrid-cell-resizer[data-handle-style]::after,
+.btc-rgrid-cell > .tc-resizer.btc-rgrid-cell-resizer[data-handle-style="grip"]::after,
+.btc-rgrid-cell > .tc-resizer.btc-rgrid-cell-resizer[data-handle-style="dots"]::after,
+.btc-rgrid-cell > .tc-resizer.btc-rgrid-cell-resizer[data-handle-style="lines"]::after,
+.btc-rgrid-cell > .tc-resizer.btc-rgrid-cell-resizer[data-handle-style="chevron"]::after {
+	content: none !important;
+	display: none !important;
+}
+
+/* Hover/active: repeat full geometry so nothing else shortens it */
+.btc-rgrid-cell > .tc-resizer.btc-rgrid-cell-resizer:hover::before,
+.btc-rgrid-cell > .tc-resizer.btc-rgrid-cell-resizer.tc-resizer-active::before,
+.btc-rgrid-cell > .tc-resizer.btc-rgrid-cell-resizer[data-handle-style]:hover::before,
+.btc-rgrid-cell > .tc-resizer.btc-rgrid-cell-resizer[data-handle-style].tc-resizer-active::before {
+	content: "" !important;
+	position: absolute !important;
+	top: 12% !important;
+	right: auto !important;
+	bottom: 12% !important;
+	left: 50% !important;
+
+	width: 1px !important;
+	height: auto !important;
+	min-height: 0 !important;
+	max-height: none !important;
+
+	transform: translateX(-50%) !important;
+	border-radius: 999px;
+	background: var(--btc-rgrid-handle-active) !important;
+	box-shadow: none !important;
+
+	color: inherit !important;
+	font-size: inherit !important;
+	font-weight: normal !important;
+	letter-spacing: normal !important;
+	line-height: normal !important;
+	text-indent: 0 !important;
+	white-space: normal !important;
+
+	opacity: 0.85;
+}
+
+/* Subtle affordance when hovering a cell */
+.btc-rgrid-cell:hover > .tc-resizer.btc-rgrid-cell-resizer::before {
+	opacity: 0.55;
+}
+
+.btc-rgrid-cell:hover > .tc-resizer.btc-rgrid-cell-resizer:hover::before,
+.btc-rgrid-cell:hover > .tc-resizer.btc-rgrid-cell-resizer.tc-resizer-active::before {
+	opacity: 0.85;
+}
+
+/*
+	Debug label for manually defined grid cells using data-col-span / data-row-span.
+*/
+.btc-rgrid-debug .btc-rgrid-cell[data-col-span]:not(.btc-rgrid-cell-ghost)::after {
+	content: "c" attr(data-col) "/" attr(data-col-span) " r" attr(data-row) "/" attr(data-row-span);
+	position: absolute;
+	right: 1.1em;
+	bottom: 0.15em;
+	font-size: 0.7em;
+	opacity: 0.45;
+	pointer-events: none;
+}
+
+/*
+	Debug label for tiddler-driven placed cells using data-colspan / data-rowspan.
+*/
+.btc-rgrid-debug .btc-rgrid-cell[data-colspan]:not(.btc-rgrid-cell-ghost)::after {
 	content: attr(data-title) " c" attr(data-col) "/" attr(data-colspan) " r" attr(data-row) "/" attr(data-rowspan);
 	position: absolute;
 	right: 0.75em;
@@ -1856,6 +1924,9 @@ body.tc-resizing .tc-resize-overlay {
 	pointer-events: none;
 }
 
+/*
+	Debug label for ghost cells.
+*/
 .btc-rgrid-debug .btc-rgrid-cell-ghost::after {
 	content: "ghost c" attr(data-col) " r" attr(data-row);
 	position: absolute;
