@@ -3,7 +3,7 @@ type: text/vnd.tiddlywiki
 
 ! TiddlyWiki Resizer Widget Plugin
 
-A flexible, pointer-based resizer widget for TiddlyWiki. It can resize one tiddler, multiple tiddlers, live DOM elements, paired split panes, real HTML table columns, and CSS Grid column/row tracks. It supports horizontal and vertical resizing, CSS units, `calc()` expressions, min/max constraints, optional snap points, double-click preset cycling, CSS variable publishing, pointer/touch input, haptic feedback, double-click reset, action hooks, a dedicated `split-pair` mode for adjacent panels, a `table-column` mode for real HTML tables, and a `grid-track` mode for CSS Grid table-like layouts with overlay handles, ghost cells, placed cell tiddlers, per-cell padding defaults, and configurable block/inline cell rendering.
+A flexible, pointer-based resizer widget for TiddlyWiki. It can resize one tiddler, multiple tiddlers, live DOM elements, paired split panes, real HTML table columns, and CSS Grid column/row tracks. It supports horizontal and vertical resizing, CSS units, `calc()` expressions, min/max constraints, optional snap points, double-click preset cycling, CSS variable publishing, pointer/touch input, haptic feedback, double-click reset, action hooks, a dedicated `split-pair` mode for adjacent panels, a `table-column` mode for real HTML tables, and a `grid-track` mode for CSS Grid table-like layouts with overlay handles, ghost cells, placed cell tiddlers, per-cell padding defaults, configurable block/inline cell rendering, adaptive filler tracks (`fillLastColumn` / `fillLastRow`), explicit positional track defaults (`colDefaults` / `rowDefaults`), and CSS-level column minimums (`colMinWidth`).
 
 The widget is intended for TiddlyWiki layouts where sizes are stored in state/config tiddlers and reused as CSS values. Normal `single` and `multiple` modes resize target values directly. The `split-pair` mode treats two adjacent panes as one coupled pair: the first pane grows by the drag delta, the second pane shrinks by the same amount, and the pair's total size stays stable. The `table-column` mode resizes the real `<col>` element of an HTML table instead of trying to resize each `<td>` cell individually. The `grid-track` mode resizes the boundary between two adjacent CSS Grid tracks. In column mode it resizes the boundary between two columns; in row mode it resizes the boundary between two rows. This is the right model for resizable CSS Grid tables with merged cells, ghost cells, overlay handles, tiddler-driven placement, and optional full-height row resizing.
 
@@ -57,10 +57,13 @@ The refactored plugin keeps the public widget entry point compatible with the or
 * ''Table-column resizing'': Resize the real `<col>` of an HTML table with `mode="table-column"`.
 * ''Grid-track resizing'': Resize the boundary between two adjacent CSS Grid column tracks with `mode="grid-track"`.
 * ''Resizable CSS Grid tables'': Build table-like CSS Grid layouts with merged cells, explicit row/column placement, and handles on cell boundaries.
+* ''CSS-level column minimums'': Use `colMinWidth` to prevent CSS Grid columns from collapsing below a chosen minimum, independently of drag constraints.
 * ''Tiddler-driven placed grid tables'': Generate cells from tagged tiddlers whose `row`, `col`, `rowspan`, and `colspan` fields define placement.
 * ''X/Y resizable grid tables'': Resize both CSS Grid columns and rows with `btc.rgrid.xy.table`.
+* ''Adaptive filler tracks'': Let the last column and/or last row absorb remaining container space with `fillLastColumn`, `lastColSize`, `fillLastRow`, and `lastRowSize`.
 * ''Overlay grid handles'': Place resize handles as overlay grid items above cells instead of inside cell content, avoiding neighbouring-cell hit-test problems.
 * ''Per-cell padding defaults'': Configure cell padding globally, from a row-major fallback list, or from each cell tiddler.
+* ''Per-track defaults'': Configure positional column and row fallback sizes with `colDefaults` and `rowDefaults`; explicit positional values override filler-track fallbacks.
 * ''Configurable cell rendering mode'': Let each cell tiddler choose `block` or `inline` transclusion via a configurable field.
 * ''Draft exclusion'': Grid table procedures exclude draft tiddlers from cell filters so draft cells do not render or affect ghost placement.
 * ''Ghost placeholder cells'': Fill unoccupied grid coordinates with empty ghost cells so a declared `rows × columns` system remains stable.
@@ -1244,7 +1247,7 @@ This keeps the handle above all cells and avoids asymmetric hover behavior.
 
 !! CSS Grid Table Procedures
 
-The plugin can be used with Wikitext procedures that create CSS Grid table-like layouts. These are not native HTML `<table>` elements; they are CSS Grid layouts that support merged cells naturally.
+The plugin includes Wikitext procedures that build CSS Grid table-like layouts. These are not native HTML `<table>` elements. They are CSS Grid layouts, which means merged cells are handled naturally with `grid-area`, and column/row resizing is done by changing the underlying grid track variables.
 
 The current procedure families are:
 
@@ -1266,15 +1269,168 @@ The placed and xy procedures also use overlay handle classes:
 
 ```text
 btc-rgrid-overlay-slot
+btc-rgrid-overlay-resizer
 btc-rgrid-column-overlay-resizer
 btc-rgrid-row-overlay-resizer
 ```
 
+The current model separates three concepts:
+
+* ''CSS track size'': the actual grid column/row size used by `grid-template-columns` or `grid-template-rows`.
+* ''Resizer constraint'': the minimum/maximum used while dragging a grid-track boundary.
+* ''Cell content styling'': padding, background, headers, footers, and scroll behavior inside each cell.
+
+!!! Track fallback priority
+
+Column and row sizes can come from several places. The current intended priority is:
+
+```text
+saved state tiddler
+→ explicit positional defaults (`colDefaults` / `rowDefaults`, where supported)
+→ filler-track fallback (`fillLastColumn` / `fillLastRow`)
+→ global default size (`defaultColSize` / `defaultRowSize`)
+```
+
+For `btc.rgrid.track.table` and `btc.rgrid.placed.table`, there are no `colDefaults`, so the column priority is:
+
+```text
+saved column state
+→ `fillLastColumn` / `lastColSize`
+→ `defaultColSize`
+```
+
+For `btc.rgrid.xy.table`, the column priority is:
+
+```text
+saved column state
+→ `colDefaults` item
+→ `fillLastColumn` / `lastColSize`
+→ `defaultColSize`
+```
+
+and the row priority is:
+
+```text
+saved row state
+→ `rowDefaults` item
+→ `fillLastRow` / `lastRowSize`
+→ `defaultRowSize`
+```
+
+This matters. For example:
+
+```html
+rowDefaults="4rem default default default 6rem"
+fillLastRow="yes"
+lastRowSize="1fr"
+```
+
+The last row defaults to `6rem`, not `1fr`, because the explicit `rowDefaults` item wins over the filler fallback.
+
+!!! `colMinWidth` vs `minColSize`
+
+`colMinWidth` and `minColSize` are deliberately different:
+
+|!Attribute|!Layer|!Purpose|
+|`colMinWidth`|CSS Grid layout|The minimum used inside `minmax(...)`. It controls how small the browser may render a column.|
+|`minColSize`|Resizer logic|The minimum size allowed while dragging a column boundary.|
+
+Use both when you want robust behavior:
+
+```html
+colMinWidth="6rem"
+minColSize="6rem"
+```
+
+`colMinWidth="0"` preserves the older behavior where CSS Grid may shrink a column all the way down to zero if the container is too small.
+
+!!! Filler tracks and container growth
+
+When every column has been frozen to pixels, the grid will not naturally absorb extra horizontal space. `fillLastColumn="yes"` keeps the last column elastic by using `lastColSize`, usually `1fr`, when no saved state or explicit default wins.
+
+For XY tables, the same idea applies vertically. `fillLastRow="yes"` lets the last row absorb extra height by using `lastRowSize`, usually `1fr`, when no saved state or explicit row default wins.
+
+Filler tracks help when the container grows. They do not solve the opposite case where the container becomes smaller than the sum of fixed track sizes. In that case the grid must overflow, scroll, or clip depending on CSS.
+
 !!! Manual track table: `btc.rgrid.track.table`
 
-The manual track table is useful when you want to define cells directly in Wikitext.
+The manual track table is useful when you want to define cells directly in Wikitext. It is column-resizable only.
 
-Example:
+!!!! Signature
+
+```html
+<$transclude
+  $variable="btc.rgrid.track.table"
+  gridId="default"
+  columns="4"
+  statePrefix="$:/state/btc/resizer/rgrid/default"
+  defaultColSize=""
+  colMinWidth="0"
+  fillLastColumn="yes"
+  lastColSize="1fr"
+  minColSize="4%"
+  maxColSize="90%"
+  unit="%"
+  gap="0.25rem"
+  rowMinHeight="3rem"
+  class=""
+  content=""
+/>
+```
+
+!!!! Attributes
+
+|!Attribute|!Description|!Default|
+|`gridId`|Unique grid instance id. Creates class `.btc-rgrid-instance-<gridId>`.|`default`|
+|`columns`|Number of grid columns.|`4`|
+|`statePrefix`|Prefix for saved column state tiddlers.|`$:/state/btc/resizer/rgrid/default`|
+|`defaultColSize`|Global fallback column size. If blank, the procedure calculates `100 / columns %`.|blank|
+|`colMinWidth`|CSS-level minimum used in `minmax(var(--btc-rgrid-col-min-width, ...), ...)` for each column.|`0`|
+|`fillLastColumn`|When `yes`, the last column can use `lastColSize` as an elastic fallback.|`yes`|
+|`lastColSize`|Fallback size for the last column when `fillLastColumn="yes"` and no saved state wins.|`1fr`|
+|`minColSize`|Minimum size for either track in a resized column pair.|`4%`|
+|`maxColSize`|Maximum size for the primary column track.|`90%`|
+|`unit`|Unit used by the column resizer for constraints and saved values.|`%`|
+|`gap`|Grid/visual gap value used by the manual table CSS.|`0.25rem`|
+|`rowMinHeight`|Minimum row height used by auto-created rows.|`3rem`|
+|`class`|Additional class appended to `.btc-rgrid-table`.|blank|
+|`content`|Variable containing the manually rendered cells.|blank|
+
+!!!! Manual cells
+
+`btc.rgrid.track.cell`:
+
+```html
+<$transclude
+  $variable="btc.rgrid.track.cell"
+  col="1"
+  row="1"
+  colSpan="1"
+  rowSpan="1"
+  last="no"
+  resize="yes"
+  class=""
+  title=""
+  content=""
+  cellPadding=""
+/>
+```
+
+`btc.rgrid.track.header` wraps `btc.rgrid.track.cell` and adds the header class.
+
+|!Attribute|!Description|!Default|
+|`col`|Grid column start.|`auto`|
+|`row`|Grid row start.|`auto`|
+|`colSpan`|Number of columns spanned.|`1`|
+|`rowSpan`|Number of rows spanned.|`1`|
+|`last`|Set to `yes` for the last column cell to suppress a right-edge handle.|`no`|
+|`resize`|Whether to render a column handle for this cell.|`yes`|
+|`class`|Additional cell classes.|blank|
+|`title`|Optional visible title inside the cell.|blank|
+|`content`|Variable transcluded as the cell content.|blank|
+|`cellPadding`|Optional per-cell padding. If blank/default, CSS fallback is used.|blank|
+
+!!!! Example
 
 ```html
 <$transclude
@@ -1283,6 +1439,9 @@ Example:
   columns="4"
   statePrefix="$:/state/btc/rgrid/manual-demo"
   defaultColSize="25%"
+  colMinWidth="5rem"
+  fillLastColumn="yes"
+  lastColSize="1fr"
   gap="0.25rem"
   rowMinHeight="3rem"
   content="""
@@ -1293,21 +1452,9 @@ Example:
 />
 ```
 
-`btc.rgrid.track.cell` supports a `cellPadding` parameter. When blank, the CSS fallback is used:
-
-```html
-<$transclude
-  $variable="btc.rgrid.track.cell"
-  col="1"
-  row="1"
-  content="Custom padding"
-  cellPadding="0.25em 0.5em"
-/>
-```
-
 !! Placed Tiddler Grid Tables: `btc.rgrid.placed.table`
 
-`btc.rgrid.placed.table` creates a grid from a filter-selected set of cell tiddlers. It supports explicit placement, colspan, rowspan, ghost cells, per-cell padding, configurable transclusion mode, draft exclusion, and overlay column resize handles.
+`btc.rgrid.placed.table` creates a grid from a filter-selected set of cell tiddlers. It supports explicit placement, colspan, rowspan, ghost cells, per-cell padding, configurable transclusion mode, draft exclusion, CSS-level column minimums, adaptive last-column filling, and overlay column resize handles.
 
 It resizes columns only.
 
@@ -1323,6 +1470,9 @@ It resizes columns only.
   statePrefix="$:/state/btc/rgrid/placed/default"
   defaultColSize=""
   defaultRowSize="auto"
+  colMinWidth="0"
+  fillLastColumn="yes"
+  lastColSize="1fr"
   rowMinHeight="3rem"
   cellGap="0.35rem"
   defaultCellPadding="0.75em 0.95em"
@@ -1349,6 +1499,9 @@ It resizes columns only.
 |`statePrefix`|Prefix for persisted column widths. Column state tiddlers are `<statePrefix>/col-1`, `<statePrefix>/col-2`, etc.|`$:/state/btc/rgrid/placed/default`|
 |`defaultColSize`|Fallback column size when no persisted column state exists. If blank, the procedure calculates `100 / columns %`.|blank|
 |`defaultRowSize`|Default row track size.|`auto`|
+|`colMinWidth`|CSS-level minimum width for every column. Used in the grid template `minmax(...)` expression.|`0`|
+|`fillLastColumn`|When `yes`, the last column can use `lastColSize` as an elastic fallback if no saved state wins.|`yes`|
+|`lastColSize`|Fallback size for the last column when `fillLastColumn="yes"`.|`1fr`|
 |`rowMinHeight`|Minimum row height used by the row template.|`3rem`|
 |`cellGap`|Visual spacing between cells. The actual CSS grid gap should stay `0`; visual spacing is created by wrapper padding.|`0.35rem`|
 |`defaultCellPadding`|Global fallback padding for real cell content.|`0.75em 0.95em`|
@@ -1356,12 +1509,22 @@ It resizes columns only.
 |`cellPaddingField`|Field name read from each cell tiddler for per-cell padding.|`padding`|
 |`defaultCellMode`|Default transclusion mode for cell text. Valid values: `block` and `inline`.|`block`|
 |`cellModeField`|Field name read from each cell tiddler for per-cell transclusion mode.|`cellmode`|
-|`minColSize`|Minimum size for either track in a resized column pair.|`4%`|
+|`minColSize`|Minimum size for either track in a resized column pair. This is a resizer constraint, not the CSS grid minimum.|`4%`|
 |`maxColSize`|Maximum size for the primary column track.|`90%`|
 |`unit`|Unit used by the column resizer for constraints and saved values.|`%`|
 |`class`|Additional class appended to `.btc-rgrid-table`.|blank|
 |`sortField`|Field used to sort real cell tiddlers before rendering.|`order`|
 |`showTitles`|When `yes`, renders a linked title inside each real cell.|`no`|
+
+!!! Column fallback order
+
+For `btc.rgrid.placed.table`, the column fallback order is:
+
+# saved state tiddler `<statePrefix>/col-N`
+# `lastColSize`, only when `fillLastColumn="yes"` and `N` is the last column
+# `defaultColSize`
+
+If `defaultColSize` is blank, it is calculated as `100 / columns %`.
 
 !!! Cell tiddler fields
 
@@ -1376,6 +1539,16 @@ It resizes columns only.
 |Tag `Header`|Adds class `btc-rgrid-cell-header`.|Optional.|
 |Tag `Footer`|Adds class `btc-rgrid-cell-footer`.|Optional.|
 |Tag `Muted`|Adds class `btc-rgrid-cell-muted`.|Optional.|
+
+The text of the cell tiddler is transcluded as the cell content.
+
+!!! Draft exclusion
+
+The procedure excludes draft tiddlers with `!is[draft]` wherever `cellFilter` is listed. Draft cell tiddlers should not:
+
+* participate in occupied-cell detection,
+* render as real cells,
+* create overlay handles.
 
 !!! Ghost cells
 
@@ -1467,11 +1640,14 @@ cellmode: inline
   statePrefix="$:/state/project-table"
   defaultColSize="25%"
   defaultRowSize="auto"
+  colMinWidth="5rem"
+  fillLastColumn="yes"
+  lastColSize="1fr"
   cellGap="0.45rem"
   defaultCellPadding="0.75em 0.95em"
   cellPaddingDefaults="1em;default;0.4em 0.6em;default"
   defaultCellMode="block"
-  minColSize="6%"
+  minColSize="5rem"
   maxColSize="80%"
   unit="%"
   showTitles="no"
@@ -1480,7 +1656,7 @@ cellmode: inline
 
 !! XY Resizable Grid Tables: `btc.rgrid.xy.table`
 
-`btc.rgrid.xy.table` creates a placed grid from a filter-selected set of cell tiddlers. It supports explicit placement, colspan, rowspan, ghost cells, per-column and per-row fallback sizes, per-cell padding, configurable transclusion mode, draft exclusion, overlay column resize handles, and overlay row resize handles.
+`btc.rgrid.xy.table` creates a placed grid from a filter-selected set of cell tiddlers. It supports explicit placement, colspan, rowspan, ghost cells, per-column and per-row fallback sizes, per-cell padding, configurable transclusion mode, draft exclusion, CSS-level column minimums, adaptive last-column filling, adaptive last-row filling, overlay column resize handles, and overlay row resize handles.
 
 It can resize columns, rows, or both.
 
@@ -1498,6 +1674,11 @@ It can resize columns, rows, or both.
   defaultRowSize=""
   colDefaults=""
   rowDefaults=""
+  colMinWidth="0"
+  fillLastColumn="yes"
+  lastColSize="1fr"
+  fillLastRow="yes"
+  lastRowSize="1fr"
   defaultCellPadding="0.75em 0.95em"
   cellPaddingDefaults=""
   cellPaddingField="padding"
@@ -1532,6 +1713,11 @@ It can resize columns, rows, or both.
 |`defaultRowSize`|Global fallback row size. If blank, the procedure calculates `100 / rows %`.|blank|
 |`colDefaults`|Space-separated positional fallback list for columns. Use `default` to fall back to `defaultColSize` for that column.|blank|
 |`rowDefaults`|Space-separated positional fallback list for rows. Use `default` to fall back to `defaultRowSize` for that row.|blank|
+|`colMinWidth`|CSS-level minimum width for every column. Used in the grid template `minmax(...)` expression.|`0`|
+|`fillLastColumn`|When `yes`, the last column can use `lastColSize` as an elastic fallback if no saved state or explicit `colDefaults` item wins.|`yes`|
+|`lastColSize`|Fallback size for the last column when `fillLastColumn="yes"`.|`1fr`|
+|`fillLastRow`|When `yes`, the last row can use `lastRowSize` as an elastic fallback if no saved state or explicit `rowDefaults` item wins.|`yes`|
+|`lastRowSize`|Fallback size for the last row when `fillLastRow="yes"`.|`1fr`|
 |`defaultCellPadding`|Global fallback padding for real cell content.|`0.75em 0.95em`|
 |`cellPaddingDefaults`|Semicolon-separated row-major padding fallback list. Use `default` to fall back to `defaultCellPadding` for that coordinate.|blank|
 |`cellPaddingField`|Field name read from each cell tiddler for per-cell padding.|`padding`|
@@ -1542,7 +1728,7 @@ It can resize columns, rows, or both.
 |`height`|Fixed grid height used when row resizing is enabled. Use values like `32rem`, `75vh`, or `100vh`.|`32rem`|
 |`resizeColumns`|Enable column overlay handles. Use `yes` or `no`.|`yes`|
 |`resizeRows`|Enable row overlay handles. Use `yes` or `no`.|`yes`|
-|`minColSize`|Minimum size for either track in a resized column pair.|`4%`|
+|`minColSize`|Minimum size for either track in a resized column pair. This is a resizer constraint, not the CSS grid minimum.|`4%`|
 |`maxColSize`|Maximum size for the primary column track.|`90%`|
 |`minRowSize`|Minimum size for either track in a resized row pair.|`2rem`|
 |`maxRowSize`|Maximum size for the primary row track.|`80%`|
@@ -1577,13 +1763,13 @@ colDefaults="14rem default 2fr 18rem"
 rowDefaults="4rem default default default 6rem"
 ```
 
-The word `default` means “use the global default for this track.”
+The word `default` means “continue to the next fallback”, which usually means the global default size, or the filler fallback when the track is the last track and no explicit positional value is present.
 
 Column example:
 
 |!Column|!Fallback|
 |1|`14rem`|
-|2|`defaultColSize`|
+|2|`defaultColSize` or later fallback|
 |3|`2fr`|
 |4|`18rem`|
 
@@ -1591,9 +1777,9 @@ Row example:
 
 |!Row|!Fallback|
 |1|`4rem`|
-|2|`defaultRowSize`|
-|3|`defaultRowSize`|
-|4|`defaultRowSize`|
+|2|`defaultRowSize` or later fallback|
+|3|`defaultRowSize` or later fallback|
+|4|`defaultRowSize` or later fallback|
 |5|`6rem`|
 
 Persisted state tiddlers override these defaults:
@@ -1603,11 +1789,29 @@ $:/state/btc/rgrid/xy-demo/col-1
 $:/state/btc/rgrid/xy-demo/row-1
 ```
 
-Fallback order for track sizes:
+Column fallback order:
 
-# persisted state tiddler
-# positional `colDefaults` / `rowDefaults` item
-# `defaultColSize` / `defaultRowSize`
+# saved state tiddler `<statePrefix>/col-N`
+# explicit `colDefaults` item for column `N`
+# `lastColSize`, only when `fillLastColumn="yes"` and `N` is the last column
+# `defaultColSize`
+
+Row fallback order:
+
+# saved state tiddler `<statePrefix>/row-N`
+# explicit `rowDefaults` item for row `N`
+# `lastRowSize`, only when `fillLastRow="yes"` and `N` is the last row
+# `defaultRowSize`
+
+Example:
+
+```html
+rowDefaults="4rem default default default 6rem"
+fillLastRow="yes"
+lastRowSize="1fr"
+```
+
+The last row uses `6rem`, not `1fr`, because the explicit row default wins over the filler fallback.
 
 !!! Full-height tables
 
@@ -1618,6 +1822,8 @@ Good:
 ```html
 height="100vh"
 defaultRowSize="1fr"
+fillLastRow="yes"
+lastRowSize="1fr"
 ```
 
 or:
@@ -1626,6 +1832,8 @@ or:
 height="100vh"
 rowDefaults="4rem default default default 6rem"
 defaultRowSize="1fr"
+fillLastRow="yes"
+lastRowSize="1fr"
 ```
 
 Avoid:
@@ -1635,6 +1843,8 @@ defaultRowSize="auto"
 ```
 
 when you expect rows to fill the height. `auto` means “fit content”, not “fill available space”.
+
+If the container becomes smaller than the sum of fixed row heights, the grid will overflow. `fillLastRow` helps absorb extra height; it does not compress fixed rows below their minimums.
 
 !!! Row and column overlay handles
 
@@ -1684,13 +1894,18 @@ Cell mode fallback order:
   defaultRowSize="1fr"
   colDefaults="14rem default 2fr 18rem"
   rowDefaults="4rem default default default 6rem"
+  colMinWidth="6rem"
+  fillLastColumn="yes"
+  lastColSize="1fr"
+  fillLastRow="yes"
+  lastRowSize="1fr"
   defaultCellPadding="0.75em 0.95em"
   cellPaddingDefaults="1em;default;0.4em 0.6em;default"
   defaultCellMode="block"
   height="100vh"
   resizeColumns="yes"
   resizeRows="yes"
-  minColSize="6%"
+  minColSize="6rem"
   maxColSize="80%"
   minRowSize="3rem"
   maxRowSize="24rem"
@@ -1703,7 +1918,7 @@ Cell mode fallback order:
 !! Cell Tiddler Example
 
 ```text
-title: Demo/Cell 1
+title: Dashboard/Cell 1
 tags: XYDashboardCell Header
 row: 1
 col: 1
@@ -1720,37 +1935,74 @@ This cell spans two columns.
 
 !! RGrid CSS Notes
 
-For exact handle positioning, keep the actual CSS Grid `gap` at `0` and create visual spacing with an inner cell box. This keeps grid boundaries mathematically exact while still giving visual breathing room between cells.
-
-The content box should use the padding variable:
+The essential CSS model is:
 
 ```css
+.btc-rgrid-table {
+  --btc-rgrid-columns-template: repeat(4, minmax(0, 1fr));
+  --btc-rgrid-rows-template: repeat(4, minmax(3rem, auto));
+  --btc-rgrid-col-min-width: 0;
+  --btc-rgrid-row-min-height: 3rem;
+  --btc-rgrid-cell-gap: 0.35rem;
+  --btc-rgrid-cell-padding: 0.75em 0.95em;
+}
+
+.btc-rgrid-content {
+  display: grid;
+  grid-template-columns: var(--btc-rgrid-columns-template);
+  grid-template-rows: var(--btc-rgrid-rows-template);
+  gap: 0;
+}
+
 .btc-rgrid-cell-content {
   padding: var(--btc-rgrid-cell-padding, 0.75em 0.95em);
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
 }
 ```
 
-Ghost cell content should usually remain empty and unpadded:
+Column templates should use a CSS minimum:
 
 ```css
-.btc-rgrid-cell-ghost > .btc-rgrid-cell-content {
-  padding: 0;
+minmax(var(--btc-rgrid-col-min-width, 0), var(--btc-rgrid-col-1, 1fr))
+```
+
+Row templates should use a CSS minimum:
+
+```css
+minmax(var(--btc-rgrid-row-min-height), var(--btc-rgrid-row-1, 1fr))
+```
+
+For row-resizable tables, this is usually useful:
+
+```css
+.btc-rgrid-table[data-resize-rows="yes"] {
+  height: var(--btc-rgrid-height);
+  max-height: var(--btc-rgrid-height);
+  overflow: auto;
+}
+
+.btc-rgrid-table[data-resize-rows="yes"] > .btc-rgrid-content {
+  min-height: 100%;
 }
 ```
 
-Overlay handle CSS should keep overlay slots above cells but let only the actual handle receive pointer events:
+Overlay handles should sit above cells:
 
 ```css
 .btc-rgrid-overlay-slot {
   position: relative;
   z-index: 1000;
   pointer-events: none;
+  overflow: visible;
 }
 
 .btc-rgrid-overlay-slot > .tc-resizer {
   pointer-events: auto;
 }
 ```
+
 
 !! Snap Points
 

@@ -1603,10 +1603,12 @@ body.tc-resizing .tc-resize-overlay {
    ================================================================= */
 
 .btc-rgrid-table {
-	--btc-rgrid-columns-template: repeat(4, minmax(0, 1fr));
+	--btc-rgrid-col-min-width: 0;
+	--btc-rgrid-columns-template: repeat(4, minmax(var(--btc-rgrid-col-min-width, 0), 1fr));
 	--btc-rgrid-rows-template: repeat(4, minmax(3rem, auto));
 	--btc-rgrid-gap: 0px;
 	--btc-rgrid-cell-gap: 0.35rem;
+	--btc-rgrid-cell-padding: 0.75em 0.95em;
 	--btc-rgrid-row-min-height: 3rem;
 	--btc-rgrid-border: <<colour border>>;
 	--btc-rgrid-background: <<colour background>>;
@@ -1654,16 +1656,17 @@ body.tc-resizing .tc-resize-overlay {
 .btc-rgrid-table[data-resize-rows="yes"] {
 	height: var(--btc-rgrid-height, 32rem);
 	min-height: 0;
-	max-height: none;
+	max-height: var(--btc-rgrid-height, 32rem);
 	display: flex;
 	flex-direction: column;
+	overflow: auto;
 }
 
 .btc-rgrid-table[data-resize-rows="yes"] > .btc-rgrid-content,
 .btc-rgrid-table[data-resize-rows="yes"] .btc-rgrid-content {
 	flex: 1 1 auto;
 	height: auto;
-	min-height: 0;
+	min-height: 100%;
 	max-height: none;
 
 	display: grid;
@@ -1723,7 +1726,7 @@ body.tc-resizing .tc-resize-overlay {
 	border: 1px solid var(--btc-rgrid-border);
 	border-radius: 4px;
 	background: var(--btc-rgrid-background);
-	padding: 0.75em 0.95em;
+	padding: var(--btc-rgrid-cell-padding, 0.75em 0.95em);
 }
 
 .btc-rgrid-cell-real {
@@ -2123,6 +2126,10 @@ body.tc-resizing .tc-resize-overlay {
 .btc-rgrid-overlay-slot > .tc-resizer.btc-rgrid-overlay-resizer {
 	position: absolute;
 	z-index: 1001;
+	min-width: 0 !important;
+	min-height: 0 !important;
+	max-width: none !important;
+	max-height: none !important;
 	margin: 0;
 	padding: 0;
 	background: transparent !important;
@@ -2142,6 +2149,8 @@ body.tc-resizing .tc-resize-overlay {
 	right: auto;
 	width: var(--btc-rgrid-handle-size);
 	height: auto;
+	min-width: 0 !important;
+	min-height: 0 !important;
 	cursor: ew-resize;
 }
 
@@ -2153,6 +2162,8 @@ body.tc-resizing .tc-resize-overlay {
 	left: auto;
 	width: var(--btc-rgrid-handle-size);
 	height: auto;
+	min-width: 0 !important;
+	min-height: 0 !important;
 	cursor: ew-resize;
 }
 
@@ -2164,6 +2175,8 @@ body.tc-resizing .tc-resize-overlay {
 	bottom: auto;
 	width: auto;
 	height: var(--btc-rgrid-handle-size);
+	min-width: 0 !important;
+	min-height: 0 !important;
 	cursor: ns-resize;
 }
 
@@ -2175,6 +2188,8 @@ body.tc-resizing .tc-resize-overlay {
 	bottom: calc(var(--btc-rgrid-handle-size) / -2);
 	width: auto;
 	height: var(--btc-rgrid-handle-size);
+	min-width: 0 !important;
+	min-height: 0 !important;
 	cursor: ns-resize;
 }
 

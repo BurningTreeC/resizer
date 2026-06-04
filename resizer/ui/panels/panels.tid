@@ -953,19 +953,26 @@ code-body: yes
 	[[100]divide<columns>fixed[6]addsuffix[%]]
 \end
 
-\function btc.rgrid.track.template(columns,defaultColSize)
+\function btc.rgrid.track.template(columns,defaultColSize,colMinWidth)
 	[range[1],<columns>]
-	:map[[minmax(0, var(--btc-rgrid-col-]addsuffix<currentTiddler>addsuffix[, ]addsuffix<defaultColSize>addsuffix[))]]
+	:map[[minmax(var(--btc-rgrid-col-min-width, ]addsuffix<colMinWidth>addsuffix[), var(--btc-rgrid-col-]addsuffix<currentTiddler>addsuffix[, ]addsuffix<defaultColSize>addsuffix[))]]
 	+[join[ ]]
 \end
 
-\function btc.rgrid.track.variables(statePrefix,columns,defaultColSize)
+\function btc.rgrid.track.variable(statePrefix,index,columns,defaultColSize,fillLastColumn,lastColSize)
+	[<statePrefix>addsuffix[/col-]addsuffix<index>get[text]]
+	~[<fillLastColumn>match[yes]then<index>compare:integer:eq<columns>then<lastColSize>]
+	~[<defaultColSize>]
+	+[addprefix[: ]addprefix<index>addprefix[--btc-rgrid-col-]addsuffix[;]]
+\end
+
+\function btc.rgrid.track.variables(statePrefix,columns,defaultColSize,fillLastColumn,lastColSize)
 	[range[1],<columns>]
-	:map[<statePrefix>addsuffix[/col-]addsuffix<currentTiddler>get[text]else<defaultColSize>addprefix[: ]addprefix<currentTiddler>addprefix[--btc-rgrid-col-]addsuffix[;]]
+	:map[function[btc.rgrid.track.variable],<statePrefix>,<currentTiddler>,<columns>,<defaultColSize>,<fillLastColumn>,<lastColSize>]
 	+[join[ ]]
 \end
 
-\procedure btc.rgrid.track.table(gridId:"default",columns:"4",statePrefix:"$:/state/btc/resizer/rgrid/default",defaultColSize:"",minColSize:"4%",maxColSize:"90%",unit:"%",gap:"0.25rem",rowMinHeight:"3rem",class:"",content:"")
+\procedure btc.rgrid.track.table(gridId:"default",columns:"4",statePrefix:"$:/state/btc/resizer/rgrid/default",defaultColSize:"",fillLastColumn:"yes",lastColSize:"1fr",colMinWidth:"0",minColSize:"4%",maxColSize:"90%",unit:"%",gap:"0.25rem",rowMinHeight:"3rem",class:"",content:"")
 \whitespace trim
 <$let
 	effectiveDefaultColSize={{{ [<defaultColSize>!is[blank]then<defaultColSize>] ~[function[btc.rgrid.track.default-col-size],<columns>] }}}
@@ -973,13 +980,14 @@ code-body: yes
 	btcRgridColumns=<<columns>>
 	btcRgridStatePrefix=<<statePrefix>>
 	btcRgridDefaultColSize=<<effectiveDefaultColSize>>
+	btcRgridColMinWidth=<<colMinWidth>>
 	btcRgridMinColSize=<<minColSize>>
 	btcRgridMaxColSize=<<maxColSize>>
 	btcRgridUnit=<<unit>>
 	btcRgridSelector={{{ [[.btc-rgrid-instance-]addsuffix<gridId>] }}}
-	btcRgridColumnTemplate={{{ [function[btc.rgrid.track.template],<columns>,<effectiveDefaultColSize>] }}}
-	btcRgridColumnVariables={{{ [function[btc.rgrid.track.variables],<statePrefix>,<columns>,<effectiveDefaultColSize>] }}}
-	btcRgridStyle={{{ [[--btc-rgrid-columns-template: ]addsuffix<btcRgridColumnTemplate>addsuffix[; --btc-rgrid-gap: ]addsuffix<gap>addsuffix[; --btc-rgrid-row-min-height: ]addsuffix<rowMinHeight>addsuffix[; ]addsuffix<btcRgridColumnVariables>] }}}
+	btcRgridColumnTemplate={{{ [function[btc.rgrid.track.template],<columns>,<effectiveDefaultColSize>,<colMinWidth>] }}}
+	btcRgridColumnVariables={{{ [function[btc.rgrid.track.variables],<statePrefix>,<columns>,<effectiveDefaultColSize>,<fillLastColumn>,<lastColSize>] }}}
+	btcRgridStyle={{{ [[--btc-rgrid-columns-template: ]addsuffix<btcRgridColumnTemplate>addsuffix[; --btc-rgrid-col-min-width: ]addsuffix<colMinWidth>addsuffix[; --btc-rgrid-gap: ]addsuffix<gap>addsuffix[; --btc-rgrid-row-min-height: ]addsuffix<rowMinHeight>addsuffix[; ]addsuffix<btcRgridColumnVariables>] }}}
 >
 	<div
 		class={{{ [[btc-rgrid-table btc-rgrid-instance-]addsuffix<gridId>addsuffix[ ]addsuffix<class>] }}}
@@ -1068,15 +1076,22 @@ code-body: yes
 	[[100]divide<columns>fixed[6]addsuffix[%]]
 \end
 
-\function btc.rgrid.placed.columns-template(columns,defaultColSize)
+\function btc.rgrid.placed.columns-template(columns,defaultColSize,colMinWidth)
 	[range[1],<columns>]
-	:map[[minmax(0, var(--btc-rgrid-col-]addsuffix<currentTiddler>addsuffix[, ]addsuffix<defaultColSize>addsuffix[))]]
+	:map[[minmax(var(--btc-rgrid-col-min-width, ]addsuffix<colMinWidth>addsuffix[), var(--btc-rgrid-col-]addsuffix<currentTiddler>addsuffix[, ]addsuffix<defaultColSize>addsuffix[))]]
 	+[join[ ]]
 \end
 
-\function btc.rgrid.placed.column-variables(statePrefix,columns,defaultColSize)
+\function btc.rgrid.placed.column-variable(statePrefix,index,columns,defaultColSize,fillLastColumn,lastColSize)
+	[<statePrefix>addsuffix[/col-]addsuffix<index>get[text]]
+	~[<fillLastColumn>match[yes]then<index>compare:integer:eq<columns>then<lastColSize>]
+	~[<defaultColSize>]
+	+[addprefix[: ]addprefix<index>addprefix[--btc-rgrid-col-]addsuffix[;]]
+\end
+
+\function btc.rgrid.placed.column-variables(statePrefix,columns,defaultColSize,fillLastColumn,lastColSize)
 	[range[1],<columns>]
-	:map[<statePrefix>addsuffix[/col-]addsuffix<currentTiddler>get[text]else<defaultColSize>addprefix[: ]addprefix<currentTiddler>addprefix[--btc-rgrid-col-]addsuffix[;]]
+	:map[function[btc.rgrid.placed.column-variable],<statePrefix>,<currentTiddler>,<columns>,<defaultColSize>,<fillLastColumn>,<lastColSize>]
 	+[join[ ]]
 \end
 
@@ -1140,7 +1155,7 @@ code-body: yes
 	[function[btc.rgrid.placed.occupied],<cellFilter>,<row>,<col>count[]match[0]then[yes]]
 \end
 
-\procedure btc.rgrid.placed.table(gridId:"placed-default",cellFilter:"[tag[TableCell]]",columns:"4",rows:"4",statePrefix:"$:/state/btc/rgrid/placed/default",defaultColSize:"",defaultRowSize:"auto",rowMinHeight:"3rem",cellGap:"0.35rem",defaultCellPadding:"0.75em 0.95em",cellPaddingDefaults:"",cellPaddingField:"padding",defaultCellMode:"block",cellModeField:"cellmode",minColSize:"4%",maxColSize:"90%",unit:"%",class:"",sortField:"order",showTitles:"no")
+\procedure btc.rgrid.placed.table(gridId:"placed-default",cellFilter:"[tag[TableCell]]",columns:"4",rows:"4",statePrefix:"$:/state/btc/rgrid/placed/default",defaultColSize:"",defaultRowSize:"auto",fillLastColumn:"yes",lastColSize:"1fr",colMinWidth:"0",rowMinHeight:"3rem",cellGap:"0.35rem",defaultCellPadding:"0.75em 0.95em",cellPaddingDefaults:"",cellPaddingField:"padding",defaultCellMode:"block",cellModeField:"cellmode",minColSize:"4%",maxColSize:"90%",unit:"%",class:"",sortField:"order",showTitles:"no")
 \whitespace trim
 <$let
 	effectiveDefaultColSize={{{ [<defaultColSize>!is[blank]then<defaultColSize>] ~[function[btc.rgrid.placed.default-col-size],<columns>] }}}
@@ -1148,6 +1163,7 @@ code-body: yes
 	btcRgridColumns=<<columns>>
 	btcRgridStatePrefix=<<statePrefix>>
 	btcRgridDefaultColSize=<<effectiveDefaultColSize>>
+	btcRgridColMinWidth=<<colMinWidth>>
 	btcRgridDefaultCellPadding=<<defaultCellPadding>>
 	btcRgridCellPaddingDefaults=<<cellPaddingDefaults>>
 	btcRgridCellPaddingField=<<cellPaddingField>>
@@ -1157,10 +1173,10 @@ code-body: yes
 	btcRgridMaxColSize=<<maxColSize>>
 	btcRgridUnit=<<unit>>
 	btcRgridSelector={{{ [[.btc-rgrid-instance-]addsuffix<gridId>] }}}
-	btcRgridColumnTemplate={{{ [function[btc.rgrid.placed.columns-template],<columns>,<effectiveDefaultColSize>] }}}
-	btcRgridColumnVariables={{{ [function[btc.rgrid.placed.column-variables],<statePrefix>,<columns>,<effectiveDefaultColSize>] }}}
+	btcRgridColumnTemplate={{{ [function[btc.rgrid.placed.columns-template],<columns>,<effectiveDefaultColSize>,<colMinWidth>] }}}
+	btcRgridColumnVariables={{{ [function[btc.rgrid.placed.column-variables],<statePrefix>,<columns>,<effectiveDefaultColSize>,<fillLastColumn>,<lastColSize>] }}}
 	btcRgridRowsTemplate={{{ [function[btc.rgrid.placed.rows-template],<rows>,<defaultRowSize>] }}}
-	btcRgridStyle={{{ [[--btc-rgrid-columns-template: ]addsuffix<btcRgridColumnTemplate>addsuffix[; --btc-rgrid-rows-template: ]addsuffix<btcRgridRowsTemplate>addsuffix[; --btc-rgrid-row-min-height: ]addsuffix<rowMinHeight>addsuffix[; --btc-rgrid-cell-gap: ]addsuffix<cellGap>addsuffix[; --btc-rgrid-cell-padding: ]addsuffix<defaultCellPadding>addsuffix[; ]addsuffix<btcRgridColumnVariables>] }}}
+	btcRgridStyle={{{ [[--btc-rgrid-columns-template: ]addsuffix<btcRgridColumnTemplate>addsuffix[; --btc-rgrid-col-min-width: ]addsuffix<colMinWidth>addsuffix[; --btc-rgrid-rows-template: ]addsuffix<btcRgridRowsTemplate>addsuffix[; --btc-rgrid-row-min-height: ]addsuffix<rowMinHeight>addsuffix[; --btc-rgrid-cell-gap: ]addsuffix<cellGap>addsuffix[; --btc-rgrid-cell-padding: ]addsuffix<defaultCellPadding>addsuffix[; ]addsuffix<btcRgridColumnVariables>] }}}
 >
 	<div
 		class={{{ [[btc-rgrid-table btc-rgrid-instance-]addsuffix<gridId>addsuffix[ ]addsuffix<class>] }}}
@@ -1382,9 +1398,9 @@ code-body: yes
 	[[100]divide<rows>fixed[6]addsuffix[%]]
 \end
 
-\function btc.rgrid.xy.columns-template(columns,defaultColSize)
+\function btc.rgrid.xy.columns-template(columns,defaultColSize,colMinWidth)
 	[range[1],<columns>]
-	:map[[minmax(0, var(--btc-rgrid-col-]addsuffix<currentTiddler>addsuffix[, ]addsuffix<defaultColSize>addsuffix[))]]
+	:map[[minmax(var(--btc-rgrid-col-min-width, ]addsuffix<colMinWidth>addsuffix[), var(--btc-rgrid-col-]addsuffix<currentTiddler>addsuffix[, ]addsuffix<defaultColSize>addsuffix[))]]
 	+[join[ ]]
 \end
 
@@ -1394,9 +1410,8 @@ code-body: yes
 	+[join[ ]]
 \end
 
-\function btc.rgrid.xy.track-default(defaults,index,fallback)
-	[<defaults>split[ ]nth<index>!match[default]]
-	~[<fallback>]
+\function btc.rgrid.xy.track-default(defaults,index)
+	[<defaults>split[ ]nth<index>trim[]!is[blank]!match[default]]
 \end
 
 \function btc.rgrid.xy.cell-padding-default(defaults,index,fallback)
@@ -1408,27 +1423,31 @@ code-body: yes
 	[<row>subtract[1]multiply<columns>add<col>]
 \end
 
-\function btc.rgrid.xy.column-variable(statePrefix,index,defaultColSize,colDefaults)
+\function btc.rgrid.xy.column-variable(statePrefix,index,columns,defaultColSize,colDefaults,fillLastColumn,lastColSize)
 	[<statePrefix>addsuffix[/col-]addsuffix<index>get[text]]
-	~[function[btc.rgrid.xy.track-default],<colDefaults>,<index>,<defaultColSize>]
+	~[function[btc.rgrid.xy.track-default],<colDefaults>,<index>]
+	~[<fillLastColumn>match[yes]then<index>compare:integer:eq<columns>then<lastColSize>]
+	~[<defaultColSize>]
 	+[addprefix[: ]addprefix<index>addprefix[--btc-rgrid-col-]addsuffix[;]]
 \end
 
-\function btc.rgrid.xy.row-variable(statePrefix,index,defaultRowSize,rowDefaults)
+\function btc.rgrid.xy.row-variable(statePrefix,index,rows,defaultRowSize,rowDefaults,fillLastRow,lastRowSize)
 	[<statePrefix>addsuffix[/row-]addsuffix<index>get[text]]
-	~[function[btc.rgrid.xy.track-default],<rowDefaults>,<index>,<defaultRowSize>]
+	~[function[btc.rgrid.xy.track-default],<rowDefaults>,<index>]
+	~[<fillLastRow>match[yes]then<index>compare:integer:eq<rows>then<lastRowSize>]
+	~[<defaultRowSize>]
 	+[addprefix[: ]addprefix<index>addprefix[--btc-rgrid-row-]addsuffix[;]]
 \end
 
-\function btc.rgrid.xy.column-variables(statePrefix,columns,defaultColSize,colDefaults)
+\function btc.rgrid.xy.column-variables(statePrefix,columns,defaultColSize,colDefaults,fillLastColumn,lastColSize)
 	[range[1],<columns>]
-	:map[function[btc.rgrid.xy.column-variable],<statePrefix>,<currentTiddler>,<defaultColSize>,<colDefaults>]
+	:map[function[btc.rgrid.xy.column-variable],<statePrefix>,<currentTiddler>,<columns>,<defaultColSize>,<colDefaults>,<fillLastColumn>,<lastColSize>]
 	+[join[ ]]
 \end
 
-\function btc.rgrid.xy.row-variables(statePrefix,rows,defaultRowSize,rowDefaults)
+\function btc.rgrid.xy.row-variables(statePrefix,rows,defaultRowSize,rowDefaults,fillLastRow,lastRowSize)
 	[range[1],<rows>]
-	:map[function[btc.rgrid.xy.row-variable],<statePrefix>,<currentTiddler>,<defaultRowSize>,<rowDefaults>]
+	:map[function[btc.rgrid.xy.row-variable],<statePrefix>,<currentTiddler>,<rows>,<defaultRowSize>,<rowDefaults>,<fillLastRow>,<lastRowSize>]
 	+[join[ ]]
 \end
 
@@ -1487,6 +1506,11 @@ code-body: yes
 	defaultRowSize:"",
 	colDefaults:"",
 	rowDefaults:"",
+	fillLastColumn:"yes",
+	lastColSize:"1fr",
+	colMinWidth:"0",
+	fillLastRow:"yes",
+	lastRowSize:"1fr",
 	defaultCellPadding:"0.75em 0.95em",
 	cellPaddingDefaults:"",
 	cellPaddingField:"padding",
@@ -1522,6 +1546,7 @@ code-body: yes
 
 	btcRgridDefaultColSize=<<effectiveDefaultColSize>>
 	btcRgridDefaultRowSize=<<effectiveDefaultRowSize>>
+	btcRgridColMinWidth=<<colMinWidth>>
 	btcRgridDefaultCellPadding=<<defaultCellPadding>>
 	btcRgridCellPaddingDefaults=<<cellPaddingDefaults>>
 	btcRgridCellPaddingField=<<cellPaddingField>>
@@ -1538,13 +1563,13 @@ code-body: yes
 
 	btcRgridSelector={{{ [[.btc-rgrid-instance-]addsuffix<gridId>] }}}
 
-	btcRgridColumnTemplate={{{ [function[btc.rgrid.xy.columns-template],<columns>,<effectiveDefaultColSize>] }}}
+	btcRgridColumnTemplate={{{ [function[btc.rgrid.xy.columns-template],<columns>,<effectiveDefaultColSize>,<colMinWidth>] }}}
 	btcRgridRowsTemplate={{{ [function[btc.rgrid.xy.rows-template],<rows>,<effectiveDefaultRowSize>] }}}
 
-	btcRgridColumnVariables={{{ [function[btc.rgrid.xy.column-variables],<statePrefix>,<columns>,<effectiveDefaultColSize>,<colDefaults>] }}}
-	btcRgridRowVariables={{{ [function[btc.rgrid.xy.row-variables],<statePrefix>,<rows>,<effectiveDefaultRowSize>,<rowDefaults>] }}}
+	btcRgridColumnVariables={{{ [function[btc.rgrid.xy.column-variables],<statePrefix>,<columns>,<effectiveDefaultColSize>,<colDefaults>,<fillLastColumn>,<lastColSize>] }}}
+	btcRgridRowVariables={{{ [function[btc.rgrid.xy.row-variables],<statePrefix>,<rows>,<effectiveDefaultRowSize>,<rowDefaults>,<fillLastRow>,<lastRowSize>] }}}
 
-	btcRgridStyle={{{ [[--btc-rgrid-columns-template: ]addsuffix<btcRgridColumnTemplate>addsuffix[; --btc-rgrid-rows-template: ]addsuffix<btcRgridRowsTemplate>addsuffix[; --btc-rgrid-row-min-height: ]addsuffix<rowMinHeight>addsuffix[; --btc-rgrid-cell-gap: ]addsuffix<cellGap>addsuffix[; --btc-rgrid-height: ]addsuffix<height>addsuffix[; --btc-rgrid-cell-padding: ]addsuffix<defaultCellPadding>addsuffix[; ]addsuffix<btcRgridColumnVariables>addsuffix[ ]addsuffix<btcRgridRowVariables>] }}}
+	btcRgridStyle={{{ [[--btc-rgrid-columns-template: ]addsuffix<btcRgridColumnTemplate>addsuffix[; --btc-rgrid-col-min-width: ]addsuffix<colMinWidth>addsuffix[; --btc-rgrid-rows-template: ]addsuffix<btcRgridRowsTemplate>addsuffix[; --btc-rgrid-row-min-height: ]addsuffix<rowMinHeight>addsuffix[; --btc-rgrid-cell-gap: ]addsuffix<cellGap>addsuffix[; --btc-rgrid-height: ]addsuffix<height>addsuffix[; --btc-rgrid-cell-padding: ]addsuffix<defaultCellPadding>addsuffix[; ]addsuffix<btcRgridColumnVariables>addsuffix[ ]addsuffix<btcRgridRowVariables>] }}}
 >
 	<div
 		class={{{ [[btc-rgrid-table btc-rgrid-instance-]addsuffix<gridId>addsuffix[ ]addsuffix<class>] }}}
