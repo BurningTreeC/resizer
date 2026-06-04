@@ -3,9 +3,9 @@ type: text/vnd.tiddlywiki
 
 ! TiddlyWiki Resizer Widget Plugin
 
-A flexible, pointer-based resizer widget for TiddlyWiki. It can resize one tiddler, multiple tiddlers, live DOM elements, paired split panes, real HTML table columns, and CSS Grid column tracks. It supports horizontal and vertical resizing, CSS units, `calc()` expressions, min/max constraints, optional snap points, double-click preset cycling, CSS variable publishing, pointer/touch input, haptic feedback, double-click reset, action hooks, a dedicated `split-pair` mode for adjacent panels, a `table-column` mode for real HTML tables, and a `grid-track` mode for CSS Grid table-like layouts.
+A flexible, pointer-based resizer widget for TiddlyWiki. It can resize one tiddler, multiple tiddlers, live DOM elements, paired split panes, real HTML table columns, and CSS Grid column/row tracks. It supports horizontal and vertical resizing, CSS units, `calc()` expressions, min/max constraints, optional snap points, double-click preset cycling, CSS variable publishing, pointer/touch input, haptic feedback, double-click reset, action hooks, a dedicated `split-pair` mode for adjacent panels, a `table-column` mode for real HTML tables, and a `grid-track` mode for CSS Grid table-like layouts with overlay handles, ghost cells, placed cell tiddlers, per-cell padding defaults, and configurable block/inline cell rendering.
 
-The widget is intended for TiddlyWiki layouts where sizes are stored in state/config tiddlers and reused as CSS values. Normal `single` and `multiple` modes resize target values directly. The `split-pair` mode treats two adjacent panes as one coupled pair: the first pane grows by the drag delta, the second pane shrinks by the same amount, and the pair's total size stays stable. The `table-column` mode resizes the real `<col>` element of an HTML table instead of trying to resize each `<td>` cell individually. The `grid-track` mode resizes the boundary between two adjacent CSS Grid column tracks, which is the right model for resizable CSS Grid tables with merged cells, ghost cells, and tiddler-driven placement.
+The widget is intended for TiddlyWiki layouts where sizes are stored in state/config tiddlers and reused as CSS values. Normal `single` and `multiple` modes resize target values directly. The `split-pair` mode treats two adjacent panes as one coupled pair: the first pane grows by the drag delta, the second pane shrinks by the same amount, and the pair's total size stays stable. The `table-column` mode resizes the real `<col>` element of an HTML table instead of trying to resize each `<td>` cell individually. The `grid-track` mode resizes the boundary between two adjacent CSS Grid tracks. In column mode it resizes the boundary between two columns; in row mode it resizes the boundary between two rows. This is the right model for resizable CSS Grid tables with merged cells, ghost cells, overlay handles, tiddler-driven placement, and optional full-height row resizing.
 
 The refactored plugin keeps the public widget entry point compatible with the original monolithic widget while moving internal behavior into focused modules. Existing usage should continue to work, and the newer features are additive and opt-in.
 
@@ -24,7 +24,14 @@ The refactored plugin keeps the public widget entry point compatible with the or
 * Table-Column Resizing
 * Grid-Track Resizing
 * CSS Grid Table Procedures
-* Placed Tiddler Grid Tables
+** Manual Track Grid Tables: `btc.rgrid.track.table`
+** Placed Tiddler Grid Tables: `btc.rgrid.placed.table`
+** XY Resizable Grid Tables: `btc.rgrid.xy.table`
+** Cell Tiddler Fields
+** Ghost Cells
+** Overlay Handles
+** Cell Padding Defaults
+** Cell Rendering Mode
 * Snap Points
 * Preset Cycling
 * CSS Variable Publishing
@@ -51,6 +58,11 @@ The refactored plugin keeps the public widget entry point compatible with the or
 * ''Grid-track resizing'': Resize the boundary between two adjacent CSS Grid column tracks with `mode="grid-track"`.
 * ''Resizable CSS Grid tables'': Build table-like CSS Grid layouts with merged cells, explicit row/column placement, and handles on cell boundaries.
 * ''Tiddler-driven placed grid tables'': Generate cells from tagged tiddlers whose `row`, `col`, `rowspan`, and `colspan` fields define placement.
+* ''X/Y resizable grid tables'': Resize both CSS Grid columns and rows with `btc.rgrid.xy.table`.
+* ''Overlay grid handles'': Place resize handles as overlay grid items above cells instead of inside cell content, avoiding neighbouring-cell hit-test problems.
+* ''Per-cell padding defaults'': Configure cell padding globally, from a row-major fallback list, or from each cell tiddler.
+* ''Configurable cell rendering mode'': Let each cell tiddler choose `block` or `inline` transclusion via a configurable field.
+* ''Draft exclusion'': Grid table procedures exclude draft tiddlers from cell filters so draft cells do not render or affect ghost placement.
 * ''Ghost placeholder cells'': Fill unoccupied grid coordinates with empty ghost cells so a declared `rows × columns` system remains stable.
 * ''Horizontal and vertical split pairs'': Use `leftTiddler`/`rightTiddler` for horizontal pairs and `topTiddler`/`bottomTiddler` for vertical pairs.
 * ''Stable pair size'': In `split-pair` mode, the first pane grows while the second pane shrinks, preserving the pair's total width or height.
@@ -491,19 +503,20 @@ $:/state/resizer/table-columns/demo-table/2
 
 !!! Grid-Track Attributes
 
-These attributes are used when `mode="grid-track"`. This mode is for CSS Grid column boundaries, not real HTML `<table>` elements. It is especially useful for CSS Grid table procedures with merged cells.
+These attributes are used when `mode="grid-track"`. This mode is for CSS Grid track boundaries, not real HTML `<table>` elements. It can resize column boundaries and row boundaries. It is especially useful for CSS Grid table procedures with merged cells, ghost cells, overlay handles, and tiddler-driven placement.
 
 |!Attribute|!Description|!Default|
-|`gridSelector`|CSS selector for the grid instance whose column variables should be changed.|—|
-|`gridTrackIndex`|One-based boundary index. Resizes column `N` and column `N+1`.|`1`|
-|`gridTrackStatePrefix`|Prefix for saved column state tiddlers. Column `N` is stored as `<prefix>/col-N`.|`$:/state/grid`|
+|`gridSelector`|CSS selector for the grid instance whose track variables should be changed.|—|
+|`gridTrackAxis`|Track axis to resize. Use `column` for `grid-template-columns` or `row` for `grid-template-rows`.|`column`|
+|`gridTrackIndex`|One-based boundary index. For columns, resizes column `N` and `N+1`. For rows, resizes row `N` and `N+1`.|`1`|
+|`gridTrackStatePrefix`|Prefix for saved track state tiddlers. Columns use `<prefix>/col-N`; rows use `<prefix>/row-N`.|`$:/state/grid`|
 |`gridTrackField`|Field to write on generated state tiddlers.|`text`|
-|`gridTrackUnit`|Logical unit for constraints and defaults.|value of `unit` or `%`|
-|`gridTrackMin`|Minimum size for either track in the resized pair.|value of `min` or `4%`|
-|`gridTrackMax`|Optional maximum size for the left track in the resized pair.|value of `max`|
-|`gridTrackSnap`|Optional snap values for the left track.|value of `snap`|
+|`gridTrackUnit`|Logical unit for constraints and defaults. For columns this is usually `%`; for rows this is often `px`.|value of `unit` or `%`|
+|`gridTrackMin`|Minimum size for either track in the resized pair.|value of `min` or axis default|
+|`gridTrackMax`|Optional maximum size for the primary track in the resized pair.|value of `max`|
+|`gridTrackSnap`|Optional snap values for the primary track.|value of `snap`|
 |`gridTrackSnapDistance`|Distance from snap point before snapping.|value of `snapDistance` or `0px`|
-|`gridTrackCssVariablePrefix`|Prefix for CSS custom properties. Column `N` becomes `<prefix>N`.|`--btc-rgrid-col-`|
+|`gridTrackCssVariablePrefix`|Prefix for CSS custom properties. Columns normally use `--btc-rgrid-col-`; rows normally use `--btc-rgrid-row-`.|axis-dependent|
 |`gridTrackLive`|Apply track CSS variables during drag.|`yes`|
 |`gridTrackSave`|Save track state during drag, on end, or never: `drag`, `end`, `none`.|`end`|
 |`gridTrackLiveUnit`|Unit written to CSS variables while dragging. `px` is recommended for stability.|`px`|
@@ -511,20 +524,45 @@ These attributes are used when `mode="grid-track"`. This mode is for CSS Grid co
 |`gridTrackFreezeOnStart`|Freeze all computed grid tracks to exact pixel variables on pointerdown.|`yes`|
 |`gridTrackFreezeOnEnd`|Re-read and save browser-resolved computed tracks on pointerup.|`yes`|
 
-The grid-track mode deliberately changes the pair of adjacent tracks, not the visual cell element. A handle on the right edge of a cell spanning columns 2-4 should use `gridTrackIndex="4"`, because the resizable boundary is after column 4.
+The grid-track mode deliberately changes the pair of adjacent tracks, not the visual cell element. A handle on the right edge of a cell spanning columns 2-4 should use `gridTrackAxis="column"` and `gridTrackIndex="4"`, because the resizable boundary is after column 4.
 
-Example:
+A handle on the bottom edge of a cell spanning rows 2-4 should use `gridTrackAxis="row"` and `gridTrackIndex="4"`, because the resizable boundary is after row 4.
+
+Column example:
 
 ```html
 <$resizer
   mode="grid-track"
-  class="btc-rgrid-cell-resizer"
+  class="btc-rgrid-overlay-resizer btc-rgrid-column-overlay-resizer"
   direction="horizontal"
   gridSelector=".btc-rgrid-instance-my-grid"
+  gridTrackAxis="column"
   gridTrackIndex="2"
   gridTrackStatePrefix="$:/state/my-grid"
   gridTrackMin="4%"
   gridTrackMax="90%"
+  gridTrackLive="yes"
+  gridTrackSave="end"
+  gridTrackLiveUnit="px"
+  gridTrackSaveUnit="px"
+  gridTrackFreezeOnStart="yes"
+  gridTrackFreezeOnEnd="yes"
+/>
+```
+
+Row example:
+
+```html
+<$resizer
+  mode="grid-track"
+  class="btc-rgrid-overlay-resizer btc-rgrid-row-overlay-resizer"
+  direction="vertical"
+  gridSelector=".btc-rgrid-instance-my-grid"
+  gridTrackAxis="row"
+  gridTrackIndex="2"
+  gridTrackStatePrefix="$:/state/my-grid"
+  gridTrackMin="2rem"
+  gridTrackMax="80%"
   gridTrackLive="yes"
   gridTrackSave="end"
   gridTrackLiveUnit="px"
@@ -1110,24 +1148,44 @@ Use `tableColumnSave="end"` if you want a smoother drag with one final write on 
 
 !! Grid-Track Resizing
 
-`mode="grid-track"` is for CSS Grid layouts where columns are defined by CSS variables such as:
+`mode="grid-track"` is for CSS Grid layouts where columns and rows are controlled by CSS variables such as:
 
 ```css
 --btc-rgrid-columns-template: var(--btc-rgrid-col-1, 25%) var(--btc-rgrid-col-2, 25%) var(--btc-rgrid-col-3, 25%) var(--btc-rgrid-col-4, 25%);
+--btc-rgrid-rows-template: var(--btc-rgrid-row-1, 20%) var(--btc-rgrid-row-2, 20%) var(--btc-rgrid-row-3, 20%) var(--btc-rgrid-row-4, 20%) var(--btc-rgrid-row-5, 20%);
 ```
 
-A grid-track handle resizes a ''boundary'' between two adjacent tracks. If the handle uses `gridTrackIndex="2"`, then column 2 and column 3 are resized as a pair:
+A grid-track handle resizes a ''boundary'' between two adjacent tracks.
+
+For columns:
 
 ```text
-column 2 grows  -> column 3 shrinks
-column 2 shrinks -> column 3 grows
+column N grows   -> column N+1 shrinks
+column N shrinks -> column N+1 grows
 ```
 
-The pair total is preserved, so the grid stays stable. This is different from resizing a single DOM element. The visual handle may be placed on the edge of a cell, but the resized thing is the underlying grid track boundary.
+For rows:
+
+```text
+row N grows   -> row N+1 shrinks
+row N shrinks -> row N+1 grows
+```
+
+The pair total is preserved, so the overall grid remains stable. This is different from resizing a cell element. The visual handle may appear at the edge of a cell, but the resized thing is the underlying grid track boundary.
+
+!!! Axis
+
+`gridTrackAxis` controls whether the resizer works on columns or rows.
+
+|!Axis|!Pointer axis|!Template|!CSS variables|!State tiddlers|
+|`column`|`clientX` / horizontal|`grid-template-columns`|`--btc-rgrid-col-N`|`<statePrefix>/col-N`|
+|`row`|`clientY` / vertical|`grid-template-rows`|`--btc-rgrid-row-N`|`<statePrefix>/row-N`|
+
+Column mode is the default for backwards compatibility.
 
 !!! Why freeze on start and end?
 
-A CSS Grid table often starts with percentage defaults such as `25% 25% 25% 25%`. After manual resizing, pixel tracks are more stable because they match the browser's computed layout exactly. `gridTrackFreezeOnStart="yes"` freezes all current tracks to exact pixel variables before the drag moves. `gridTrackFreezeOnEnd="yes"` saves the final browser-resolved track values on pointerup.
+A CSS Grid table often starts with percentage or `fr` defaults. After manual resizing, pixel tracks are more stable because they match the browser's computed layout exactly. `gridTrackFreezeOnStart="yes"` freezes all current tracks to exact pixel variables before the drag moves. `gridTrackFreezeOnEnd="yes"` saves the final browser-resolved track values on pointerup.
 
 Recommended settings:
 
@@ -1143,172 +1201,200 @@ Recommended settings:
 
 !!! Handle placement
 
-The handle should be visually placed at a grid boundary. For CSS Grid table procedures, render the handle inside the cell that ends at that boundary. For the last visual cell in a row, do not render a handle because there is no column to the right.
-
-For a cell with `col="2"` and `colSpan="3"`, the right boundary is after column 4:
+For a cell with `col="2"` and `colspan="3"`, the right boundary is after column 4:
 
 ```text
-boundaryIndex = col + colSpan - 1
+boundaryIndex = col + colspan - 1
 ```
 
-So the handle should use:
+So the column handle should use:
 
 ```html
+gridTrackAxis="column"
 gridTrackIndex="4"
 ```
+
+For a cell with `row="2"` and `rowspan="3"`, the bottom boundary is after row 4:
+
+```text
+rowBoundaryIndex = row + rowspan - 1
+```
+
+So the row handle should use:
+
+```html
+gridTrackAxis="row"
+gridTrackIndex="4"
+```
+
+!!! Overlay handles
+
+Earlier versions rendered handles as children of cells. That can cause hit-testing problems because the neighboring grid cell can cover part of the handle.
+
+The current table procedures use overlay handles: the handle is a separate grid item placed over the same grid area as the cell. The overlay slot has `pointer-events:none`, while the actual handle has `pointer-events:auto`.
+
+Conceptually:
+
+```html
+<div class="btc-rgrid-cell btc-rgrid-cell-real">...</div>
+<div class="btc-rgrid-overlay-slot"> <$resizer .../> </div>
+```
+
+This keeps the handle above all cells and avoids asymmetric hover behavior.
 
 !! CSS Grid Table Procedures
 
 The plugin can be used with Wikitext procedures that create CSS Grid table-like layouts. These are not native HTML `<table>` elements; they are CSS Grid layouts that support merged cells naturally.
 
-A minimal procedure layer usually has:
+The current procedure families are:
+
+|!Procedure|!Purpose|
+|`btc.rgrid.track.table`|Manual grid table. Cells are manually transcluded through `btc.rgrid.track.cell` or `btc.rgrid.track.header`. Columns are resizable.|
+|`btc.rgrid.placed.table`|Tiddler-driven placed table. A filter returns cell tiddlers with `row`, `col`, `rowspan`, and `colspan` fields. Columns are resizable.|
+|`btc.rgrid.xy.table`|Tiddler-driven X/Y table. A filter returns cell tiddlers with `row`, `col`, `rowspan`, and `colspan` fields. Columns and rows are resizable.|
+
+All RGrid table procedures use the same base CSS classes:
 
 ```text
-btc.rgrid.track.table
-btc.rgrid.track.cell
-btc.rgrid.track.header
-btc.rgrid.track.handle
+btc-rgrid-table
+btc-rgrid-content
+btc-rgrid-cell
+btc-rgrid-cell-content
 ```
 
-The table procedure defines the grid and state prefix:
+The placed and xy procedures also use overlay handle classes:
+
+```text
+btc-rgrid-overlay-slot
+btc-rgrid-column-overlay-resizer
+btc-rgrid-row-overlay-resizer
+```
+
+!!! Manual track table: `btc.rgrid.track.table`
+
+The manual track table is useful when you want to define cells directly in Wikitext.
+
+Example:
 
 ```html
 <$transclude
   $variable="btc.rgrid.track.table"
-  gridId="my-grid"
+  gridId="manual-demo"
   columns="4"
-  statePrefix="$:/state/my-grid"
+  statePrefix="$:/state/btc/rgrid/manual-demo"
+  defaultColSize="25%"
+  gap="0.25rem"
+  rowMinHeight="3rem"
   content="""
-<$transclude $variable="btc.rgrid.track.cell" col="1" row="1" content="A"/>
-<$transclude $variable="btc.rgrid.track.cell" col="2" row="1" colSpan="2" content="B spans two columns"/>
-<$transclude $variable="btc.rgrid.track.cell" col="4" row="1" last="yes" content="C"/>
+<$transclude $variable="btc.rgrid.track.header" col="1" row="1" colSpan="2" content="Header"/>
+<$transclude $variable="btc.rgrid.track.cell" col="3" row="1" content="Cell 3"/>
+<$transclude $variable="btc.rgrid.track.cell" col="4" row="1" last="yes" content="Cell 4"/>
 """
 />
 ```
 
-A cell procedure should calculate:
-
-```text
-boundaryIndex = col + colSpan - 1
-```
-
-and render a handle unless the cell is the last visual cell in the row:
+`btc.rgrid.track.cell` supports a `cellPadding` parameter. When blank, the CSS fallback is used:
 
 ```html
-<$resizer
-  mode="grid-track"
-  class="btc-rgrid-cell-resizer"
-  direction="horizontal"
-  gridSelector=<<btcRgridSelector>>
-  gridTrackIndex=<<boundaryIndex>>
-  gridTrackStatePrefix=<<btcRgridStatePrefix>>
-  gridTrackMin=<<btcRgridMinColSize>>
-  gridTrackMax=<<btcRgridMaxColSize>>
-  gridTrackLive="yes"
-  gridTrackSave="end"
-  gridTrackLiveUnit="px"
-  gridTrackSaveUnit="px"
-  gridTrackFreezeOnStart="yes"
-  gridTrackFreezeOnEnd="yes"
+<$transclude
+  $variable="btc.rgrid.track.cell"
+  col="1"
+  row="1"
+  content="Custom padding"
+  cellPadding="0.25em 0.5em"
 />
 ```
 
-!!! Recommended CSS Grid table styling
+!! Placed Tiddler Grid Tables: `btc.rgrid.placed.table`
 
-For exact handle positioning, keep the actual CSS Grid `gap` at `0` and create visual spacing with an inner cell box. This keeps grid boundaries mathematically exact while still giving visual breathing room between cells.
+`btc.rgrid.placed.table` creates a grid from a filter-selected set of cell tiddlers. It supports explicit placement, colspan, rowspan, ghost cells, per-cell padding, configurable transclusion mode, draft exclusion, and overlay column resize handles.
 
-```css
-.btc-rgrid-content {
-  display: grid;
-  grid-template-columns: var(--btc-rgrid-columns-template);
-  gap: 0;
-  padding: calc(var(--btc-rgrid-cell-gap) / 2);
-}
+It resizes columns only.
 
-.btc-rgrid-cell {
-  position: relative;
-  padding: calc(var(--btc-rgrid-cell-gap) / 2);
-  overflow: visible;
-}
-
-.btc-rgrid-cell-content {
-  border: 1px solid var(--btc-rgrid-border);
-  border-radius: 4px;
-  padding: 0.75em 0.95em;
-}
-
-.btc-rgrid-cell > .tc-resizer.btc-rgrid-cell-resizer {
-  position: absolute;
-  top: calc(var(--btc-rgrid-cell-gap) / 2);
-  right: calc(var(--btc-rgrid-handle-size) / -2);
-  bottom: calc(var(--btc-rgrid-cell-gap) / 2);
-  width: var(--btc-rgrid-handle-size);
-  cursor: ew-resize;
-}
-```
-
-!! Placed Tiddler Grid Tables
-
-A placed grid table reads cell tiddlers from a tag. Each tiddler defines its own coordinate and span fields:
-
-```text
-tags: MyTable
-row: 2
-col: 1
-rowspan: 1
-colspan: 2
-order: 10
-```
-
-The text of the tiddler is rendered as the cell content. Additional tags control visual role:
-
-|!Tag|!Effect|
-|`Header`|Header styling.|
-|`Footer`|Footer styling.|
-|`Muted`|Muted/background styling.|
-
-The table procedure defines the coordinate system:
+!!! Signature
 
 ```html
 <$transclude
   $variable="btc.rgrid.placed.table"
-  gridId="project-table"
-  tag="MyTable"
+  gridId="placed-default"
+  cellFilter="[tag[TableCell]]"
   columns="4"
-  rows="6"
-  statePrefix="$:/state/project-table"
+  rows="4"
+  statePrefix="$:/state/btc/rgrid/placed/default"
+  defaultColSize=""
+  defaultRowSize="auto"
+  rowMinHeight="3rem"
+  cellGap="0.35rem"
+  defaultCellPadding="0.75em 0.95em"
+  cellPaddingDefaults=""
+  cellPaddingField="padding"
+  defaultCellMode="block"
+  cellModeField="cellmode"
+  minColSize="4%"
+  maxColSize="90%"
+  unit="%"
+  class=""
+  sortField="order"
   showTitles="no"
 />
 ```
 
+!!! Attributes
+
+|!Attribute|!Description|!Default|
+|`gridId`|Unique grid instance id. Creates class `.btc-rgrid-instance-<gridId>` and is used by the overlay resizers as selector target.|`placed-default`|
+|`cellFilter`|Filter returning the real cell tiddlers. The procedure excludes drafts with `!is[draft]` wherever it lists this filter.|`[tag[TableCell]]`|
+|`columns`|Number of grid columns.|`4`|
+|`rows`|Number of grid rows.|`4`|
+|`statePrefix`|Prefix for persisted column widths. Column state tiddlers are `<statePrefix>/col-1`, `<statePrefix>/col-2`, etc.|`$:/state/btc/rgrid/placed/default`|
+|`defaultColSize`|Fallback column size when no persisted column state exists. If blank, the procedure calculates `100 / columns %`.|blank|
+|`defaultRowSize`|Default row track size.|`auto`|
+|`rowMinHeight`|Minimum row height used by the row template.|`3rem`|
+|`cellGap`|Visual spacing between cells. The actual CSS grid gap should stay `0`; visual spacing is created by wrapper padding.|`0.35rem`|
+|`defaultCellPadding`|Global fallback padding for real cell content.|`0.75em 0.95em`|
+|`cellPaddingDefaults`|Semicolon-separated row-major padding fallback list. Use `default` to fall back to `defaultCellPadding` for that coordinate.|blank|
+|`cellPaddingField`|Field name read from each cell tiddler for per-cell padding.|`padding`|
+|`defaultCellMode`|Default transclusion mode for cell text. Valid values: `block` and `inline`.|`block`|
+|`cellModeField`|Field name read from each cell tiddler for per-cell transclusion mode.|`cellmode`|
+|`minColSize`|Minimum size for either track in a resized column pair.|`4%`|
+|`maxColSize`|Maximum size for the primary column track.|`90%`|
+|`unit`|Unit used by the column resizer for constraints and saved values.|`%`|
+|`class`|Additional class appended to `.btc-rgrid-table`.|blank|
+|`sortField`|Field used to sort real cell tiddlers before rendering.|`order`|
+|`showTitles`|When `yes`, renders a linked title inside each real cell.|`no`|
+
+!!! Cell tiddler fields
+
+|!Field/tag|!Meaning|!Fallback|
+|`row`|1-based row start.|Required for real cells.|
+|`col`|1-based column start.|Required for real cells.|
+|`rowspan`|Number of rows spanned by the cell.|`1`|
+|`colspan`|Number of columns spanned by the cell.|`1`|
+|`padding`|Per-cell padding, unless `cellPaddingField` is changed.|Falls back to `cellPaddingDefaults`, then `defaultCellPadding`.|
+|`cellmode`|Per-cell transclusion mode, unless `cellModeField` is changed.|Falls back to `defaultCellMode`, then `block`.|
+|`order`|Sort key when `sortField="order"`.|Optional.|
+|Tag `Header`|Adds class `btc-rgrid-cell-header`.|Optional.|
+|Tag `Footer`|Adds class `btc-rgrid-cell-footer`.|Optional.|
+|Tag `Muted`|Adds class `btc-rgrid-cell-muted`.|Optional.|
+
 !!! Ghost cells
 
-Placed grid tables should render ghost cells for empty coordinates. A ghost cell is an empty placeholder that keeps the declared `rows × columns` system visible and stable. Ghost cells should only render where no real cell covers that coordinate. If a real cell spans two columns and two rows, the ghosts underneath those covered coordinates should not be rendered.
+For every declared coordinate, the procedure checks whether any real cell covers it. If no real cell covers the coordinate, a ghost cell is rendered.
 
-Conceptually:
+A real cell suppresses all ghosts covered by its area:
 
 ```text
-1. For each coordinate row/col, check whether any tagged real cell covers it.
-2. If no real cell covers it, render a ghost cell.
-3. Render real cells with explicit `grid-area` values.
-4. Render resize handles on ghost and real cells unless their boundary is the last column.
+row <= coordinate row <= row + rowspan - 1
+col <= coordinate col <= col + colspan - 1
 ```
 
-Use `grid-area` for both ghosts and real cells:
+Ghost cells also get overlay column handles unless their coordinate is in the last column.
 
-```html
-style.grid-area={{{ [<row>addsuffix[ / ]addsuffix<col>addsuffix[ / span ]addsuffix<rowspan>addsuffix[ / span ]addsuffix<colspan>] }}}
-```
+!!! Overlay column handles
 
-For ghost cells:
+Placed-table overlay handles are rendered as separate siblings after the visible cells. They use the same grid coordinate as the real/ghost cell whose boundary they represent.
 
-```html
-style.grid-area={{{ [<row>addsuffix[ / ]addsuffix<col>addsuffix[ / span 1 / span 1]] }}}
-```
-
-!!! Resize handles in placed tables
-
-Real cells and ghost cells can both render grid-track handles. For a real cell:
+For a real cell:
 
 ```text
 boundaryIndex = col + colspan - 1
@@ -1320,9 +1406,351 @@ For a ghost cell:
 boundaryIndex = col
 ```
 
-Do not render a handle when `boundaryIndex >= columns`, because there is no column to the right.
+No handle is rendered when `boundaryIndex >= columns`.
 
-This lets placed grid tables resize like manually-authored grid tables, while preserving the tiddler-driven `row`, `col`, `rowspan`, and `colspan` model.
+!!! Padding
+
+Padding can be defined in three levels:
+
+# cell tiddler field named by `cellPaddingField`
+# `cellPaddingDefaults` row-major item
+# `defaultCellPadding`
+
+`cellPaddingDefaults` uses semicolons so each padding value may contain spaces:
+
+```html
+cellPaddingDefaults="1em 1.25em;default;0.4em 0.6em;0;default"
+```
+
+The index is row-major:
+
+|!Index|!Coordinate|
+|1|row 1, col 1|
+|2|row 1, col 2|
+|3|row 1, col 3|
+|4|row 1, col 4|
+|5|row 2, col 1|
+
+The word `default` means “use `defaultCellPadding` for this coordinate.”
+
+!!! Cell rendering mode
+
+Cell content is transcluded from the cell tiddler text.
+
+Modes:
+
+|!Mode|!Meaning|
+|`block`|Normal Wikitext block rendering. Good for headings, lists, tables, paragraphs. May create `<p>` elements for plain text.|
+|`inline`|Inline rendering. Useful for compact plain cells where block paragraphs are not wanted.|
+
+Fallback order:
+
+# cell tiddler field named by `cellModeField`
+# `defaultCellMode`
+# `block`
+
+Cell field example:
+
+```text
+cellmode: inline
+```
+
+!!! Example
+
+```html
+<$transclude
+  $variable="btc.rgrid.placed.table"
+  gridId="project-table"
+  cellFilter="[tag[ProjectTableCell]]"
+  columns="4"
+  rows="6"
+  statePrefix="$:/state/project-table"
+  defaultColSize="25%"
+  defaultRowSize="auto"
+  cellGap="0.45rem"
+  defaultCellPadding="0.75em 0.95em"
+  cellPaddingDefaults="1em;default;0.4em 0.6em;default"
+  defaultCellMode="block"
+  minColSize="6%"
+  maxColSize="80%"
+  unit="%"
+  showTitles="no"
+/>
+```
+
+!! XY Resizable Grid Tables: `btc.rgrid.xy.table`
+
+`btc.rgrid.xy.table` creates a placed grid from a filter-selected set of cell tiddlers. It supports explicit placement, colspan, rowspan, ghost cells, per-column and per-row fallback sizes, per-cell padding, configurable transclusion mode, draft exclusion, overlay column resize handles, and overlay row resize handles.
+
+It can resize columns, rows, or both.
+
+!!! Signature
+
+```html
+<$transclude
+  $variable="btc.rgrid.xy.table"
+  gridId="xy-default"
+  cellFilter="[tag[TableCell]]"
+  columns="4"
+  rows="4"
+  statePrefix="$:/state/btc/rgrid/xy/default"
+  defaultColSize=""
+  defaultRowSize=""
+  colDefaults=""
+  rowDefaults=""
+  defaultCellPadding="0.75em 0.95em"
+  cellPaddingDefaults=""
+  cellPaddingField="padding"
+  defaultCellMode="block"
+  cellModeField="cellmode"
+  rowMinHeight="3rem"
+  cellGap="0.35rem"
+  height="32rem"
+  resizeColumns="yes"
+  resizeRows="yes"
+  minColSize="4%"
+  maxColSize="90%"
+  minRowSize="2rem"
+  maxRowSize="80%"
+  colUnit="%"
+  rowUnit="px"
+  class=""
+  sortField="order"
+  showTitles="no"
+/>
+```
+
+!!! Attributes
+
+|!Attribute|!Description|!Default|
+|`gridId`|Unique grid instance id. Creates class `.btc-rgrid-instance-<gridId>` and is used by overlay resizers as selector target.|`xy-default`|
+|`cellFilter`|Filter returning the real cell tiddlers. The procedure excludes drafts with `!is[draft]` wherever it lists this filter.|`[tag[TableCell]]`|
+|`columns`|Number of grid columns.|`4`|
+|`rows`|Number of grid rows.|`4`|
+|`statePrefix`|Prefix for persisted track sizes. Columns use `<statePrefix>/col-N`; rows use `<statePrefix>/row-N`.|`$:/state/btc/rgrid/xy/default`|
+|`defaultColSize`|Global fallback column size. If blank, the procedure calculates `100 / columns %`.|blank|
+|`defaultRowSize`|Global fallback row size. If blank, the procedure calculates `100 / rows %`.|blank|
+|`colDefaults`|Space-separated positional fallback list for columns. Use `default` to fall back to `defaultColSize` for that column.|blank|
+|`rowDefaults`|Space-separated positional fallback list for rows. Use `default` to fall back to `defaultRowSize` for that row.|blank|
+|`defaultCellPadding`|Global fallback padding for real cell content.|`0.75em 0.95em`|
+|`cellPaddingDefaults`|Semicolon-separated row-major padding fallback list. Use `default` to fall back to `defaultCellPadding` for that coordinate.|blank|
+|`cellPaddingField`|Field name read from each cell tiddler for per-cell padding.|`padding`|
+|`defaultCellMode`|Default transclusion mode for cell text. Valid values: `block` and `inline`.|`block`|
+|`cellModeField`|Field name read from each cell tiddler for per-cell transclusion mode.|`cellmode`|
+|`rowMinHeight`|Minimum row height used by the row template.|`3rem`|
+|`cellGap`|Visual spacing between cells. The actual CSS grid gap should stay `0`; visual spacing is created by wrapper padding.|`0.35rem`|
+|`height`|Fixed grid height used when row resizing is enabled. Use values like `32rem`, `75vh`, or `100vh`.|`32rem`|
+|`resizeColumns`|Enable column overlay handles. Use `yes` or `no`.|`yes`|
+|`resizeRows`|Enable row overlay handles. Use `yes` or `no`.|`yes`|
+|`minColSize`|Minimum size for either track in a resized column pair.|`4%`|
+|`maxColSize`|Maximum size for the primary column track.|`90%`|
+|`minRowSize`|Minimum size for either track in a resized row pair.|`2rem`|
+|`maxRowSize`|Maximum size for the primary row track.|`80%`|
+|`colUnit`|Unit used by the column resizer for constraints and saved values.|`%`|
+|`rowUnit`|Unit used by the row resizer for constraints and saved values.|`px`|
+|`class`|Additional class appended to `.btc-rgrid-table`.|blank|
+|`sortField`|Field used to sort real cell tiddlers before rendering.|`order`|
+|`showTitles`|When `yes`, renders a linked title inside each real cell.|`no`|
+
+!!! Cell tiddler fields
+
+`btc.rgrid.xy.table` uses the same cell fields as `btc.rgrid.placed.table`:
+
+|!Field/tag|!Meaning|!Fallback|
+|`row`|1-based row start.|Required for real cells.|
+|`col`|1-based column start.|Required for real cells.|
+|`rowspan`|Number of rows spanned by the cell.|`1`|
+|`colspan`|Number of columns spanned by the cell.|`1`|
+|`padding`|Per-cell padding, unless `cellPaddingField` is changed.|Falls back to `cellPaddingDefaults`, then `defaultCellPadding`.|
+|`cellmode`|Per-cell transclusion mode, unless `cellModeField` is changed.|Falls back to `defaultCellMode`, then `block`.|
+|`order`|Sort key when `sortField="order"`.|Optional.|
+|Tag `Header`|Adds class `btc-rgrid-cell-header`.|Optional.|
+|Tag `Footer`|Adds class `btc-rgrid-cell-footer`.|Optional.|
+|Tag `Muted`|Adds class `btc-rgrid-cell-muted`.|Optional.|
+
+!!! Column and row defaults
+
+`colDefaults` and `rowDefaults` are positional fallback lists.
+
+```html
+colDefaults="14rem default 2fr 18rem"
+rowDefaults="4rem default default default 6rem"
+```
+
+The word `default` means “use the global default for this track.”
+
+Column example:
+
+|!Column|!Fallback|
+|1|`14rem`|
+|2|`defaultColSize`|
+|3|`2fr`|
+|4|`18rem`|
+
+Row example:
+
+|!Row|!Fallback|
+|1|`4rem`|
+|2|`defaultRowSize`|
+|3|`defaultRowSize`|
+|4|`defaultRowSize`|
+|5|`6rem`|
+
+Persisted state tiddlers override these defaults:
+
+```text
+$:/state/btc/rgrid/xy-demo/col-1
+$:/state/btc/rgrid/xy-demo/row-1
+```
+
+Fallback order for track sizes:
+
+# persisted state tiddler
+# positional `colDefaults` / `rowDefaults` item
+# `defaultColSize` / `defaultRowSize`
+
+!!! Full-height tables
+
+For full-height tables, use a real table height and non-`auto` row tracks.
+
+Good:
+
+```html
+height="100vh"
+defaultRowSize="1fr"
+```
+
+or:
+
+```html
+height="100vh"
+rowDefaults="4rem default default default 6rem"
+defaultRowSize="1fr"
+```
+
+Avoid:
+
+```html
+defaultRowSize="auto"
+```
+
+when you expect rows to fill the height. `auto` means “fit content”, not “fill available space”.
+
+!!! Row and column overlay handles
+
+For real cells:
+
+```text
+column boundary = col + colspan - 1
+row boundary    = row + rowspan - 1
+```
+
+For ghost cells:
+
+```text
+column boundary = col
+row boundary    = row
+```
+
+Column handles are not rendered for the last column boundary. Row handles are not rendered for the last row boundary.
+
+!!! Padding and cell mode
+
+Padding and cell mode work the same as in `btc.rgrid.placed.table`.
+
+Padding fallback order:
+
+# cell tiddler field named by `cellPaddingField`
+# `cellPaddingDefaults` row-major item
+# `defaultCellPadding`
+
+Cell mode fallback order:
+
+# cell tiddler field named by `cellModeField`
+# `defaultCellMode`
+# `block`
+
+!!! Example
+
+```html
+<$transclude
+  $variable="btc.rgrid.xy.table"
+  gridId="xy-dashboard"
+  cellFilter="[tag[XYDashboardCell]]"
+  columns="4"
+  rows="5"
+  statePrefix="$:/state/btc/rgrid/xy-dashboard"
+  defaultColSize="1fr"
+  defaultRowSize="1fr"
+  colDefaults="14rem default 2fr 18rem"
+  rowDefaults="4rem default default default 6rem"
+  defaultCellPadding="0.75em 0.95em"
+  cellPaddingDefaults="1em;default;0.4em 0.6em;default"
+  defaultCellMode="block"
+  height="100vh"
+  resizeColumns="yes"
+  resizeRows="yes"
+  minColSize="6%"
+  maxColSize="80%"
+  minRowSize="3rem"
+  maxRowSize="24rem"
+  colUnit="%"
+  rowUnit="px"
+  showTitles="yes"
+/>
+```
+
+!! Cell Tiddler Example
+
+```text
+title: Demo/Cell 1
+tags: XYDashboardCell Header
+row: 1
+col: 1
+rowspan: 1
+colspan: 2
+order: 10
+padding: 1em 1.25em
+cellmode: block
+
+!! Header
+
+This cell spans two columns.
+```
+
+!! RGrid CSS Notes
+
+For exact handle positioning, keep the actual CSS Grid `gap` at `0` and create visual spacing with an inner cell box. This keeps grid boundaries mathematically exact while still giving visual breathing room between cells.
+
+The content box should use the padding variable:
+
+```css
+.btc-rgrid-cell-content {
+  padding: var(--btc-rgrid-cell-padding, 0.75em 0.95em);
+}
+```
+
+Ghost cell content should usually remain empty and unpadded:
+
+```css
+.btc-rgrid-cell-ghost > .btc-rgrid-cell-content {
+  padding: 0;
+}
+```
+
+Overlay handle CSS should keep overlay slots above cells but let only the actual handle receive pointer events:
+
+```css
+.btc-rgrid-overlay-slot {
+  position: relative;
+  z-index: 1000;
+  pointer-events: none;
+}
+
+.btc-rgrid-overlay-slot > .tc-resizer {
+  pointer-events: auto;
+}
+```
 
 !! Snap Points
 
