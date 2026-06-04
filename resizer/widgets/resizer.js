@@ -42,6 +42,6 @@ require("$:/plugins/BTC/resizer/modules/utils/feature-adapters.js").install(Resi
 require("$:/plugins/BTC/resizer/modules/widgets/resizer-render.js").install(ResizerWidget);
 require("$:/plugins/BTC/resizer/modules/interactions/event-handlers.js").install(ResizerWidget);
 require("$:/plugins/BTC/resizer/modules/widgets/resizer-lifecycle.js").install(ResizerWidget, Widget);
-
 require("$:/plugins/BTC/resizer/modules/interactions/grid-track.js").install(ResizerWidget);
+
 exports.resizer = ResizerWidget;

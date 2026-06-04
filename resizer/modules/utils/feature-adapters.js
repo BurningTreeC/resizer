@@ -28,11 +28,4 @@ ResizerWidget.prototype.applyNextPreset = function(domNode) {
 	return ResizerPresets.applyNextPreset(this, domNode);
 };
 
-
-
-
-/*
-Render this widget into the DOM
-*/
-
 };

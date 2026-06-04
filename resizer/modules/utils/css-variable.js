@@ -23,7 +23,7 @@ var resolveTargetElements = function(widget, element) {
 	if(mode === "selector" && selector) {
 		return Array.prototype.slice.call(doc.querySelectorAll(selector));
 	}
-	if(mode && mode.charAt(0) === "." || mode && mode.charAt(0) === "#" || mode && mode.charAt(0) === "[") {
+	if((mode && mode.charAt(0) === ".") || (mode && mode.charAt(0) === "#") || (mode && mode.charAt(0) === "[")) {
 		return Array.prototype.slice.call(doc.querySelectorAll(mode));
 	}
 	return element ? [element] : [];

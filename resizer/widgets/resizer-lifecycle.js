@@ -42,19 +42,22 @@ ResizerWidget.prototype.execute = function() {
 	this.actions = this.getAttribute("actions");
 	this.aspectRatio = this.getAttribute("aspectRatio"); // e.g., "16:9" or "1.5"
 	this.resizeMode = this.getAttribute("mode", "single"); // single, multiple, or split-pair
-	// Grid-track mode: CSS Grid column-boundary resizing.
+	// Grid-track mode: CSS Grid track-boundary resizing.
 	// Used by mode="grid-track"; kept separate from normal single/multiple/split-pair logic.
+	// gridTrackAxis="column" keeps the old behaviour. gridTrackAxis="row" enables vertical row-track resizing.
+	this.gridTrackAxis = this.getAttribute("gridTrackAxis", this.getAttribute("trackAxis", this.direction === "vertical" ? "row" : "column"));
+	this.gridTrackAxis = (/^(row|rows|y|vertical)$/i).test(this.gridTrackAxis || "") ? "row" : "column";
 	this.gridSelector = this.getAttribute("gridSelector", this.getAttribute("gridTrackSelector", ""));
 	this.gridTrackSelector = this.gridSelector;
 	this.gridTrackIndex = this.getAttribute("gridTrackIndex", this.getAttribute("trackIndex", "1"));
 	this.gridTrackStatePrefix = this.getAttribute("gridTrackStatePrefix", this.getAttribute("statePrefix", this.getAttribute("tiddler", "$:/state/grid")));
 	this.gridTrackField = this.getAttribute("gridTrackField", this.getAttribute("field", "text"));
-	this.gridTrackUnit = this.getAttribute("gridTrackUnit", this.getAttribute("unit", "%"));
-	this.gridTrackMin = this.getAttribute("gridTrackMin", this.getAttribute("min", "4%"));
+	this.gridTrackUnit = this.getAttribute("gridTrackUnit", this.getAttribute("unit", this.gridTrackAxis === "row" ? "px" : "%"));
+	this.gridTrackMin = this.getAttribute("gridTrackMin", this.getAttribute("min", this.gridTrackAxis === "row" ? "2rem" : "4%"));
 	this.gridTrackMax = this.getAttribute("gridTrackMax", this.getAttribute("max", ""));
 	this.gridTrackSnap = this.getAttribute("gridTrackSnap", this.getAttribute("snap", ""));
 	this.gridTrackSnapDistance = this.getAttribute("gridTrackSnapDistance", this.getAttribute("snapDistance", "0px"));
-	this.gridTrackCssVariablePrefix = this.getAttribute("gridTrackCssVariablePrefix", this.getAttribute("cssVariablePrefix", "--btc-rgrid-col-"));
+	this.gridTrackCssVariablePrefix = this.getAttribute("gridTrackCssVariablePrefix", this.getAttribute("cssVariablePrefix", this.gridTrackAxis === "row" ? "--btc-rgrid-row-" : "--btc-rgrid-col-"));
 	this.gridTrackLive = this.getAttribute("gridTrackLive", this.getAttribute("live", "yes"));
 	this.gridTrackSave = this.getAttribute("gridTrackSave", this.getAttribute("save", "end"));
 	this.gridTrackLiveUnit = this.getAttribute("gridTrackLiveUnit", this.getAttribute("liveUnit", "px"));

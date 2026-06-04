@@ -1587,6 +1587,21 @@ body.tc-resizing .tc-resize-overlay {
 	overflow: auto;
 }
 
+/* =================================================================
+   BTC RGRID TABLES
+   CSS Grid based resizable table system.
+
+   This block replaces the older duplicated RGrid rules and keeps:
+   - normal RGrid cell rendering
+   - ghost cells
+   - legacy in-cell column handles
+   - legacy in-cell row handles
+   - fixed-height / row-resizable tables
+   - global boundary overlay handles
+   - per-cell overlay handles
+   - debug labels
+   ================================================================= */
+
 .btc-rgrid-table {
 	--btc-rgrid-columns-template: repeat(4, minmax(0, 1fr));
 	--btc-rgrid-rows-template: repeat(4, minmax(3rem, auto));
@@ -1614,31 +1629,72 @@ body.tc-resizing .tc-resize-overlay {
 }
 
 .btc-rgrid-content {
+	position: relative;
+	z-index: 1;
+	isolation: isolate;
+
 	display: grid;
 	grid-template-columns: var(--btc-rgrid-columns-template);
 	grid-template-rows: var(--btc-rgrid-rows-template);
 	grid-auto-rows: minmax(var(--btc-rgrid-row-min-height), auto);
 	gap: 0;
+
 	width: 100%;
 	min-width: 0;
+	min-height: 0;
 	box-sizing: border-box;
-	position: relative;
-	z-index: 1;
 	padding: calc(var(--btc-rgrid-cell-gap) / 2);
 	overflow: visible;
 }
 
-/*
-	This wrapper is the exact grid cell.
+/* -----------------------------------------------------------------
+   Fixed-height / row-resizable grid mode
+   ----------------------------------------------------------------- */
 
-	Important:
-	- The wrapper owns the grid placement.
-	- The wrapper anchors the resize handle.
-	- The wrapper must stay visually transparent.
-	- The visible cell box is .btc-rgrid-cell-content.
-*/
+.btc-rgrid-table[data-resize-rows="yes"] {
+	height: var(--btc-rgrid-height, 32rem);
+	min-height: 0;
+	max-height: none;
+	display: flex;
+	flex-direction: column;
+}
+
+.btc-rgrid-table[data-resize-rows="yes"] > .btc-rgrid-content,
+.btc-rgrid-table[data-resize-rows="yes"] .btc-rgrid-content {
+	flex: 1 1 auto;
+	height: auto;
+	min-height: 0;
+	max-height: none;
+
+	display: grid;
+	grid-template-columns: var(--btc-rgrid-columns-template);
+	grid-template-rows: var(--btc-rgrid-rows-template);
+	grid-auto-rows: minmax(var(--btc-rgrid-row-min-height), auto);
+
+	align-content: stretch;
+	align-items: stretch;
+}
+
+.btc-rgrid-table[data-resize-rows="yes"] .btc-rgrid-cell {
+	height: 100%;
+	min-height: 0;
+}
+
+.btc-rgrid-table[data-resize-rows="yes"] .btc-rgrid-cell-content {
+	height: 100%;
+	min-height: 0;
+	max-height: 100%;
+	box-sizing: border-box;
+	overflow: auto;
+}
+
+/* -----------------------------------------------------------------
+   Cells
+   ----------------------------------------------------------------- */
+
 .btc-rgrid-cell {
 	position: relative;
+	z-index: 1;
 	box-sizing: border-box;
 	min-width: 0;
 	min-height: 0;
@@ -1646,17 +1702,18 @@ body.tc-resizing .tc-resize-overlay {
 	border: none;
 	background: transparent;
 	overflow: visible;
-	z-index: 2;
 }
 
 /*
-	This is the visible cell box.
+	The visual cell box.
 
-	The visual space between cells comes from the wrapper padding.
-	Do not use CSS grid gap for this table, otherwise the resize handle
-	position becomes harder to make exact.
+	The wrapper owns the exact grid placement. The visible spacing between
+	cells comes from the wrapper padding instead of CSS grid gap. That keeps
+	resize-handle positioning stable.
 */
 .btc-rgrid-cell-content {
+	position: relative;
+	z-index: 1;
 	min-width: 0;
 	min-height: 0;
 	height: 100%;
@@ -1669,24 +1726,39 @@ body.tc-resizing .tc-resize-overlay {
 	padding: 0.75em 0.95em;
 }
 
-/* Header cells */
+.btc-rgrid-cell-real {
+	z-index: 3;
+	background: transparent;
+}
+
+.btc-rgrid-cell-ghost {
+	z-index: 2;
+	pointer-events: auto;
+	background: transparent;
+}
+
+.btc-rgrid-cell-ghost > .btc-rgrid-cell-content {
+	background: var(--btc-rgrid-ghost-background);
+	border-style: dashed;
+	opacity: 0.28;
+	padding: 0;
+	pointer-events: none;
+}
+
 .btc-rgrid-cell-header > .btc-rgrid-cell-content {
 	font-weight: bold;
 	background: var(--btc-rgrid-header-background);
 }
 
-/* Footer cells */
 .btc-rgrid-cell-footer > .btc-rgrid-cell-content {
 	font-weight: bold;
 	background: var(--btc-rgrid-footer-background);
 }
 
-/* Muted cells */
 .btc-rgrid-cell-muted > .btc-rgrid-cell-content {
 	background: var(--btc-rgrid-muted-background);
 }
 
-/* Centered cells */
 .btc-rgrid-cell-center > .btc-rgrid-cell-content {
 	display: flex;
 	align-items: center;
@@ -1701,49 +1773,16 @@ body.tc-resizing .tc-resize-overlay {
 	opacity: 0.8;
 }
 
-/*
-	Ghost cells.
+/* -----------------------------------------------------------------
+   Legacy in-cell column handles
+   -----------------------------------------------------------------
 
-	Ghost cells must allow pointer events because their resize handles
-	need to be draggable. Only the ghost content itself ignores pointer
-	events. Ghost wrappers are intentionally above real cells because
-	ghosts are not rendered underneath real placed cells; the higher layer
-	keeps placeholder resize handles reliably clickable.
-*/
-.btc-rgrid-cell-ghost {
-	z-index: 3;
-	pointer-events: auto;
-}
+   Kept for compatibility with older procedures. Newer placed/xy procedures
+   can use overlay handles instead.
+   ----------------------------------------------------------------- */
 
-.btc-rgrid-cell-ghost > .btc-rgrid-cell-content {
-	background: var(--btc-rgrid-ghost-background);
-	border-style: dashed;
-	opacity: 0.28;
-	padding: 0;
-	pointer-events: none;
-}
-
-.btc-rgrid-cell-ghost > .tc-resizer.btc-rgrid-cell-resizer {
-	pointer-events: auto;
-	z-index: 40;
-}
-
-/*
-	Real cells stay visually above normal wrappers, but do not need to sit
-	above ghost placeholders because occupied ghost cells are suppressed by
-	the Wikitext procedure.
-*/
-.btc-rgrid-cell-real {
-	z-index: 2;
-	background: transparent;
-}
-
-.btc-rgrid-cell:not(.btc-rgrid-cell-ghost) {
-	background: transparent;
-}
-
-/* Grid resize handle */
-.btc-rgrid-cell > .tc-resizer.btc-rgrid-cell-resizer {
+.btc-rgrid-cell > .tc-resizer.btc-rgrid-cell-resizer,
+.btc-rgrid-cell > .tc-resizer.btc-rgrid-column-resizer {
 	position: absolute;
 	z-index: 30;
 	top: calc(var(--btc-rgrid-cell-gap) / 2);
@@ -1765,10 +1804,11 @@ body.tc-resizing .tc-resize-overlay {
 	-webkit-user-select: none;
 	-webkit-tap-highlight-color: transparent;
 	animation: none;
+	pointer-events: auto;
 }
 
-/* Base line */
-.btc-rgrid-cell > .tc-resizer.btc-rgrid-cell-resizer::before {
+.btc-rgrid-cell > .tc-resizer.btc-rgrid-cell-resizer::before,
+.btc-rgrid-cell > .tc-resizer.btc-rgrid-column-resizer::before {
 	content: "" !important;
 	position: absolute !important;
 	top: 12% !important;
@@ -1800,24 +1840,22 @@ body.tc-resizing .tc-resize-overlay {
 		background-color 120ms ease;
 }
 
-/* Kill all generic after/grip decorations */
-.btc-rgrid-cell > .tc-resizer.btc-rgrid-cell-resizer::after {
+.btc-rgrid-cell > .tc-resizer.btc-rgrid-cell-resizer::after,
+.btc-rgrid-cell > .tc-resizer.btc-rgrid-column-resizer::after {
 	content: none !important;
 	display: none !important;
 }
 
-/*
-	Neutralize all generic handle styles for grid handles.
-
-	This prevents misplaced "⋮", "⋯⋯", dot grids, line gradients, chevrons,
-	active background fills, or shorter hover lines from leaking into the
-	CSS Grid table handles.
-*/
 .btc-rgrid-cell > .tc-resizer.btc-rgrid-cell-resizer[data-handle-style]::before,
 .btc-rgrid-cell > .tc-resizer.btc-rgrid-cell-resizer[data-handle-style="grip"]::before,
 .btc-rgrid-cell > .tc-resizer.btc-rgrid-cell-resizer[data-handle-style="dots"]::before,
 .btc-rgrid-cell > .tc-resizer.btc-rgrid-cell-resizer[data-handle-style="lines"]::before,
-.btc-rgrid-cell > .tc-resizer.btc-rgrid-cell-resizer[data-handle-style="chevron"]::before {
+.btc-rgrid-cell > .tc-resizer.btc-rgrid-cell-resizer[data-handle-style="chevron"]::before,
+.btc-rgrid-cell > .tc-resizer.btc-rgrid-column-resizer[data-handle-style]::before,
+.btc-rgrid-cell > .tc-resizer.btc-rgrid-column-resizer[data-handle-style="grip"]::before,
+.btc-rgrid-cell > .tc-resizer.btc-rgrid-column-resizer[data-handle-style="dots"]::before,
+.btc-rgrid-cell > .tc-resizer.btc-rgrid-column-resizer[data-handle-style="lines"]::before,
+.btc-rgrid-cell > .tc-resizer.btc-rgrid-column-resizer[data-handle-style="chevron"]::before {
 	content: "" !important;
 	position: absolute !important;
 	top: 12% !important;
@@ -1850,16 +1888,298 @@ body.tc-resizing .tc-resize-overlay {
 .btc-rgrid-cell > .tc-resizer.btc-rgrid-cell-resizer[data-handle-style="grip"]::after,
 .btc-rgrid-cell > .tc-resizer.btc-rgrid-cell-resizer[data-handle-style="dots"]::after,
 .btc-rgrid-cell > .tc-resizer.btc-rgrid-cell-resizer[data-handle-style="lines"]::after,
-.btc-rgrid-cell > .tc-resizer.btc-rgrid-cell-resizer[data-handle-style="chevron"]::after {
+.btc-rgrid-cell > .tc-resizer.btc-rgrid-cell-resizer[data-handle-style="chevron"]::after,
+.btc-rgrid-cell > .tc-resizer.btc-rgrid-column-resizer[data-handle-style]::after,
+.btc-rgrid-cell > .tc-resizer.btc-rgrid-column-resizer[data-handle-style="grip"]::after,
+.btc-rgrid-cell > .tc-resizer.btc-rgrid-column-resizer[data-handle-style="dots"]::after,
+.btc-rgrid-cell > .tc-resizer.btc-rgrid-column-resizer[data-handle-style="lines"]::after,
+.btc-rgrid-cell > .tc-resizer.btc-rgrid-column-resizer[data-handle-style="chevron"]::after {
 	content: none !important;
 	display: none !important;
 }
 
-/* Hover/active: repeat full geometry so nothing else shortens it */
 .btc-rgrid-cell > .tc-resizer.btc-rgrid-cell-resizer:hover::before,
 .btc-rgrid-cell > .tc-resizer.btc-rgrid-cell-resizer.tc-resizer-active::before,
 .btc-rgrid-cell > .tc-resizer.btc-rgrid-cell-resizer[data-handle-style]:hover::before,
-.btc-rgrid-cell > .tc-resizer.btc-rgrid-cell-resizer[data-handle-style].tc-resizer-active::before {
+.btc-rgrid-cell > .tc-resizer.btc-rgrid-cell-resizer[data-handle-style].tc-resizer-active::before,
+.btc-rgrid-cell > .tc-resizer.btc-rgrid-column-resizer:hover::before,
+.btc-rgrid-cell > .tc-resizer.btc-rgrid-column-resizer.tc-resizer-active::before,
+.btc-rgrid-cell > .tc-resizer.btc-rgrid-column-resizer[data-handle-style]:hover::before,
+.btc-rgrid-cell > .tc-resizer.btc-rgrid-column-resizer[data-handle-style].tc-resizer-active::before {
+	background: var(--btc-rgrid-handle-active) !important;
+	opacity: 0.85;
+}
+
+.btc-rgrid-cell:hover > .tc-resizer.btc-rgrid-cell-resizer::before,
+.btc-rgrid-cell:hover > .tc-resizer.btc-rgrid-column-resizer::before {
+	opacity: 0.55;
+}
+
+.btc-rgrid-cell:hover > .tc-resizer.btc-rgrid-cell-resizer:hover::before,
+.btc-rgrid-cell:hover > .tc-resizer.btc-rgrid-cell-resizer.tc-resizer-active::before,
+.btc-rgrid-cell:hover > .tc-resizer.btc-rgrid-column-resizer:hover::before,
+.btc-rgrid-cell:hover > .tc-resizer.btc-rgrid-column-resizer.tc-resizer-active::before {
+	opacity: 0.85;
+}
+
+/* -----------------------------------------------------------------
+   Legacy in-cell row handles
+   ----------------------------------------------------------------- */
+
+.btc-rgrid-cell > .tc-resizer.btc-rgrid-row-resizer {
+	position: absolute;
+	z-index: 31;
+	left: calc(var(--btc-rgrid-cell-gap) / 2);
+	right: calc(var(--btc-rgrid-cell-gap) / 2);
+	top: auto;
+	bottom: calc(var(--btc-rgrid-handle-size) / -2);
+
+	width: auto;
+	height: var(--btc-rgrid-handle-size);
+	min-width: 0;
+	min-height: 0;
+	margin: 0;
+	padding: 0;
+
+	cursor: ns-resize;
+	background: transparent !important;
+	touch-action: none;
+	user-select: none;
+	-webkit-user-select: none;
+	-webkit-tap-highlight-color: transparent;
+	animation: none;
+	pointer-events: auto;
+}
+
+.btc-rgrid-cell > .tc-resizer.btc-rgrid-row-resizer::before {
+	content: "" !important;
+	position: absolute !important;
+	left: 12% !important;
+	right: 12% !important;
+	top: 50% !important;
+	bottom: auto !important;
+
+	width: auto !important;
+	height: 1px !important;
+	min-width: 0 !important;
+	max-width: none !important;
+	min-height: 0 !important;
+	max-height: none !important;
+
+	transform: translateY(-50%) !important;
+	border-radius: 999px;
+	background: var(--btc-rgrid-handle-line) !important;
+	box-shadow: none !important;
+
+	color: inherit !important;
+	font-size: inherit !important;
+	font-weight: normal !important;
+	letter-spacing: normal !important;
+	line-height: normal !important;
+	text-indent: 0 !important;
+	white-space: normal !important;
+
+	opacity: 0.38;
+	transition:
+		opacity 120ms ease,
+		background-color 120ms ease;
+}
+
+.btc-rgrid-cell > .tc-resizer.btc-rgrid-row-resizer::after,
+.btc-rgrid-cell > .tc-resizer.btc-rgrid-row-resizer[data-handle-style]::after,
+.btc-rgrid-cell > .tc-resizer.btc-rgrid-row-resizer[data-handle-style="grip"]::after,
+.btc-rgrid-cell > .tc-resizer.btc-rgrid-row-resizer[data-handle-style="dots"]::after,
+.btc-rgrid-cell > .tc-resizer.btc-rgrid-row-resizer[data-handle-style="lines"]::after,
+.btc-rgrid-cell > .tc-resizer.btc-rgrid-row-resizer[data-handle-style="chevron"]::after {
+	content: none !important;
+	display: none !important;
+}
+
+.btc-rgrid-cell > .tc-resizer.btc-rgrid-row-resizer[data-handle-style]::before,
+.btc-rgrid-cell > .tc-resizer.btc-rgrid-row-resizer[data-handle-style="grip"]::before,
+.btc-rgrid-cell > .tc-resizer.btc-rgrid-row-resizer[data-handle-style="dots"]::before,
+.btc-rgrid-cell > .tc-resizer.btc-rgrid-row-resizer[data-handle-style="lines"]::before,
+.btc-rgrid-cell > .tc-resizer.btc-rgrid-row-resizer[data-handle-style="chevron"]::before {
+	content: "" !important;
+	position: absolute !important;
+	left: 12% !important;
+	right: 12% !important;
+	top: 50% !important;
+	bottom: auto !important;
+
+	width: auto !important;
+	height: 1px !important;
+	min-width: 0 !important;
+	max-width: none !important;
+	min-height: 0 !important;
+	max-height: none !important;
+
+	transform: translateY(-50%) !important;
+	border-radius: 999px;
+	background: var(--btc-rgrid-handle-line) !important;
+	box-shadow: none !important;
+
+	color: inherit !important;
+	font-size: inherit !important;
+	font-weight: normal !important;
+	letter-spacing: normal !important;
+	line-height: normal !important;
+	text-indent: 0 !important;
+	white-space: normal !important;
+
+	opacity: 0.38;
+}
+
+.btc-rgrid-cell > .tc-resizer.btc-rgrid-row-resizer:hover::before,
+.btc-rgrid-cell > .tc-resizer.btc-rgrid-row-resizer.tc-resizer-active::before,
+.btc-rgrid-cell > .tc-resizer.btc-rgrid-row-resizer[data-handle-style]:hover::before,
+.btc-rgrid-cell > .tc-resizer.btc-rgrid-row-resizer[data-handle-style].tc-resizer-active::before {
+	background: var(--btc-rgrid-handle-active) !important;
+	opacity: 0.85;
+}
+
+.btc-rgrid-cell:hover > .tc-resizer.btc-rgrid-row-resizer::before {
+	opacity: 0.55;
+}
+
+.btc-rgrid-cell:hover > .tc-resizer.btc-rgrid-row-resizer:hover::before,
+.btc-rgrid-cell:hover > .tc-resizer.btc-rgrid-row-resizer.tc-resizer-active::before {
+	opacity: 0.85;
+}
+
+/*
+	If both legacy column and row handles exist in the same cell, shorten
+	each hit area near the bottom-right corner so they do not fully cover
+	each other.
+*/
+.btc-rgrid-cell > .tc-resizer.btc-rgrid-column-resizer {
+	bottom: calc(var(--btc-rgrid-cell-gap) / 2 + var(--btc-rgrid-handle-size) / 2);
+}
+
+.btc-rgrid-cell > .tc-resizer.btc-rgrid-row-resizer {
+	right: calc(var(--btc-rgrid-cell-gap) / 2 + var(--btc-rgrid-handle-size) / 2);
+}
+
+.btc-rgrid-cell-real > .tc-resizer.btc-rgrid-cell-resizer,
+.btc-rgrid-cell-real > .tc-resizer.btc-rgrid-column-resizer,
+.btc-rgrid-cell-real > .tc-resizer.btc-rgrid-row-resizer {
+	z-index: 65;
+}
+
+.btc-rgrid-cell-ghost > .tc-resizer.btc-rgrid-cell-resizer,
+.btc-rgrid-cell-ghost > .tc-resizer.btc-rgrid-column-resizer,
+.btc-rgrid-cell-ghost > .tc-resizer.btc-rgrid-row-resizer {
+	z-index: 45;
+	pointer-events: auto;
+}
+
+/* -----------------------------------------------------------------
+   Overlay handles
+   -----------------------------------------------------------------
+
+   Supports both models:
+   - global boundary overlay slots:
+       .btc-rgrid-column-overlay-slot / .btc-rgrid-row-overlay-slot
+   - per-cell overlay slots:
+       .btc-rgrid-cell-column-overlay-slot / .btc-rgrid-cell-row-overlay-slot
+
+   Overlay slots are grid items above normal cells. Only the actual resizer
+   receives pointer events.
+   ----------------------------------------------------------------- */
+
+.btc-rgrid-overlay-slot {
+	position: relative;
+	z-index: 1000;
+	min-width: 0;
+	min-height: 0;
+	pointer-events: none;
+	overflow: visible;
+}
+
+/* Global boundary column slot: zero-width slot at the right edge of a column. */
+.btc-rgrid-column-overlay-slot {
+	align-self: stretch;
+	justify-self: end;
+	width: 0;
+}
+
+/* Global boundary row slot: zero-height slot at the bottom edge of a row. */
+.btc-rgrid-row-overlay-slot {
+	justify-self: stretch;
+	align-self: end;
+	height: 0;
+}
+
+/* Per-cell overlay slots span the exact grid area of their owner cell. */
+.btc-rgrid-cell-column-overlay-slot,
+.btc-rgrid-cell-row-overlay-slot {
+	align-self: stretch;
+	justify-self: stretch;
+	width: auto;
+	height: auto;
+}
+
+/* Base overlay resizer */
+.btc-rgrid-overlay-slot > .tc-resizer.btc-rgrid-overlay-resizer {
+	position: absolute;
+	z-index: 1001;
+	margin: 0;
+	padding: 0;
+	background: transparent !important;
+	pointer-events: auto;
+	touch-action: none;
+	user-select: none;
+	-webkit-user-select: none;
+	-webkit-tap-highlight-color: transparent;
+	animation: none;
+}
+
+/* Global boundary column handle: centered on boundary. */
+.btc-rgrid-column-overlay-slot > .tc-resizer.btc-rgrid-column-overlay-resizer {
+	top: calc(var(--btc-rgrid-cell-gap) / 2);
+	bottom: calc(var(--btc-rgrid-cell-gap) / 2);
+	left: calc(var(--btc-rgrid-handle-size) / -2);
+	right: auto;
+	width: var(--btc-rgrid-handle-size);
+	height: auto;
+	cursor: ew-resize;
+}
+
+/* Per-cell column handle: right edge of the owning cell/span. */
+.btc-rgrid-cell-column-overlay-slot > .tc-resizer.btc-rgrid-column-overlay-resizer {
+	top: calc(var(--btc-rgrid-cell-gap) / 2);
+	right: calc(var(--btc-rgrid-handle-size) / -2);
+	bottom: calc(var(--btc-rgrid-cell-gap) / 2);
+	left: auto;
+	width: var(--btc-rgrid-handle-size);
+	height: auto;
+	cursor: ew-resize;
+}
+
+/* Global boundary row handle: centered on boundary. */
+.btc-rgrid-row-overlay-slot > .tc-resizer.btc-rgrid-row-overlay-resizer {
+	left: calc(var(--btc-rgrid-cell-gap) / 2);
+	right: calc(var(--btc-rgrid-cell-gap) / 2);
+	top: calc(var(--btc-rgrid-handle-size) / -2);
+	bottom: auto;
+	width: auto;
+	height: var(--btc-rgrid-handle-size);
+	cursor: ns-resize;
+}
+
+/* Per-cell row handle: bottom edge of the owning cell/span. */
+.btc-rgrid-cell-row-overlay-slot > .tc-resizer.btc-rgrid-row-overlay-resizer {
+	left: calc(var(--btc-rgrid-cell-gap) / 2);
+	right: calc(var(--btc-rgrid-cell-gap) / 2);
+	top: auto;
+	bottom: calc(var(--btc-rgrid-handle-size) / -2);
+	width: auto;
+	height: var(--btc-rgrid-handle-size);
+	cursor: ns-resize;
+}
+
+/* Overlay column visible line */
+.btc-rgrid-overlay-slot > .tc-resizer.btc-rgrid-column-overlay-resizer::before {
 	content: "" !important;
 	position: absolute !important;
 	top: 12% !important;
@@ -1874,7 +2194,7 @@ body.tc-resizing .tc-resize-overlay {
 
 	transform: translateX(-50%) !important;
 	border-radius: 999px;
-	background: var(--btc-rgrid-handle-active) !important;
+	background: var(--btc-rgrid-handle-line) !important;
 	box-shadow: none !important;
 
 	color: inherit !important;
@@ -1885,22 +2205,90 @@ body.tc-resizing .tc-resize-overlay {
 	text-indent: 0 !important;
 	white-space: normal !important;
 
+	opacity: 0.38;
+	transition:
+		opacity 120ms ease,
+		background-color 120ms ease;
+}
+
+/* Overlay row visible line */
+.btc-rgrid-overlay-slot > .tc-resizer.btc-rgrid-row-overlay-resizer::before {
+	content: "" !important;
+	position: absolute !important;
+	left: 12% !important;
+	right: 12% !important;
+	top: 50% !important;
+	bottom: auto !important;
+
+	width: auto !important;
+	height: 1px !important;
+	min-width: 0 !important;
+	max-width: none !important;
+	min-height: 0 !important;
+	max-height: none !important;
+
+	transform: translateY(-50%) !important;
+	border-radius: 999px;
+	background: var(--btc-rgrid-handle-line) !important;
+	box-shadow: none !important;
+
+	color: inherit !important;
+	font-size: inherit !important;
+	font-weight: normal !important;
+	letter-spacing: normal !important;
+	line-height: normal !important;
+	text-indent: 0 !important;
+	white-space: normal !important;
+
+	opacity: 0.38;
+	transition:
+		opacity 120ms ease,
+		background-color 120ms ease;
+}
+
+/* Kill generic handle-style decorations for overlay handles. */
+.btc-rgrid-overlay-slot > .tc-resizer.btc-rgrid-overlay-resizer::after,
+.btc-rgrid-overlay-slot > .tc-resizer.btc-rgrid-overlay-resizer[data-handle-style]::after,
+.btc-rgrid-overlay-slot > .tc-resizer.btc-rgrid-overlay-resizer[data-handle-style="grip"]::after,
+.btc-rgrid-overlay-slot > .tc-resizer.btc-rgrid-overlay-resizer[data-handle-style="dots"]::after,
+.btc-rgrid-overlay-slot > .tc-resizer.btc-rgrid-overlay-resizer[data-handle-style="lines"]::after,
+.btc-rgrid-overlay-slot > .tc-resizer.btc-rgrid-overlay-resizer[data-handle-style="chevron"]::after {
+	content: none !important;
+	display: none !important;
+}
+
+.btc-rgrid-overlay-slot > .tc-resizer.btc-rgrid-overlay-resizer[data-handle-style]::before,
+.btc-rgrid-overlay-slot > .tc-resizer.btc-rgrid-overlay-resizer[data-handle-style="grip"]::before,
+.btc-rgrid-overlay-slot > .tc-resizer.btc-rgrid-overlay-resizer[data-handle-style="dots"]::before,
+.btc-rgrid-overlay-slot > .tc-resizer.btc-rgrid-overlay-resizer[data-handle-style="lines"]::before,
+.btc-rgrid-overlay-slot > .tc-resizer.btc-rgrid-overlay-resizer[data-handle-style="chevron"]::before {
+	color: inherit !important;
+	font-size: inherit !important;
+	font-weight: normal !important;
+	letter-spacing: normal !important;
+	line-height: normal !important;
+	text-indent: 0 !important;
+	white-space: normal !important;
+	box-shadow: none !important;
+}
+
+/* Overlay hover/active state */
+.btc-rgrid-overlay-slot > .tc-resizer.btc-rgrid-column-overlay-resizer:hover::before,
+.btc-rgrid-overlay-slot > .tc-resizer.btc-rgrid-column-overlay-resizer.tc-resizer-active::before {
+	background: var(--btc-rgrid-handle-active) !important;
 	opacity: 0.85;
 }
 
-/* Subtle affordance when hovering a cell */
-.btc-rgrid-cell:hover > .tc-resizer.btc-rgrid-cell-resizer::before {
-	opacity: 0.55;
-}
-
-.btc-rgrid-cell:hover > .tc-resizer.btc-rgrid-cell-resizer:hover::before,
-.btc-rgrid-cell:hover > .tc-resizer.btc-rgrid-cell-resizer.tc-resizer-active::before {
+.btc-rgrid-overlay-slot > .tc-resizer.btc-rgrid-row-overlay-resizer:hover::before,
+.btc-rgrid-overlay-slot > .tc-resizer.btc-rgrid-row-overlay-resizer.tc-resizer-active::before {
+	background: var(--btc-rgrid-handle-active) !important;
 	opacity: 0.85;
 }
 
-/*
-	Debug label for manually defined grid cells using data-col-span / data-row-span.
-*/
+/* -----------------------------------------------------------------
+   Debug labels
+   ----------------------------------------------------------------- */
+
 .btc-rgrid-debug .btc-rgrid-cell[data-col-span]:not(.btc-rgrid-cell-ghost)::after {
 	content: "c" attr(data-col) "/" attr(data-col-span) " r" attr(data-row) "/" attr(data-row-span);
 	position: absolute;
@@ -1911,9 +2299,6 @@ body.tc-resizing .tc-resize-overlay {
 	pointer-events: none;
 }
 
-/*
-	Debug label for tiddler-driven placed cells using data-colspan / data-rowspan.
-*/
 .btc-rgrid-debug .btc-rgrid-cell[data-colspan]:not(.btc-rgrid-cell-ghost)::after {
 	content: attr(data-title) " c" attr(data-col) "/" attr(data-colspan) " r" attr(data-row) "/" attr(data-rowspan);
 	position: absolute;
@@ -1924,9 +2309,6 @@ body.tc-resizing .tc-resize-overlay {
 	pointer-events: none;
 }
 
-/*
-	Debug label for ghost cells.
-*/
 .btc-rgrid-debug .btc-rgrid-cell-ghost::after {
 	content: "ghost c" attr(data-col) " r" attr(data-row);
 	position: absolute;
@@ -1936,3 +2318,14 @@ body.tc-resizing .tc-resize-overlay {
 	opacity: 0.25;
 	pointer-events: none;
 }
+
+.btc-rgrid-debug .btc-rgrid-overlay-slot[data-grid-track-axis][data-grid-track-index]::after {
+	content: attr(data-grid-track-axis) " " attr(data-grid-track-index);
+	position: absolute;
+	left: 0.35em;
+	top: 0.2em;
+	font-size: 0.6em;
+	opacity: 0.18;
+	pointer-events: none;
+}
+

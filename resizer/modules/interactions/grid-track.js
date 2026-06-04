@@ -6,10 +6,10 @@ module-type: library
 Grid-track mode for the generic BTC resizer widget.
 
 This module adds mode="grid-track" to <$resizer>. It resizes the boundary
-between two adjacent CSS Grid column tracks:
+between two adjacent CSS Grid tracks. It supports both axes:
 
-	left track  = gridTrackIndex
-	right track = gridTrackIndex + 1
+	gridTrackAxis="column"  resizes grid-template-columns and --btc-rgrid-col-N
+	gridTrackAxis="row"     resizes grid-template-rows    and --btc-rgrid-row-N
 
 The pair total is preserved. The grid is frozen to exact computed pixel tracks
 at pointerdown and again at pointerup to avoid initial/end drag jumps.
@@ -20,6 +20,15 @@ at pointerdown and again at pointerup to avoid initial/end drag jumps.
 "use strict";
 
 exports.install = function(ResizerWidget) {
+
+ResizerWidget.prototype.getGridTrackAxis = function() {
+	var axis = this.gridTrackAxis || this.trackAxis || this.getAttribute && this.getAttribute("gridTrackAxis", "column") || "column";
+	return (/^(row|rows|y|vertical)$/i).test(axis) ? "row" : "column";
+};
+
+ResizerWidget.prototype.isGridTrackRowAxis = function(operation) {
+	return operation ? operation.axis === "row" : this.getGridTrackAxis() === "row";
+};
 
 ResizerWidget.prototype.executeGridTrackMode = function(domNode, event) {
 	var self = this,
@@ -34,8 +43,10 @@ ResizerWidget.prototype.executeGridTrackMode = function(domNode, event) {
 		return false;
 	}
 
-	var contextSize = this.getGridTrackContextSize(gridElement),
-		trackSizes = this.getGridTrackSizesPx(gridElement),
+	var axis = this.getGridTrackAxis(),
+		isRowAxis = axis === "row",
+		contextSize = this.getGridTrackContextSize(gridElement, axis),
+		trackSizes = this.getGridTrackSizesPx(gridElement, axis),
 		leftIndex = parseInt(this.gridTrackIndex || this.trackIndex || "1", 10) || 1,
 		rightIndex = leftIndex + 1,
 		leftPx,
@@ -51,7 +62,7 @@ ResizerWidget.prototype.executeGridTrackMode = function(domNode, event) {
 	leftPx = trackSizes[leftIndex - 1];
 	rightPx = trackSizes[rightIndex - 1];
 	pairPx = leftPx + rightPx;
-	minPx = this.gridTrackToPixels(this.gridTrackMin || this.min || "4%", contextSize, gridElement) || 0;
+	minPx = this.gridTrackToPixels(this.gridTrackMin || this.min || (isRowAxis ? "2rem" : "4%"), contextSize, gridElement) || 0;
 	maxPx = this.gridTrackMax || this.max ? this.gridTrackToPixels(this.gridTrackMax || this.max, contextSize, gridElement) : null;
 
 	if(pairPx <= 0) {
@@ -63,12 +74,16 @@ ResizerWidget.prototype.executeGridTrackMode = function(domNode, event) {
 
 	operation = {
 		pointerId: event.pointerId,
+		axis: axis,
+		isRowAxis: isRowAxis,
 		gridElement: gridElement,
 		contextSize: contextSize,
 		trackSizes: trackSizes,
 		leftIndex: leftIndex,
 		rightIndex: rightIndex,
 		startX: event.clientX,
+		startY: event.clientY,
+		startPointer: isRowAxis ? event.clientY : event.clientX,
 		leftStartPx: leftPx,
 		rightStartPx: rightPx,
 		leftCurrentPx: leftPx,
@@ -79,7 +94,7 @@ ResizerWidget.prototype.executeGridTrackMode = function(domNode, event) {
 	};
 
 	if(this.gridTrackFreezeOnStart !== "no" && this.gridTrackLive !== "no") {
-		this.freezeGridTrackColumnsToPixels(gridElement, trackSizes);
+		this.freezeGridTracksToPixels(gridElement, trackSizes, axis);
 	}
 
 	domNode.classList.add("tc-resizer-active");
@@ -114,7 +129,7 @@ ResizerWidget.prototype.executeGridTrackMode = function(domNode, event) {
 		}
 
 		if(self.gridTrackFreezeOnEnd !== "no") {
-			self.saveAllGridTracksFromComputed(operation.gridElement);
+			self.saveAllGridTracksFromComputed(operation.gridElement, operation.axis);
 		} else if(self.gridTrackSave !== "none") {
 			self.saveGridTrackPair(operation);
 		}
@@ -132,7 +147,8 @@ ResizerWidget.prototype.executeGridTrackMode = function(domNode, event) {
 ResizerWidget.prototype.handleGridTrackPointerMove = function(domNode, event, operation) {
 	var delta,
 		leftPx,
-		rightPx;
+		rightPx,
+		pointer;
 
 	if(!operation || event.pointerId !== operation.pointerId) {
 		return;
@@ -140,7 +156,8 @@ ResizerWidget.prototype.handleGridTrackPointerMove = function(domNode, event, op
 
 	event.preventDefault();
 
-	delta = event.clientX - operation.startX;
+	pointer = operation.isRowAxis ? event.clientY : event.clientX;
+	delta = pointer - operation.startPointer;
 	leftPx = operation.leftStartPx + delta;
 
 	if(leftPx < operation.minPx) {
@@ -182,30 +199,34 @@ ResizerWidget.prototype.getGridTrackContentElement = function(gridElement) {
 	return gridElement ? (gridElement.querySelector(".btc-rgrid-content") || gridElement) : null;
 };
 
-ResizerWidget.prototype.getGridTrackContextSize = function(gridElement) {
+ResizerWidget.prototype.getGridTrackContextSize = function(gridElement, axis) {
 	var content = this.getGridTrackContentElement(gridElement),
-		rect;
+		rect,
+		isRowAxis = (axis || this.getGridTrackAxis()) === "row";
 	if(!content) {
 		return 0;
 	}
 	rect = content.getBoundingClientRect();
-	return rect.width || content.clientWidth || 0;
+	return isRowAxis ? (rect.height || content.clientHeight || 0) : (rect.width || content.clientWidth || 0);
 };
 
-ResizerWidget.prototype.getGridTrackSizesPx = function(gridElement) {
+ResizerWidget.prototype.getGridTrackSizesPx = function(gridElement, axis) {
 	var content = this.getGridTrackContentElement(gridElement),
 		result = [],
 		parts,
 		i,
 		value,
-		template;
+		template,
+		style,
+		isRowAxis = (axis || this.getGridTrackAxis()) === "row";
 
 	if(!content) {
 		return result;
 	}
 
 	try {
-		template = this.document.defaultView.getComputedStyle(content).gridTemplateColumns || "";
+		style = this.document.defaultView.getComputedStyle(content);
+		template = isRowAxis ? (style.gridTemplateRows || "") : (style.gridTemplateColumns || "");
 		parts = template.match(/(?:\([^)]*\)|[^\s])+/g) || [];
 		for(i = 0; i < parts.length; i++) {
 			value = parseFloat(parts[i]);
@@ -218,17 +239,22 @@ ResizerWidget.prototype.getGridTrackSizesPx = function(gridElement) {
 	return result;
 };
 
-ResizerWidget.prototype.getGridTrackVariableName = function(index) {
-	return (this.gridTrackCssVariablePrefix || this.cssVariablePrefix || "--btc-rgrid-col-") + index;
+ResizerWidget.prototype.getGridTrackVariablePrefix = function(axis) {
+	var isRowAxis = (axis || this.getGridTrackAxis()) === "row";
+	return this.gridTrackCssVariablePrefix || this.cssVariablePrefix || (isRowAxis ? "--btc-rgrid-row-" : "--btc-rgrid-col-");
 };
 
-ResizerWidget.prototype.getGridTrackTiddlerTitle = function(index) {
+ResizerWidget.prototype.getGridTrackVariableName = function(index, axis) {
+	return this.getGridTrackVariablePrefix(axis) + index;
+};
+
+ResizerWidget.prototype.getGridTrackTiddlerTitle = function(index, axis) {
 	var prefix = this.gridTrackStatePrefix || this.statePrefix || this.tiddler || "$:/state/grid";
-	return prefix + "/col-" + index;
+	return prefix + ((axis || this.getGridTrackAxis()) === "row" ? "/row-" : "/col-") + index;
 };
 
-ResizerWidget.prototype.setGridTrackTiddlerValue = function(index, value) {
-	this.wiki.setText(this.getGridTrackTiddlerTitle(index), this.gridTrackField || this.field || "text", null, value);
+ResizerWidget.prototype.setGridTrackTiddlerValue = function(index, value, axis) {
+	this.wiki.setText(this.getGridTrackTiddlerTitle(index, axis), this.gridTrackField || this.field || "text", null, value);
 };
 
 ResizerWidget.prototype.getGridTrackRootFontSize = function() {
@@ -300,6 +326,12 @@ ResizerWidget.prototype.gridTrackFromPixels = function(px, unit, contextSize, gr
 		case "em":
 			value = px / this.getGridTrackElementFontSize(gridElement);
 			return this.formatGridTrackNumber(value, 4) + "em";
+		case "vh":
+			value = (this.document.defaultView.innerHeight || 0) > 0 ? (px * 100) / (this.document.defaultView.innerHeight || 1) : 0;
+			return this.formatGridTrackNumber(value, 6) + "vh";
+		case "vw":
+			value = (this.document.defaultView.innerWidth || 0) > 0 ? (px * 100) / (this.document.defaultView.innerWidth || 1) : 0;
+			return this.formatGridTrackNumber(value, 6) + "vw";
 		case "px":
 		default:
 			return this.formatGridTrackNumber(px, 2) + "px";
@@ -330,24 +362,30 @@ ResizerWidget.prototype.applyGridTrackSnap = function(px, contextSize, gridEleme
 	return px;
 };
 
-ResizerWidget.prototype.setGridTrackVariable = function(gridElement, index, value) {
+ResizerWidget.prototype.setGridTrackVariable = function(gridElement, index, value, axis) {
 	if(gridElement && gridElement.style) {
-		gridElement.style.setProperty(this.getGridTrackVariableName(index), value);
+		gridElement.style.setProperty(this.getGridTrackVariableName(index, axis), value);
 	}
 };
 
-ResizerWidget.prototype.freezeGridTrackColumnsToPixels = function(gridElement, trackSizes) {
+ResizerWidget.prototype.freezeGridTracksToPixels = function(gridElement, trackSizes, axis) {
 	var i;
 	if(!gridElement || !trackSizes || !trackSizes.length) {
 		return;
 	}
 	for(i = 0; i < trackSizes.length; i++) {
-		this.setGridTrackVariable(gridElement, i + 1, this.formatGridTrackNumber(trackSizes[i], 2) + "px");
+		this.setGridTrackVariable(gridElement, i + 1, this.formatGridTrackNumber(trackSizes[i], 2) + "px", axis);
 	}
 };
 
-ResizerWidget.prototype.saveAllGridTracksFromComputed = function(gridElement) {
-	var trackSizes = this.getGridTrackSizesPx(gridElement),
+// Backwards-compatible old name. It now freezes the active axis.
+ResizerWidget.prototype.freezeGridTrackColumnsToPixels = function(gridElement, trackSizes) {
+	this.freezeGridTracksToPixels(gridElement, trackSizes, this.getGridTrackAxis());
+};
+
+ResizerWidget.prototype.saveAllGridTracksFromComputed = function(gridElement, axis) {
+	var trackAxis = axis || this.getGridTrackAxis(),
+		trackSizes = this.getGridTrackSizesPx(gridElement, trackAxis),
 		i,
 		value;
 	if(!gridElement || !trackSizes || !trackSizes.length) {
@@ -355,34 +393,40 @@ ResizerWidget.prototype.saveAllGridTracksFromComputed = function(gridElement) {
 	}
 	for(i = 0; i < trackSizes.length; i++) {
 		value = this.formatGridTrackNumber(trackSizes[i], 2) + "px";
-		this.setGridTrackVariable(gridElement, i + 1, value);
+		this.setGridTrackVariable(gridElement, i + 1, value, trackAxis);
 		if(this.gridTrackSave !== "none") {
-			this.setGridTrackTiddlerValue(i + 1, value);
+			this.setGridTrackTiddlerValue(i + 1, value, trackAxis);
 		}
 	}
 };
 
 ResizerWidget.prototype.applyGridTrackLive = function(operation) {
+	var unit = this.gridTrackLiveUnit || "px";
 	this.setGridTrackVariable(
 		operation.gridElement,
 		operation.leftIndex,
-		this.gridTrackFromPixels(operation.leftCurrentPx, this.gridTrackLiveUnit || "px", operation.contextSize, operation.gridElement)
+		this.gridTrackFromPixels(operation.leftCurrentPx, unit, operation.contextSize, operation.gridElement),
+		operation.axis
 	);
 	this.setGridTrackVariable(
 		operation.gridElement,
 		operation.rightIndex,
-		this.gridTrackFromPixels(operation.rightCurrentPx, this.gridTrackLiveUnit || "px", operation.contextSize, operation.gridElement)
+		this.gridTrackFromPixels(operation.rightCurrentPx, unit, operation.contextSize, operation.gridElement),
+		operation.axis
 	);
 };
 
 ResizerWidget.prototype.saveGridTrackPair = function(operation) {
+	var unit = this.gridTrackSaveUnit || this.gridTrackUnit || this.unit || "px";
 	this.setGridTrackTiddlerValue(
 		operation.leftIndex,
-		this.gridTrackFromPixels(operation.leftCurrentPx, this.gridTrackSaveUnit || this.gridTrackUnit || this.unit || "px", operation.contextSize, operation.gridElement)
+		this.gridTrackFromPixels(operation.leftCurrentPx, unit, operation.contextSize, operation.gridElement),
+		operation.axis
 	);
 	this.setGridTrackTiddlerValue(
 		operation.rightIndex,
-		this.gridTrackFromPixels(operation.rightCurrentPx, this.gridTrackSaveUnit || this.gridTrackUnit || this.unit || "px", operation.contextSize, operation.gridElement)
+		this.gridTrackFromPixels(operation.rightCurrentPx, unit, operation.contextSize, operation.gridElement),
+		operation.axis
 	);
 };
 

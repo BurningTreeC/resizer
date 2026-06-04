@@ -638,6 +638,7 @@ code-body: yes
 \end
 
 \procedure btc.resizer.horizontal-split(statePrefix:"$:/state/btc/resizer/examples/horizontal",leftSize:"40%",rightSize:"60%",min:"12rem",max:"85%",height:"24em",title:"Horizontal split pair",leftContent:"Left Pane",rightContent:"Right Pane")
+\whitespace trim
 <$let
 	leftState={{{ [<statePrefix>addsuffix[/left]] }}}
 	rightState={{{ [<statePrefix>addsuffix[/right]] }}}
@@ -691,6 +692,7 @@ code-body: yes
 \end
 
 \procedure btc.resizer.vertical-split(statePrefix:"$:/state/btc/resizer/examples/vertical",topSize:"55%",bottomSize:"45%",min:"6rem",max:"85%",height:"30em",title:"Vertical split pair",topContent:"Top pane",bottomContent:"Bottom pane")
+\whitespace trim
 <$let
 	topState={{{ [<statePrefix>addsuffix[/top]] }}}
 	bottomState={{{ [<statePrefix>addsuffix[/bottom]] }}}
@@ -743,6 +745,7 @@ code-body: yes
 \end
 
 \procedure btc.resizer.sidebar-workbench(sizeTiddler:"$:/state/btc/resizer/examples/sidebar-width",modeTiddler:"$:/state/btc/resizer/examples/sidebar-mode",indexTiddler:"$:/state/btc/resizer/examples/sidebar-preset-index",defaultSize:"20rem",min:"0px",max:"42rem",title:"Resizable sidebar workbench",sidebarContent:"Sidebar",mainContent:"Main area")
+\whitespace trim
 <div class="btc-resizer-demo-box">
 	<div class="btc-resizer-demo-title"><<title>></div>
 	<div
@@ -785,6 +788,7 @@ code-body: yes
 \end
 
 \procedure btc.resizer.three-pane-workbench(statePrefix:"$:/state/btc/resizer/examples/three-pane",leftSize:"18rem",rightSize:"24rem",title:"Three-pane workbench",leftContent:"Navigation",centerContent:"Editor",rightContent:"Inspector")
+\whitespace trim
 <$let
 	leftState={{{ [<statePrefix>addsuffix[/left]] }}}
 	centerState={{{ [<statePrefix>addsuffix[/center]] }}}
@@ -863,6 +867,7 @@ code-body: yes
 \end
 
 \procedure btc.resizer.preset-panel(stateTiddler:"$:/state/btc/resizer/examples/preset-panel-width",modeTiddler:"$:/state/btc/resizer/examples/preset-panel-mode",indexTiddler:"$:/state/btc/resizer/examples/preset-panel-index",defaultSize:"22rem",title:"Preset-cycling panel",content:"Double-click the handle to cycle through closed, compact, normal, and wide.")
+\whitespace trim
 <div class="btc-resizer-demo-box">
 	<div class="btc-resizer-demo-title"><<title>></div>
 	<div style.display="flex" style.min-width="0" style.min-height="16em">
@@ -906,6 +911,7 @@ code-body: yes
 \end
 
 \procedure btc.resizer.cssvar-panel(stateTiddler:"$:/state/btc/resizer/examples/cssvar-panel-width",defaultSize:"22rem",title:"CSS variable publishing",content:"The resizer writes the size to a state tiddler and publishes it as `--btc-cssvar-panel-width`.")
+\whitespace trim
 <div class="btc-resizer-demo-box">
 	<div class="btc-resizer-demo-title"><<title>></div>
 	<div style.display="flex" style.min-width="0" style.align-items="stretch">
@@ -960,6 +966,7 @@ code-body: yes
 \end
 
 \procedure btc.rgrid.track.table(gridId:"default",columns:"4",statePrefix:"$:/state/btc/resizer/rgrid/default",defaultColSize:"",minColSize:"4%",maxColSize:"90%",unit:"%",gap:"0.25rem",rowMinHeight:"3rem",class:"",content:"")
+\whitespace trim
 <$let
 	effectiveDefaultColSize={{{ [<defaultColSize>!is[blank]then<defaultColSize>] ~[function[btc.rgrid.track.default-col-size],<columns>] }}}
 	btcRgridGridId=<<gridId>>
@@ -986,8 +993,12 @@ code-body: yes
 </$let>
 \end
 
-\procedure btc.rgrid.track.cell(col:"auto",row:"auto",colSpan:"1",rowSpan:"1",last:"no",resize:"yes",class:"",title:"",content:"")
-<$let boundaryIndex={{{ [<col>match[auto]then[]] ~[<col>add<colSpan>subtract[1]] }}}>
+\procedure btc.rgrid.track.cell(col:"auto",row:"auto",colSpan:"1",rowSpan:"1",last:"no",resize:"yes",class:"",title:"",content:"",cellPadding:"")
+\whitespace trim
+<$let
+	boundaryIndex={{{ [<col>match[auto]then[]] ~[<col>add<colSpan>subtract[1]] }}}
+	effectiveCellPadding={{{ [<cellPadding>!is[blank]!match[default]then<cellPadding>] }}}
+>
 	<div
 		class={{{ [[btc-rgrid-cell ]addsuffix<class>] }}}
 		data-col=<<col>>
@@ -996,6 +1007,7 @@ code-body: yes
 		data-row-span=<<rowSpan>>
 		style.grid-column={{{ [<col>addsuffix[ / span ]addsuffix<colSpan>] }}}
 		style.grid-row={{{ [<row>addsuffix[ / span ]addsuffix<rowSpan>] }}}
+		style.--btc-rgrid-cell-padding=<<effectiveCellPadding>>
 	>
 		<div class="btc-rgrid-cell-content">
 			<$list filter="[<title>!is[blank]]">
@@ -1014,7 +1026,8 @@ code-body: yes
 </$let>
 \end
 
-\procedure btc.rgrid.track.header(col:"auto",row:"auto",colSpan:"1",rowSpan:"1",last:"no",resize:"yes",class:"",content:"")
+\procedure btc.rgrid.track.header(col:"auto",row:"auto",colSpan:"1",rowSpan:"1",last:"no",resize:"yes",class:"",content:"",cellPadding:"")
+\whitespace trim
 <$transclude
 	$variable="btc.rgrid.track.cell"
 	col=<<col>>
@@ -1025,15 +1038,18 @@ code-body: yes
 	resize=<<resize>>
 	class={{{ [[btc-rgrid-cell-header ]addsuffix<class>] }}}
 	content=<<content>>
+	cellPadding=<<cellPadding>>
 />
 \end
 
 \procedure btc.rgrid.track.handle(index:"1")
+\whitespace trim
 <$resizer
 	mode="grid-track"
 	class="btc-rgrid-cell-resizer"
 	direction="horizontal"
 	gridSelector=<<btcRgridSelector>>
+	gridTrackAxis="column"
 	gridTrackIndex=<<index>>
 	gridTrackStatePrefix=<<btcRgridStatePrefix>>
 	gridTrackUnit=<<btcRgridUnit>>
@@ -1070,6 +1086,15 @@ code-body: yes
 	+[join[ ]]
 \end
 
+\function btc.rgrid.placed.cell-padding-default(defaults,index,fallback)
+	[<defaults>split[;]nth<index>trim[]!is[blank]!match[default]]
+	~[<fallback>]
+\end
+
+\function btc.rgrid.placed.cell-padding-index(row,col,columns)
+	[<row>subtract[1]multiply<columns>add<col>]
+\end
+
 \function btc.rgrid.placed.row-start()
 	[{!!row}trim[]else[0]]
 \end
@@ -1095,7 +1120,7 @@ code-body: yes
 \end
 
 \function btc.rgrid.placed.cells(cellFilter)
-	[subfilter<cellFilter>]
+	[subfilter<cellFilter>!is[draft]]
 	:filter[{!!row}trim[]!is[blank]]
 	:filter[{!!col}trim[]!is[blank]]
 	:filter[function[btc.rgrid.placed.row-start]compare:integer:gt[0]]
@@ -1115,13 +1140,19 @@ code-body: yes
 	[function[btc.rgrid.placed.occupied],<cellFilter>,<row>,<col>count[]match[0]then[yes]]
 \end
 
-\procedure btc.rgrid.placed.table(gridId:"placed-default",cellFilter:"[tag[TableCell]]",columns:"4",rows:"4",statePrefix:"$:/state/btc/rgrid/placed/default",defaultColSize:"",defaultRowSize:"auto",rowMinHeight:"3rem",cellGap:"0.35rem",minColSize:"4%",maxColSize:"90%",unit:"%",class:"",sortField:"order",showTitles:"no")
+\procedure btc.rgrid.placed.table(gridId:"placed-default",cellFilter:"[tag[TableCell]]",columns:"4",rows:"4",statePrefix:"$:/state/btc/rgrid/placed/default",defaultColSize:"",defaultRowSize:"auto",rowMinHeight:"3rem",cellGap:"0.35rem",defaultCellPadding:"0.75em 0.95em",cellPaddingDefaults:"",cellPaddingField:"padding",defaultCellMode:"block",cellModeField:"cellmode",minColSize:"4%",maxColSize:"90%",unit:"%",class:"",sortField:"order",showTitles:"no")
+\whitespace trim
 <$let
 	effectiveDefaultColSize={{{ [<defaultColSize>!is[blank]then<defaultColSize>] ~[function[btc.rgrid.placed.default-col-size],<columns>] }}}
 	btcRgridGridId=<<gridId>>
 	btcRgridColumns=<<columns>>
 	btcRgridStatePrefix=<<statePrefix>>
 	btcRgridDefaultColSize=<<effectiveDefaultColSize>>
+	btcRgridDefaultCellPadding=<<defaultCellPadding>>
+	btcRgridCellPaddingDefaults=<<cellPaddingDefaults>>
+	btcRgridCellPaddingField=<<cellPaddingField>>
+	btcRgridDefaultCellMode=<<defaultCellMode>>
+	btcRgridCellModeField=<<cellModeField>>
 	btcRgridMinColSize=<<minColSize>>
 	btcRgridMaxColSize=<<maxColSize>>
 	btcRgridUnit=<<unit>>
@@ -1129,7 +1160,7 @@ code-body: yes
 	btcRgridColumnTemplate={{{ [function[btc.rgrid.placed.columns-template],<columns>,<effectiveDefaultColSize>] }}}
 	btcRgridColumnVariables={{{ [function[btc.rgrid.placed.column-variables],<statePrefix>,<columns>,<effectiveDefaultColSize>] }}}
 	btcRgridRowsTemplate={{{ [function[btc.rgrid.placed.rows-template],<rows>,<defaultRowSize>] }}}
-	btcRgridStyle={{{ [[--btc-rgrid-columns-template: ]addsuffix<btcRgridColumnTemplate>addsuffix[; --btc-rgrid-rows-template: ]addsuffix<btcRgridRowsTemplate>addsuffix[; --btc-rgrid-row-min-height: ]addsuffix<rowMinHeight>addsuffix[; --btc-rgrid-cell-gap: ]addsuffix<cellGap>addsuffix[; ]addsuffix<btcRgridColumnVariables>] }}}
+	btcRgridStyle={{{ [[--btc-rgrid-columns-template: ]addsuffix<btcRgridColumnTemplate>addsuffix[; --btc-rgrid-rows-template: ]addsuffix<btcRgridRowsTemplate>addsuffix[; --btc-rgrid-row-min-height: ]addsuffix<rowMinHeight>addsuffix[; --btc-rgrid-cell-gap: ]addsuffix<cellGap>addsuffix[; --btc-rgrid-cell-padding: ]addsuffix<defaultCellPadding>addsuffix[; ]addsuffix<btcRgridColumnVariables>] }}}
 >
 	<div
 		class={{{ [[btc-rgrid-table btc-rgrid-instance-]addsuffix<gridId>addsuffix[ ]addsuffix<class>] }}}
@@ -1137,6 +1168,7 @@ code-body: yes
 		data-btc-rgrid-id=<<gridId>>
 		data-columns=<<columns>>
 		data-rows=<<rows>>
+		data-resize-columns="yes"
 	>
 		<div class="btc-rgrid-content">
 			<$list filter="[range[1],<rows>]">
@@ -1155,11 +1187,18 @@ code-body: yes
 				</$let>
 			</$list>
 
-			<$list filter="[subfilter<cellFilter>sortan<sortField>]">
+			<$list filter="[subfilter<cellFilter>!is[draft]sortan<sortField>]">
 				<$transclude
 					$variable="btc.rgrid.placed.cell"
 					tiddler=<<currentTiddler>>
 					showTitle=<<showTitles>>
+				/>
+			</$list>
+
+			<$list filter="[subfilter<cellFilter>!is[draft]sortan<sortField>]">
+				<$transclude
+					$variable="btc.rgrid.placed.cell-overlay-handles"
+					tiddler=<<currentTiddler>>
 				/>
 			</$list>
 		</div>
@@ -1168,6 +1207,7 @@ code-body: yes
 \end
 
 \procedure btc.rgrid.placed.ghost(row:"1",col:"1")
+\whitespace trim
 <$let
 	boundaryIndex=<<col>>
 	isLastColumn={{{ [<col>compare:integer:gteq<btcRgridColumns>then[yes]else[no]] }}}
@@ -1181,30 +1221,53 @@ code-body: yes
 		style.grid-area={{{ [<row>addsuffix[ / ]addsuffix<col>addsuffix[ / span 1 / span 1]] }}}
 	>
 		<div class="btc-rgrid-cell-content"></div>
+	</div>
 
-		<$list filter="[<isLastColumn>!match[yes]]">
+	<$list filter="[<isLastColumn>!match[yes]]">
+		<div
+			class="btc-rgrid-overlay-slot btc-rgrid-cell-column-overlay-slot btc-rgrid-ghost-column-overlay-slot"
+			data-ghost="yes"
+			data-grid-track-axis="column"
+			data-grid-track-index=<<boundaryIndex>>
+			data-row=<<row>>
+			data-col=<<col>>
+			data-colspan="1"
+			data-rowspan="1"
+			style.grid-area={{{ [<row>addsuffix[ / ]addsuffix<col>addsuffix[ / span 1 / span 1]] }}}
+		>
 			<$transclude
-				$variable="btc.rgrid.placed.handle"
+				$variable="btc.rgrid.placed.column-overlay-resizer"
 				index=<<boundaryIndex>>
 			/>
-		</$list>
-	</div>
+		</div>
+	</$list>
 </$let>
 \end
 
 \procedure btc.rgrid.placed.cell(tiddler:"",showTitle:"no")
+\whitespace trim
 <$tiddler tiddler=<<tiddler>>>
 	<$let
-		col={{{ [<tiddler>get[col]else[1]] }}}
-		row={{{ [<tiddler>get[row]else[1]] }}}
-		colspan={{{ [<tiddler>get[colspan]else[1]] }}}
-		rowspan={{{ [<tiddler>get[rowspan]else[1]] }}}
-		boundaryIndex={{{ [<col>add<colspan>subtract[1]] }}}
-		isLastColumn={{{ [<boundaryIndex>compare:integer:gteq<btcRgridColumns>then[yes]else[no]] }}}
+		col={{{ [function[btc.rgrid.placed.col-start]] }}}
+		row={{{ [function[btc.rgrid.placed.row-start]] }}}
+		colspan={{{ [function[btc.rgrid.placed.col-span]] }}}
+		rowspan={{{ [function[btc.rgrid.placed.row-span]] }}}
+		boundaryIndex={{{ [function[btc.rgrid.placed.col-end]] }}}
+		cellPaddingIndex={{{ [function[btc.rgrid.placed.cell-padding-index],<row>,<col>,<btcRgridColumns>] }}}
+		cellPadding={{{
+			[all[current]get<btcRgridCellPaddingField>trim[]!is[blank]]
+			~[function[btc.rgrid.placed.cell-padding-default],<btcRgridCellPaddingDefaults>,<cellPaddingIndex>,<btcRgridDefaultCellPadding>]
+		}}}
+		cellMode={{{
+			[all[current]get<btcRgridCellModeField>trim[]match[inline]then[inline]]
+			[all[current]get<btcRgridCellModeField>trim[]match[block]then[block]]
+			~[<btcRgridDefaultCellMode>match[inline]then[inline]]
+			~[[block]]
+		}}}
 		cellClass={{{
-			[<tiddler>tag[Header]then[btc-rgrid-cell-header]]
-			[<tiddler>tag[Footer]then[btc-rgrid-cell-footer]]
-			[<tiddler>tag[Muted]then[btc-rgrid-cell-muted]]
+			[all[current]tag[Header]then[btc-rgrid-cell-header]]
+			[all[current]tag[Footer]then[btc-rgrid-cell-footer]]
+			[all[current]tag[Muted]then[btc-rgrid-cell-muted]]
 			+[join[ ]]
 		}}}
 	>
@@ -1217,6 +1280,7 @@ code-body: yes
 			data-rowspan=<<rowspan>>
 			data-boundary-index=<<boundaryIndex>>
 			style.grid-area={{{ [<row>addsuffix[ / ]addsuffix<col>addsuffix[ / span ]addsuffix<rowspan>addsuffix[ / span ]addsuffix<colspan>] }}}
+			style.--btc-rgrid-cell-padding=<<cellPadding>>
 		>
 			<div class="btc-rgrid-cell-content">
 				<$list filter="[<showTitle>match[yes]]">
@@ -1226,31 +1290,597 @@ code-body: yes
 						</$link>
 					</div>
 				</$list>
-				<$transclude $tiddler=<<tiddler>> $mode="block"/>
+				<$transclude $tiddler=<<tiddler>> $mode=<<cellMode>>/>
 			</div>
-
-			<$list filter="[<isLastColumn>!match[yes]]">
-				<$transclude
-					$variable="btc.rgrid.placed.handle"
-					index=<<boundaryIndex>>
-				/>
-			</$list>
 		</div>
 	</$let>
 </$tiddler>
 \end
 
-\procedure btc.rgrid.placed.handle(index:"1")
+\procedure btc.rgrid.placed.cell-overlay-handles(tiddler:"")
+\whitespace trim
+<$tiddler tiddler=<<tiddler>>>
+	<$let
+		col={{{ [function[btc.rgrid.placed.col-start]] }}}
+		row={{{ [function[btc.rgrid.placed.row-start]] }}}
+		colspan={{{ [function[btc.rgrid.placed.col-span]] }}}
+		rowspan={{{ [function[btc.rgrid.placed.row-span]] }}}
+		boundaryIndex={{{ [function[btc.rgrid.placed.col-end]] }}}
+		isLastColumn={{{ [<boundaryIndex>compare:integer:gteq<btcRgridColumns>then[yes]else[no]] }}}
+	>
+		<$list filter="[<isLastColumn>!match[yes]]">
+			<div
+				class="btc-rgrid-overlay-slot btc-rgrid-cell-column-overlay-slot btc-rgrid-real-column-overlay-slot"
+				data-title=<<tiddler>>
+				data-grid-track-axis="column"
+				data-grid-track-index=<<boundaryIndex>>
+				data-row=<<row>>
+				data-col=<<col>>
+				data-colspan=<<colspan>>
+				data-rowspan=<<rowspan>>
+				style.grid-area={{{ [<row>addsuffix[ / ]addsuffix<col>addsuffix[ / span ]addsuffix<rowspan>addsuffix[ / span ]addsuffix<colspan>] }}}
+			>
+				<$transclude
+					$variable="btc.rgrid.placed.column-overlay-resizer"
+					index=<<boundaryIndex>>
+				/>
+			</div>
+		</$list>
+	</$let>
+</$tiddler>
+\end
+
+\procedure btc.rgrid.placed.column-overlay-resizer(index:"1")
+\whitespace trim
 <$resizer
 	mode="grid-track"
-	class="btc-rgrid-cell-resizer"
+	class="btc-rgrid-overlay-resizer btc-rgrid-column-overlay-resizer"
 	direction="horizontal"
 	gridSelector=<<btcRgridSelector>>
+	gridTrackAxis="column"
 	gridTrackIndex=<<index>>
 	gridTrackStatePrefix=<<btcRgridStatePrefix>>
 	gridTrackUnit=<<btcRgridUnit>>
 	gridTrackMin=<<btcRgridMinColSize>>
 	gridTrackMax=<<btcRgridMaxColSize>>
+	gridTrackLive="yes"
+	gridTrackSave="end"
+	gridTrackLiveUnit="px"
+	gridTrackSaveUnit="px"
+	gridTrackFreezeOnStart="yes"
+	gridTrackFreezeOnEnd="yes"
+/>
+\end
+
+\procedure btc.rgrid.placed.handle(index:"1")
+\whitespace trim
+<$resizer
+	mode="grid-track"
+	class="btc-rgrid-cell-resizer"
+	direction="horizontal"
+	gridSelector=<<btcRgridSelector>>
+	gridTrackAxis="column"
+	gridTrackIndex=<<index>>
+	gridTrackStatePrefix=<<btcRgridStatePrefix>>
+	gridTrackUnit=<<btcRgridUnit>>
+	gridTrackMin=<<btcRgridMinColSize>>
+	gridTrackMax=<<btcRgridMaxColSize>>
+	gridTrackLive="yes"
+	gridTrackSave="end"
+	gridTrackLiveUnit="px"
+	gridTrackSaveUnit="px"
+	gridTrackFreezeOnStart="yes"
+	gridTrackFreezeOnEnd="yes"
+/>
+\end
+
+\function btc.rgrid.xy.default-col-size(columns)
+	[[100]divide<columns>fixed[6]addsuffix[%]]
+\end
+
+\function btc.rgrid.xy.default-row-size(rows)
+	[[100]divide<rows>fixed[6]addsuffix[%]]
+\end
+
+\function btc.rgrid.xy.columns-template(columns,defaultColSize)
+	[range[1],<columns>]
+	:map[[minmax(0, var(--btc-rgrid-col-]addsuffix<currentTiddler>addsuffix[, ]addsuffix<defaultColSize>addsuffix[))]]
+	+[join[ ]]
+\end
+
+\function btc.rgrid.xy.rows-template(rows,defaultRowSize)
+	[range[1],<rows>]
+	:map[[minmax(var(--btc-rgrid-row-min-height), var(--btc-rgrid-row-]addsuffix<currentTiddler>addsuffix[, ]addsuffix<defaultRowSize>addsuffix[))]]
+	+[join[ ]]
+\end
+
+\function btc.rgrid.xy.track-default(defaults,index,fallback)
+	[<defaults>split[ ]nth<index>!match[default]]
+	~[<fallback>]
+\end
+
+\function btc.rgrid.xy.cell-padding-default(defaults,index,fallback)
+	[<defaults>split[;]nth<index>trim[]!is[blank]!match[default]]
+	~[<fallback>]
+\end
+
+\function btc.rgrid.xy.cell-padding-index(row,col,columns)
+	[<row>subtract[1]multiply<columns>add<col>]
+\end
+
+\function btc.rgrid.xy.column-variable(statePrefix,index,defaultColSize,colDefaults)
+	[<statePrefix>addsuffix[/col-]addsuffix<index>get[text]]
+	~[function[btc.rgrid.xy.track-default],<colDefaults>,<index>,<defaultColSize>]
+	+[addprefix[: ]addprefix<index>addprefix[--btc-rgrid-col-]addsuffix[;]]
+\end
+
+\function btc.rgrid.xy.row-variable(statePrefix,index,defaultRowSize,rowDefaults)
+	[<statePrefix>addsuffix[/row-]addsuffix<index>get[text]]
+	~[function[btc.rgrid.xy.track-default],<rowDefaults>,<index>,<defaultRowSize>]
+	+[addprefix[: ]addprefix<index>addprefix[--btc-rgrid-row-]addsuffix[;]]
+\end
+
+\function btc.rgrid.xy.column-variables(statePrefix,columns,defaultColSize,colDefaults)
+	[range[1],<columns>]
+	:map[function[btc.rgrid.xy.column-variable],<statePrefix>,<currentTiddler>,<defaultColSize>,<colDefaults>]
+	+[join[ ]]
+\end
+
+\function btc.rgrid.xy.row-variables(statePrefix,rows,defaultRowSize,rowDefaults)
+	[range[1],<rows>]
+	:map[function[btc.rgrid.xy.row-variable],<statePrefix>,<currentTiddler>,<defaultRowSize>,<rowDefaults>]
+	+[join[ ]]
+\end
+
+\function btc.rgrid.xy.row-start()
+	[{!!row}trim[]else[0]]
+\end
+
+\function btc.rgrid.xy.col-start()
+	[{!!col}trim[]else[0]]
+\end
+
+\function btc.rgrid.xy.row-span()
+	[{!!rowspan}trim[]else[1]]
+\end
+
+\function btc.rgrid.xy.col-span()
+	[{!!colspan}trim[]else[1]]
+\end
+
+\function btc.rgrid.xy.row-end()
+	[{!!rowspan}trim[]else[1]add{!!row}subtract[1]]
+\end
+
+\function btc.rgrid.xy.col-end()
+	[{!!colspan}trim[]else[1]add{!!col}subtract[1]]
+\end
+
+\function btc.rgrid.xy.cells(cellFilter)
+	[subfilter<cellFilter>!is[draft]]
+	:filter[{!!row}trim[]!is[blank]]
+	:filter[{!!col}trim[]!is[blank]]
+	:filter[function[btc.rgrid.xy.row-start]compare:integer:gt[0]]
+	:filter[function[btc.rgrid.xy.col-start]compare:integer:gt[0]]
+\end
+
+\function btc.rgrid.xy.occupied(cellFilter,row,col)
+	[function[btc.rgrid.xy.cells],<cellFilter>]
+	:filter[function[btc.rgrid.xy.row-start]compare:integer:lteq<row>]
+	:filter[function[btc.rgrid.xy.col-start]compare:integer:lteq<col>]
+	:filter[function[btc.rgrid.xy.row-end]compare:integer:gteq<row>]
+	:filter[function[btc.rgrid.xy.col-end]compare:integer:gteq<col>]
+	+[limit[1]]
+\end
+
+\function btc.rgrid.xy.free(cellFilter,row,col)
+	[function[btc.rgrid.xy.occupied],<cellFilter>,<row>,<col>count[]match[0]then[yes]]
+\end
+
+\procedure btc.rgrid.xy.table(
+	gridId:"xy-default",
+	cellFilter:"[tag[TableCell]]",
+	columns:"4",
+	rows:"4",
+	statePrefix:"$:/state/btc/rgrid/xy/default",
+	defaultColSize:"",
+	defaultRowSize:"",
+	colDefaults:"",
+	rowDefaults:"",
+	defaultCellPadding:"0.75em 0.95em",
+	cellPaddingDefaults:"",
+	cellPaddingField:"padding",
+	defaultCellMode:"block",
+	cellModeField:"cellmode",
+	rowMinHeight:"3rem",
+	cellGap:"0.35rem",
+	height:"32rem",
+	resizeColumns:"yes",
+	resizeRows:"yes",
+	minColSize:"4%",
+	maxColSize:"90%",
+	minRowSize:"2rem",
+	maxRowSize:"80%",
+	colUnit:"%",
+	rowUnit:"px",
+	class:"",
+	sortField:"order",
+	showTitles:"no"
+)
+\whitespace trim
+<$let
+	effectiveDefaultColSize={{{ [<defaultColSize>!is[blank]then<defaultColSize>] ~[function[btc.rgrid.xy.default-col-size],<columns>] }}}
+	effectiveDefaultRowSize={{{ [<defaultRowSize>!is[blank]then<defaultRowSize>] ~[function[btc.rgrid.xy.default-row-size],<rows>] }}}
+
+	btcRgridGridId=<<gridId>>
+	btcRgridColumns=<<columns>>
+	btcRgridRows=<<rows>>
+	btcRgridStatePrefix=<<statePrefix>>
+
+	btcRgridResizeColumns=<<resizeColumns>>
+	btcRgridResizeRows=<<resizeRows>>
+
+	btcRgridDefaultColSize=<<effectiveDefaultColSize>>
+	btcRgridDefaultRowSize=<<effectiveDefaultRowSize>>
+	btcRgridDefaultCellPadding=<<defaultCellPadding>>
+	btcRgridCellPaddingDefaults=<<cellPaddingDefaults>>
+	btcRgridCellPaddingField=<<cellPaddingField>>
+	btcRgridDefaultCellMode=<<defaultCellMode>>
+	btcRgridCellModeField=<<cellModeField>>
+
+	btcRgridMinColSize=<<minColSize>>
+	btcRgridMaxColSize=<<maxColSize>>
+	btcRgridMinRowSize=<<minRowSize>>
+	btcRgridMaxRowSize=<<maxRowSize>>
+
+	btcRgridColUnit=<<colUnit>>
+	btcRgridRowUnit=<<rowUnit>>
+
+	btcRgridSelector={{{ [[.btc-rgrid-instance-]addsuffix<gridId>] }}}
+
+	btcRgridColumnTemplate={{{ [function[btc.rgrid.xy.columns-template],<columns>,<effectiveDefaultColSize>] }}}
+	btcRgridRowsTemplate={{{ [function[btc.rgrid.xy.rows-template],<rows>,<effectiveDefaultRowSize>] }}}
+
+	btcRgridColumnVariables={{{ [function[btc.rgrid.xy.column-variables],<statePrefix>,<columns>,<effectiveDefaultColSize>,<colDefaults>] }}}
+	btcRgridRowVariables={{{ [function[btc.rgrid.xy.row-variables],<statePrefix>,<rows>,<effectiveDefaultRowSize>,<rowDefaults>] }}}
+
+	btcRgridStyle={{{ [[--btc-rgrid-columns-template: ]addsuffix<btcRgridColumnTemplate>addsuffix[; --btc-rgrid-rows-template: ]addsuffix<btcRgridRowsTemplate>addsuffix[; --btc-rgrid-row-min-height: ]addsuffix<rowMinHeight>addsuffix[; --btc-rgrid-cell-gap: ]addsuffix<cellGap>addsuffix[; --btc-rgrid-height: ]addsuffix<height>addsuffix[; --btc-rgrid-cell-padding: ]addsuffix<defaultCellPadding>addsuffix[; ]addsuffix<btcRgridColumnVariables>addsuffix[ ]addsuffix<btcRgridRowVariables>] }}}
+>
+	<div
+		class={{{ [[btc-rgrid-table btc-rgrid-instance-]addsuffix<gridId>addsuffix[ ]addsuffix<class>] }}}
+		style=<<btcRgridStyle>>
+		data-btc-rgrid-id=<<gridId>>
+		data-columns=<<columns>>
+		data-rows=<<rows>>
+		data-resize-columns=<<resizeColumns>>
+		data-resize-rows=<<resizeRows>>
+	>
+		<div class="btc-rgrid-content">
+			<$list filter="[range[1],<rows>]">
+				<$let ghostRow=<<currentTiddler>>>
+					<$list filter="[range[1],<columns>]">
+						<$let ghostCol=<<currentTiddler>>>
+							<%if [function[btc.rgrid.xy.free],<cellFilter>,<ghostRow>,<ghostCol>] %>
+								<$transclude
+									$variable="btc.rgrid.xy.ghost"
+									row=<<ghostRow>>
+									col=<<ghostCol>>
+								/>
+							<% endif %>
+						</$let>
+					</$list>
+				</$let>
+			</$list>
+
+			<$list filter="[subfilter<cellFilter>!is[draft]sortan<sortField>]">
+				<$transclude
+					$variable="btc.rgrid.xy.cell"
+					tiddler=<<currentTiddler>>
+					showTitle=<<showTitles>>
+				/>
+			</$list>
+
+			<$list filter="[subfilter<cellFilter>!is[draft]sortan<sortField>]">
+				<$transclude
+					$variable="btc.rgrid.xy.cell-overlay-handles"
+					tiddler=<<currentTiddler>>
+				/>
+			</$list>
+		</div>
+	</div>
+</$let>
+\end
+
+\procedure btc.rgrid.xy.ghost(row:"1",col:"1")
+\whitespace trim
+<$let
+	colBoundaryIndex=<<col>>
+	rowBoundaryIndex=<<row>>
+	isLastColumn={{{ [<col>compare:integer:gteq<btcRgridColumns>then[yes]else[no]] }}}
+	isLastRow={{{ [<row>compare:integer:gteq<btcRgridRows>then[yes]else[no]] }}}
+>
+	<div
+		class="btc-rgrid-cell btc-rgrid-cell-ghost"
+		data-ghost="yes"
+		data-row=<<row>>
+		data-col=<<col>>
+		data-col-boundary-index=<<colBoundaryIndex>>
+		data-row-boundary-index=<<rowBoundaryIndex>>
+		style.grid-area={{{ [<row>addsuffix[ / ]addsuffix<col>addsuffix[ / span 1 / span 1]] }}}
+	>
+		<div class="btc-rgrid-cell-content"></div>
+	</div>
+
+	<$list filter="[<btcRgridResizeColumns>match[yes]]">
+		<$list filter="[<isLastColumn>!match[yes]]">
+			<div
+				class="btc-rgrid-overlay-slot btc-rgrid-cell-column-overlay-slot btc-rgrid-ghost-column-overlay-slot"
+				data-ghost="yes"
+				data-grid-track-axis="column"
+				data-grid-track-index=<<colBoundaryIndex>>
+				data-col=<<col>>
+				data-row=<<row>>
+				data-colspan="1"
+				data-rowspan="1"
+				style.grid-area={{{ [<row>addsuffix[ / ]addsuffix<col>addsuffix[ / span 1 / span 1]] }}}
+			>
+				<$transclude
+					$variable="btc.rgrid.xy.column-overlay-resizer"
+					index=<<colBoundaryIndex>>
+				/>
+			</div>
+		</$list>
+	</$list>
+
+	<$list filter="[<btcRgridResizeRows>match[yes]]">
+		<$list filter="[<isLastRow>!match[yes]]">
+			<div
+				class="btc-rgrid-overlay-slot btc-rgrid-cell-row-overlay-slot btc-rgrid-ghost-row-overlay-slot"
+				data-ghost="yes"
+				data-grid-track-axis="row"
+				data-grid-track-index=<<rowBoundaryIndex>>
+				data-col=<<col>>
+				data-row=<<row>>
+				data-colspan="1"
+				data-rowspan="1"
+				style.grid-area={{{ [<row>addsuffix[ / ]addsuffix<col>addsuffix[ / span 1 / span 1]] }}}
+			>
+				<$transclude
+					$variable="btc.rgrid.xy.row-overlay-resizer"
+					index=<<rowBoundaryIndex>>
+				/>
+			</div>
+		</$list>
+	</$list>
+</$let>
+\end
+
+\procedure btc.rgrid.xy.cell(tiddler:"",showTitle:"no")
+\whitespace trim
+<$tiddler tiddler=<<tiddler>>>
+	<$let
+		col={{{ [function[btc.rgrid.xy.col-start]] }}}
+		row={{{ [function[btc.rgrid.xy.row-start]] }}}
+		colspan={{{ [function[btc.rgrid.xy.col-span]] }}}
+		rowspan={{{ [function[btc.rgrid.xy.row-span]] }}}
+		colBoundaryIndex={{{ [function[btc.rgrid.xy.col-end]] }}}
+		rowBoundaryIndex={{{ [function[btc.rgrid.xy.row-end]] }}}
+		cellPaddingIndex={{{ [function[btc.rgrid.xy.cell-padding-index],<row>,<col>,<btcRgridColumns>] }}}
+		cellPadding={{{
+			[all[current]get<btcRgridCellPaddingField>trim[]!is[blank]]
+			~[function[btc.rgrid.xy.cell-padding-default],<btcRgridCellPaddingDefaults>,<cellPaddingIndex>,<btcRgridDefaultCellPadding>]
+		}}}
+		cellMode={{{
+			[all[current]get<btcRgridCellModeField>trim[]match[inline]then[inline]]
+			[all[current]get<btcRgridCellModeField>trim[]match[block]then[block]]
+			~[<btcRgridDefaultCellMode>match[inline]then[inline]]
+			~[[block]]
+		}}}
+		isLastColumn={{{ [<colBoundaryIndex>compare:integer:gteq<btcRgridColumns>then[yes]else[no]] }}}
+		isLastRow={{{ [<rowBoundaryIndex>compare:integer:gteq<btcRgridRows>then[yes]else[no]] }}}
+		cellClass={{{
+			[all[current]tag[Header]then[btc-rgrid-cell-header]]
+			[all[current]tag[Footer]then[btc-rgrid-cell-footer]]
+			[all[current]tag[Muted]then[btc-rgrid-cell-muted]]
+			+[join[ ]]
+		}}}
+	>
+		<div
+			class={{{ [[btc-rgrid-cell btc-rgrid-cell-real ]addsuffix<cellClass>] }}}
+			data-title=<<tiddler>>
+			data-col=<<col>>
+			data-row=<<row>>
+			data-colspan=<<colspan>>
+			data-rowspan=<<rowspan>>
+			data-col-boundary-index=<<colBoundaryIndex>>
+			data-row-boundary-index=<<rowBoundaryIndex>>
+			style.grid-area={{{ [<row>addsuffix[ / ]addsuffix<col>addsuffix[ / span ]addsuffix<rowspan>addsuffix[ / span ]addsuffix<colspan>] }}}
+			style.--btc-rgrid-cell-padding=<<cellPadding>>
+		>
+			<div class="btc-rgrid-cell-content">
+				<$list filter="[<showTitle>match[yes]]">
+					<div class="btc-rgrid-cell-title">
+						<$link to=<<tiddler>>>
+							<$text text=<<tiddler>>/>
+						</$link>
+					</div>
+				</$list>
+				<$transclude $tiddler=<<tiddler>> $mode=<<cellMode>>/>
+			</div>
+		</div>
+	</$let>
+</$tiddler>
+\end
+
+\procedure btc.rgrid.xy.cell-overlay-handles(tiddler:"")
+\whitespace trim
+<$tiddler tiddler=<<tiddler>>>
+	<$let
+		col={{{ [function[btc.rgrid.xy.col-start]] }}}
+		row={{{ [function[btc.rgrid.xy.row-start]] }}}
+		colspan={{{ [function[btc.rgrid.xy.col-span]] }}}
+		rowspan={{{ [function[btc.rgrid.xy.row-span]] }}}
+		colBoundaryIndex={{{ [function[btc.rgrid.xy.col-end]] }}}
+		rowBoundaryIndex={{{ [function[btc.rgrid.xy.row-end]] }}}
+		isLastColumn={{{ [<colBoundaryIndex>compare:integer:gteq<btcRgridColumns>then[yes]else[no]] }}}
+		isLastRow={{{ [<rowBoundaryIndex>compare:integer:gteq<btcRgridRows>then[yes]else[no]] }}}
+	>
+		<$list filter="[<btcRgridResizeColumns>match[yes]]">
+			<$list filter="[<isLastColumn>!match[yes]]">
+				<div
+					class="btc-rgrid-overlay-slot btc-rgrid-cell-column-overlay-slot btc-rgrid-real-column-overlay-slot"
+					data-title=<<tiddler>>
+					data-grid-track-axis="column"
+					data-grid-track-index=<<colBoundaryIndex>>
+					data-col=<<col>>
+					data-row=<<row>>
+					data-colspan=<<colspan>>
+					data-rowspan=<<rowspan>>
+					style.grid-area={{{ [<row>addsuffix[ / ]addsuffix<col>addsuffix[ / span ]addsuffix<rowspan>addsuffix[ / span ]addsuffix<colspan>] }}}
+				>
+					<$transclude
+						$variable="btc.rgrid.xy.column-overlay-resizer"
+						index=<<colBoundaryIndex>>
+					/>
+				</div>
+			</$list>
+		</$list>
+
+		<$list filter="[<btcRgridResizeRows>match[yes]]">
+			<$list filter="[<isLastRow>!match[yes]]">
+				<div
+					class="btc-rgrid-overlay-slot btc-rgrid-cell-row-overlay-slot btc-rgrid-real-row-overlay-slot"
+					data-title=<<tiddler>>
+					data-grid-track-axis="row"
+					data-grid-track-index=<<rowBoundaryIndex>>
+					data-col=<<col>>
+					data-row=<<row>>
+					data-colspan=<<colspan>>
+					data-rowspan=<<rowspan>>
+					style.grid-area={{{ [<row>addsuffix[ / ]addsuffix<col>addsuffix[ / span ]addsuffix<rowspan>addsuffix[ / span ]addsuffix<colspan>] }}}
+				>
+					<$transclude
+						$variable="btc.rgrid.xy.row-overlay-resizer"
+						index=<<rowBoundaryIndex>>
+					/>
+				</div>
+			</$list>
+		</$list>
+	</$let>
+</$tiddler>
+\end
+
+\procedure btc.rgrid.xy.column-handle(index:"1")
+\whitespace trim
+<$resizer
+	mode="grid-track"
+	class="btc-rgrid-cell-resizer btc-rgrid-column-resizer"
+	direction="horizontal"
+	gridSelector=<<btcRgridSelector>>
+	gridTrackAxis="column"
+	gridTrackIndex=<<index>>
+	gridTrackStatePrefix=<<btcRgridStatePrefix>>
+	gridTrackUnit=<<btcRgridColUnit>>
+	gridTrackMin=<<btcRgridMinColSize>>
+	gridTrackMax=<<btcRgridMaxColSize>>
+	gridTrackLive="yes"
+	gridTrackSave="end"
+	gridTrackLiveUnit="px"
+	gridTrackSaveUnit="px"
+	gridTrackFreezeOnStart="yes"
+	gridTrackFreezeOnEnd="yes"
+/>
+\end
+
+\procedure btc.rgrid.xy.row-handle(index:"1")
+\whitespace trim
+<$resizer
+	mode="grid-track"
+	class="btc-rgrid-row-resizer"
+	direction="vertical"
+	gridSelector=<<btcRgridSelector>>
+	gridTrackAxis="row"
+	gridTrackIndex=<<index>>
+	gridTrackStatePrefix=<<btcRgridStatePrefix>>
+	gridTrackUnit=<<btcRgridRowUnit>>
+	gridTrackMin=<<btcRgridMinRowSize>>
+	gridTrackMax=<<btcRgridMaxRowSize>>
+	gridTrackLive="yes"
+	gridTrackSave="end"
+	gridTrackLiveUnit="px"
+	gridTrackSaveUnit="px"
+	gridTrackFreezeOnStart="yes"
+	gridTrackFreezeOnEnd="yes"
+/>
+\end
+
+\procedure btc.rgrid.xy.column-overlay-handle(index:"1")
+\whitespace trim
+<div
+	class="btc-rgrid-overlay-slot btc-rgrid-column-overlay-slot"
+	data-grid-track-axis="column"
+	data-grid-track-index=<<index>>
+	style.grid-column={{{ [<index>addsuffix[ / span 1]] }}}
+	style.grid-row="1 / -1"
+>
+	<$transclude
+		$variable="btc.rgrid.xy.column-overlay-resizer"
+		index=<<index>>
+	/>
+</div>
+\end
+
+\procedure btc.rgrid.xy.row-overlay-handle(index:"1")
+\whitespace trim
+<div
+	class="btc-rgrid-overlay-slot btc-rgrid-row-overlay-slot"
+	data-grid-track-axis="row"
+	data-grid-track-index=<<index>>
+	style.grid-column="1 / -1"
+	style.grid-row={{{ [<index>addsuffix[ / span 1]] }}}
+>
+	<$transclude
+		$variable="btc.rgrid.xy.row-overlay-resizer"
+		index=<<index>>
+	/>
+</div>
+\end
+
+\procedure btc.rgrid.xy.column-overlay-resizer(index:"1")
+\whitespace trim
+<$resizer
+	mode="grid-track"
+	class="btc-rgrid-overlay-resizer btc-rgrid-column-overlay-resizer"
+	direction="horizontal"
+	gridSelector=<<btcRgridSelector>>
+	gridTrackAxis="column"
+	gridTrackIndex=<<index>>
+	gridTrackStatePrefix=<<btcRgridStatePrefix>>
+	gridTrackUnit=<<btcRgridColUnit>>
+	gridTrackMin=<<btcRgridMinColSize>>
+	gridTrackMax=<<btcRgridMaxColSize>>
+	gridTrackLive="yes"
+	gridTrackSave="end"
+	gridTrackLiveUnit="px"
+	gridTrackSaveUnit="px"
+	gridTrackFreezeOnStart="yes"
+	gridTrackFreezeOnEnd="yes"
+/>
+\end
+
+\procedure btc.rgrid.xy.row-overlay-resizer(index:"1")
+\whitespace trim
+<$resizer
+	mode="grid-track"
+	class="btc-rgrid-overlay-resizer btc-rgrid-row-overlay-resizer"
+	direction="vertical"
+	gridSelector=<<btcRgridSelector>>
+	gridTrackAxis="row"
+	gridTrackIndex=<<index>>
+	gridTrackStatePrefix=<<btcRgridStatePrefix>>
+	gridTrackUnit=<<btcRgridRowUnit>>
+	gridTrackMin=<<btcRgridMinRowSize>>
+	gridTrackMax=<<btcRgridMaxRowSize>>
 	gridTrackLive="yes"
 	gridTrackSave="end"
 	gridTrackLiveUnit="px"
