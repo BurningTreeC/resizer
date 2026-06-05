@@ -2344,3 +2344,21 @@ body.tc-resizing .tc-resize-overlay {
 	pointer-events: none;
 }
 
+
+/*
+	Grid-track measurement probes are inserted temporarily by grid-track.js
+	when the browser exposes unresolved grid-template track values.
+	The inline styles already hide them; this rule is an extra safety layer.
+*/
+.btc-rgrid-track-measure-probe {
+	visibility: hidden !important;
+	pointer-events: none !important;
+	min-width: 0 !important;
+	min-height: 0 !important;
+	width: auto !important;
+	height: auto !important;
+	padding: 0 !important;
+	margin: 0 !important;
+	border: 0 !important;
+	overflow: hidden !important;
+}

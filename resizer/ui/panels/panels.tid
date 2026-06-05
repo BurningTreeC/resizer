@@ -955,13 +955,14 @@ code-body: yes
 
 \function btc.rgrid.track.template(columns,defaultColSize,colMinWidth)
 	[range[1],<columns>]
-	:map[[minmax(var(--btc-rgrid-col-min-width, ]addsuffix<colMinWidth>addsuffix[), var(--btc-rgrid-col-]addsuffix<currentTiddler>addsuffix[, ]addsuffix<defaultColSize>addsuffix[))]]
+	:map[[minmax(var(--btc-rgrid-col-]addsuffix<currentTiddler>addsuffix[-min, var(--btc-rgrid-col-min-width, ]addsuffix<colMinWidth>addsuffix[)), var(--btc-rgrid-col-]addsuffix<currentTiddler>addsuffix[, ]addsuffix<defaultColSize>addsuffix[))]]
 	+[join[ ]]
 \end
 
 \function btc.rgrid.track.variable(statePrefix,index,columns,defaultColSize,fillLastColumn,lastColSize)
-	[<statePrefix>addsuffix[/col-]addsuffix<index>get[text]]
-	~[<fillLastColumn>match[yes]then<index>compare:integer:eq<columns>then<lastColSize>]
+	[<fillLastColumn>match[yes]then<index>compare:integer:eq<columns>then[function[btc.rgrid.xy.track-state],<statePrefix>,[col],<index>,<lastColSize>then<lastColSize>]
+	~[<fillLastColumn>match[yes]then<index>compare:integer:eq<columns>then<defaultColSize>]
+	~[<statePrefix>addsuffix[/col-]addsuffix<index>get[text]]
 	~[<defaultColSize>]
 	+[addprefix[: ]addprefix<index>addprefix[--btc-rgrid-col-]addsuffix[;]]
 \end
@@ -969,6 +970,19 @@ code-body: yes
 \function btc.rgrid.track.variables(statePrefix,columns,defaultColSize,fillLastColumn,lastColSize)
 	[range[1],<columns>]
 	:map[function[btc.rgrid.track.variable],<statePrefix>,<currentTiddler>,<columns>,<defaultColSize>,<fillLastColumn>,<lastColSize>]
+	+[join[ ]]
+\end
+
+\function btc.rgrid.track.min-variable(statePrefix,index,columns,colMinWidth,fillLastColumn,lastColSize)
+	[<fillLastColumn>match[yes]then<index>compare:integer:eq<columns>then<statePrefix>addsuffix[/col-]addsuffix<index>addsuffix[-min]get[text]trim[]!is[blank]]
+	~[<fillLastColumn>match[yes]then<index>compare:integer:eq<columns>then<statePrefix>addsuffix[/col-]addsuffix<index>get[text]trim[]!is[blank]!match<lastColSize>]
+	~[<colMinWidth>]
+	+[addprefix[-min: ]addprefix<index>addprefix[--btc-rgrid-col-]addsuffix[;]]
+\end
+
+\function btc.rgrid.track.min-variables(statePrefix,columns,colMinWidth,fillLastColumn,lastColSize)
+	[range[1],<columns>]
+	:map[function[btc.rgrid.track.min-variable],<statePrefix>,<currentTiddler>,<columns>,<colMinWidth>,<fillLastColumn>,<lastColSize>]
 	+[join[ ]]
 \end
 
@@ -980,6 +994,8 @@ code-body: yes
 	btcRgridColumns=<<columns>>
 	btcRgridStatePrefix=<<statePrefix>>
 	btcRgridDefaultColSize=<<effectiveDefaultColSize>>
+	btcRgridFillLastColumn={{{ [function[btc.rgrid.xy.effective-fill-last],<fillLastColumn>,<statePrefix>,[col],<colDefaults>,<columns>,<lastColSize>] }}}
+	btcRgridLastColSize=<<lastColSize>>
 	btcRgridColMinWidth=<<colMinWidth>>
 	btcRgridMinColSize=<<minColSize>>
 	btcRgridMaxColSize=<<maxColSize>>
@@ -987,7 +1003,8 @@ code-body: yes
 	btcRgridSelector={{{ [[.btc-rgrid-instance-]addsuffix<gridId>] }}}
 	btcRgridColumnTemplate={{{ [function[btc.rgrid.track.template],<columns>,<effectiveDefaultColSize>,<colMinWidth>] }}}
 	btcRgridColumnVariables={{{ [function[btc.rgrid.track.variables],<statePrefix>,<columns>,<effectiveDefaultColSize>,<fillLastColumn>,<lastColSize>] }}}
-	btcRgridStyle={{{ [[--btc-rgrid-columns-template: ]addsuffix<btcRgridColumnTemplate>addsuffix[; --btc-rgrid-col-min-width: ]addsuffix<colMinWidth>addsuffix[; --btc-rgrid-gap: ]addsuffix<gap>addsuffix[; --btc-rgrid-row-min-height: ]addsuffix<rowMinHeight>addsuffix[; ]addsuffix<btcRgridColumnVariables>] }}}
+	btcRgridColumnMinVariables={{{ [function[btc.rgrid.track.min-variables],<statePrefix>,<columns>,<colMinWidth>,<fillLastColumn>,<lastColSize>] }}}
+	btcRgridStyle={{{ [[--btc-rgrid-columns-template: ]addsuffix<btcRgridColumnTemplate>addsuffix[; --btc-rgrid-col-min-width: ]addsuffix<colMinWidth>addsuffix[; --btc-rgrid-gap: ]addsuffix<gap>addsuffix[; --btc-rgrid-row-min-height: ]addsuffix<rowMinHeight>addsuffix[; ]addsuffix<btcRgridColumnVariables>addsuffix[ ]addsuffix<btcRgridColumnMinVariables>] }}}
 >
 	<div
 		class={{{ [[btc-rgrid-table btc-rgrid-instance-]addsuffix<gridId>addsuffix[ ]addsuffix<class>] }}}
@@ -1059,6 +1076,9 @@ code-body: yes
 	gridSelector=<<btcRgridSelector>>
 	gridTrackAxis="column"
 	gridTrackIndex=<<index>>
+	gridTrackTrackCount=<<btcRgridColumns>>
+	gridTrackFillLast=<<btcRgridFillLastColumn>>
+	gridTrackLastSize=<<btcRgridLastColSize>>
 	gridTrackStatePrefix=<<btcRgridStatePrefix>>
 	gridTrackUnit=<<btcRgridUnit>>
 	gridTrackMin=<<btcRgridMinColSize>>
@@ -1078,13 +1098,14 @@ code-body: yes
 
 \function btc.rgrid.placed.columns-template(columns,defaultColSize,colMinWidth)
 	[range[1],<columns>]
-	:map[[minmax(var(--btc-rgrid-col-min-width, ]addsuffix<colMinWidth>addsuffix[), var(--btc-rgrid-col-]addsuffix<currentTiddler>addsuffix[, ]addsuffix<defaultColSize>addsuffix[))]]
+	:map[[minmax(var(--btc-rgrid-col-]addsuffix<currentTiddler>addsuffix[-min, var(--btc-rgrid-col-min-width, ]addsuffix<colMinWidth>addsuffix[)), var(--btc-rgrid-col-]addsuffix<currentTiddler>addsuffix[, ]addsuffix<defaultColSize>addsuffix[))]]
 	+[join[ ]]
 \end
 
 \function btc.rgrid.placed.column-variable(statePrefix,index,columns,defaultColSize,fillLastColumn,lastColSize)
-	[<statePrefix>addsuffix[/col-]addsuffix<index>get[text]]
-	~[<fillLastColumn>match[yes]then<index>compare:integer:eq<columns>then<lastColSize>]
+	[<fillLastColumn>match[yes]then<index>compare:integer:eq<columns>then[function[btc.rgrid.xy.track-state],<statePrefix>,[col],<index>,<lastColSize>then<lastColSize>]
+	~[<fillLastColumn>match[yes]then<index>compare:integer:eq<columns>then<defaultColSize>]
+	~[<statePrefix>addsuffix[/col-]addsuffix<index>get[text]]
 	~[<defaultColSize>]
 	+[addprefix[: ]addprefix<index>addprefix[--btc-rgrid-col-]addsuffix[;]]
 \end
@@ -1092,6 +1113,19 @@ code-body: yes
 \function btc.rgrid.placed.column-variables(statePrefix,columns,defaultColSize,fillLastColumn,lastColSize)
 	[range[1],<columns>]
 	:map[function[btc.rgrid.placed.column-variable],<statePrefix>,<currentTiddler>,<columns>,<defaultColSize>,<fillLastColumn>,<lastColSize>]
+	+[join[ ]]
+\end
+
+\function btc.rgrid.placed.column-min-variable(statePrefix,index,columns,colMinWidth,fillLastColumn,lastColSize)
+	[<fillLastColumn>match[yes]then<index>compare:integer:eq<columns>then<statePrefix>addsuffix[/col-]addsuffix<index>addsuffix[-min]get[text]trim[]!is[blank]]
+	~[<fillLastColumn>match[yes]then<index>compare:integer:eq<columns>then<statePrefix>addsuffix[/col-]addsuffix<index>get[text]trim[]!is[blank]!match<lastColSize>]
+	~[<colMinWidth>]
+	+[addprefix[-min: ]addprefix<index>addprefix[--btc-rgrid-col-]addsuffix[;]]
+\end
+
+\function btc.rgrid.placed.column-min-variables(statePrefix,columns,colMinWidth,fillLastColumn,lastColSize)
+	[range[1],<columns>]
+	:map[function[btc.rgrid.placed.column-min-variable],<statePrefix>,<currentTiddler>,<columns>,<colMinWidth>,<fillLastColumn>,<lastColSize>]
 	+[join[ ]]
 \end
 
@@ -1163,6 +1197,8 @@ code-body: yes
 	btcRgridColumns=<<columns>>
 	btcRgridStatePrefix=<<statePrefix>>
 	btcRgridDefaultColSize=<<effectiveDefaultColSize>>
+	btcRgridFillLastColumn={{{ [function[btc.rgrid.xy.effective-fill-last],<fillLastColumn>,<statePrefix>,[col],<colDefaults>,<columns>,<lastColSize>] }}}
+	btcRgridLastColSize=<<lastColSize>>
 	btcRgridColMinWidth=<<colMinWidth>>
 	btcRgridDefaultCellPadding=<<defaultCellPadding>>
 	btcRgridCellPaddingDefaults=<<cellPaddingDefaults>>
@@ -1175,8 +1211,9 @@ code-body: yes
 	btcRgridSelector={{{ [[.btc-rgrid-instance-]addsuffix<gridId>] }}}
 	btcRgridColumnTemplate={{{ [function[btc.rgrid.placed.columns-template],<columns>,<effectiveDefaultColSize>,<colMinWidth>] }}}
 	btcRgridColumnVariables={{{ [function[btc.rgrid.placed.column-variables],<statePrefix>,<columns>,<effectiveDefaultColSize>,<fillLastColumn>,<lastColSize>] }}}
+	btcRgridColumnMinVariables={{{ [function[btc.rgrid.placed.column-min-variables],<statePrefix>,<columns>,<colMinWidth>,<fillLastColumn>,<lastColSize>] }}}
 	btcRgridRowsTemplate={{{ [function[btc.rgrid.placed.rows-template],<rows>,<defaultRowSize>] }}}
-	btcRgridStyle={{{ [[--btc-rgrid-columns-template: ]addsuffix<btcRgridColumnTemplate>addsuffix[; --btc-rgrid-col-min-width: ]addsuffix<colMinWidth>addsuffix[; --btc-rgrid-rows-template: ]addsuffix<btcRgridRowsTemplate>addsuffix[; --btc-rgrid-row-min-height: ]addsuffix<rowMinHeight>addsuffix[; --btc-rgrid-cell-gap: ]addsuffix<cellGap>addsuffix[; --btc-rgrid-cell-padding: ]addsuffix<defaultCellPadding>addsuffix[; ]addsuffix<btcRgridColumnVariables>] }}}
+	btcRgridStyle={{{ [[--btc-rgrid-columns-template: ]addsuffix<btcRgridColumnTemplate>addsuffix[; --btc-rgrid-col-min-width: ]addsuffix<colMinWidth>addsuffix[; --btc-rgrid-rows-template: ]addsuffix<btcRgridRowsTemplate>addsuffix[; --btc-rgrid-row-min-height: ]addsuffix<rowMinHeight>addsuffix[; --btc-rgrid-cell-gap: ]addsuffix<cellGap>addsuffix[; --btc-rgrid-cell-padding: ]addsuffix<defaultCellPadding>addsuffix[; ]addsuffix<btcRgridColumnVariables>addsuffix[ ]addsuffix<btcRgridColumnMinVariables>] }}}
 >
 	<div
 		class={{{ [[btc-rgrid-table btc-rgrid-instance-]addsuffix<gridId>addsuffix[ ]addsuffix<class>] }}}
@@ -1355,6 +1392,9 @@ code-body: yes
 	gridSelector=<<btcRgridSelector>>
 	gridTrackAxis="column"
 	gridTrackIndex=<<index>>
+	gridTrackTrackCount=<<btcRgridColumns>>
+	gridTrackFillLast=<<btcRgridFillLastColumn>>
+	gridTrackLastSize=<<btcRgridLastColSize>>
 	gridTrackStatePrefix=<<btcRgridStatePrefix>>
 	gridTrackUnit=<<btcRgridUnit>>
 	gridTrackMin=<<btcRgridMinColSize>>
@@ -1377,6 +1417,9 @@ code-body: yes
 	gridSelector=<<btcRgridSelector>>
 	gridTrackAxis="column"
 	gridTrackIndex=<<index>>
+	gridTrackTrackCount=<<btcRgridColumns>>
+	gridTrackFillLast=<<btcRgridFillLastColumn>>
+	gridTrackLastSize=<<btcRgridLastColSize>>
 	gridTrackStatePrefix=<<btcRgridStatePrefix>>
 	gridTrackUnit=<<btcRgridUnit>>
 	gridTrackMin=<<btcRgridMinColSize>>
@@ -1400,18 +1443,27 @@ code-body: yes
 
 \function btc.rgrid.xy.columns-template(columns,defaultColSize,colMinWidth)
 	[range[1],<columns>]
-	:map[[minmax(var(--btc-rgrid-col-min-width, ]addsuffix<colMinWidth>addsuffix[), var(--btc-rgrid-col-]addsuffix<currentTiddler>addsuffix[, ]addsuffix<defaultColSize>addsuffix[))]]
+	:map[[minmax(var(--btc-rgrid-col-]addsuffix<currentTiddler>addsuffix[-min, var(--btc-rgrid-col-min-width, ]addsuffix<colMinWidth>addsuffix[)), var(--btc-rgrid-col-]addsuffix<currentTiddler>addsuffix[, ]addsuffix<defaultColSize>addsuffix[))]]
 	+[join[ ]]
 \end
 
-\function btc.rgrid.xy.rows-template(rows,defaultRowSize)
+\function btc.rgrid.xy.rows-template(rows,defaultRowSize,rowMinHeight)
 	[range[1],<rows>]
-	:map[[minmax(var(--btc-rgrid-row-min-height), var(--btc-rgrid-row-]addsuffix<currentTiddler>addsuffix[, ]addsuffix<defaultRowSize>addsuffix[))]]
+	:map[[minmax(var(--btc-rgrid-row-]addsuffix<currentTiddler>addsuffix[-min, var(--btc-rgrid-row-min-height, ]addsuffix<rowMinHeight>addsuffix[)), var(--btc-rgrid-row-]addsuffix<currentTiddler>addsuffix[, ]addsuffix<defaultRowSize>addsuffix[))]]
 	+[join[ ]]
 \end
 
 \function btc.rgrid.xy.track-default(defaults,index)
 	[<defaults>split[ ]nth<index>trim[]!is[blank]!match[default]]
+\end
+
+\function btc.rgrid.xy.track-state(statePrefix,axis,index,lastSize)
+	[<statePrefix>addsuffix[/]addsuffix<axis>addsuffix[-]addsuffix<index>addsuffix[-min]get[text]trim[]!is[blank]]
+	~[<statePrefix>addsuffix[/]addsuffix<axis>addsuffix[-]addsuffix<index>get[text]trim[]!is[blank]!match<lastSize>]
+\end
+
+\function btc.rgrid.xy.effective-fill-last(fillLast,statePrefix,axis,defaults,index,lastSize)
+	[<fillLast>match[yes]then[yes]else[no]]
 \end
 
 \function btc.rgrid.xy.cell-padding-default(defaults,index,fallback)
@@ -1423,18 +1475,44 @@ code-body: yes
 	[<row>subtract[1]multiply<columns>add<col>]
 \end
 
-\function btc.rgrid.xy.column-variable(statePrefix,index,columns,defaultColSize,colDefaults,fillLastColumn,lastColSize)
-	[<statePrefix>addsuffix[/col-]addsuffix<index>get[text]]
+\function btc.rgrid.xy.last-column-default(statePrefix,index,columns,defaultColSize,colDefaults,fillLastColumn,lastColSize)
+	[<index>]
+	:filter[<fillLastColumn>match[yes]]
+	:filter[<currentTiddler>compare:integer:eq<columns>]
+	:map[function[btc.rgrid.xy.last-column-value],<statePrefix>,<currentTiddler>,<defaultColSize>,<colDefaults>,<lastColSize>]
+\end
+
+\function btc.rgrid.xy.last-column-value(statePrefix,index,defaultColSize,colDefaults,lastColSize)
+	[function[btc.rgrid.xy.track-state],<statePrefix>,[col],<index>,<lastColSize>then<lastColSize>]
 	~[function[btc.rgrid.xy.track-default],<colDefaults>,<index>]
-	~[<fillLastColumn>match[yes]then<index>compare:integer:eq<columns>then<lastColSize>]
+	~[<defaultColSize>]
+\end
+
+\function btc.rgrid.xy.last-row-default(statePrefix,index,rows,defaultRowSize,rowDefaults,fillLastRow,lastRowSize)
+	[<index>]
+	:filter[<fillLastRow>match[yes]]
+	:filter[<currentTiddler>compare:integer:eq<rows>]
+	:map[function[btc.rgrid.xy.last-row-value],<statePrefix>,<currentTiddler>,<defaultRowSize>,<rowDefaults>,<lastRowSize>]
+\end
+
+\function btc.rgrid.xy.last-row-value(statePrefix,index,defaultRowSize,rowDefaults,lastRowSize)
+	[function[btc.rgrid.xy.track-state],<statePrefix>,[row],<index>,<lastRowSize>then<lastRowSize>]
+	~[function[btc.rgrid.xy.track-default],<rowDefaults>,<index>]
+	~[<defaultRowSize>]
+\end
+
+\function btc.rgrid.xy.column-variable(statePrefix,index,columns,defaultColSize,colDefaults,fillLastColumn,lastColSize)
+	[function[btc.rgrid.xy.last-column-default],<statePrefix>,<index>,<columns>,<defaultColSize>,<colDefaults>,<fillLastColumn>,<lastColSize>]
+	~[<statePrefix>addsuffix[/col-]addsuffix<index>get[text]]
+	~[function[btc.rgrid.xy.track-default],<colDefaults>,<index>]
 	~[<defaultColSize>]
 	+[addprefix[: ]addprefix<index>addprefix[--btc-rgrid-col-]addsuffix[;]]
 \end
 
 \function btc.rgrid.xy.row-variable(statePrefix,index,rows,defaultRowSize,rowDefaults,fillLastRow,lastRowSize)
-	[<statePrefix>addsuffix[/row-]addsuffix<index>get[text]]
+	[function[btc.rgrid.xy.last-row-default],<statePrefix>,<index>,<rows>,<defaultRowSize>,<rowDefaults>,<fillLastRow>,<lastRowSize>]
+	~[<statePrefix>addsuffix[/row-]addsuffix<index>get[text]]
 	~[function[btc.rgrid.xy.track-default],<rowDefaults>,<index>]
-	~[<fillLastRow>match[yes]then<index>compare:integer:eq<rows>then<lastRowSize>]
 	~[<defaultRowSize>]
 	+[addprefix[: ]addprefix<index>addprefix[--btc-rgrid-row-]addsuffix[;]]
 \end
@@ -1448,6 +1526,33 @@ code-body: yes
 \function btc.rgrid.xy.row-variables(statePrefix,rows,defaultRowSize,rowDefaults,fillLastRow,lastRowSize)
 	[range[1],<rows>]
 	:map[function[btc.rgrid.xy.row-variable],<statePrefix>,<currentTiddler>,<rows>,<defaultRowSize>,<rowDefaults>,<fillLastRow>,<lastRowSize>]
+	+[join[ ]]
+\end
+
+\function btc.rgrid.xy.column-min-variable(statePrefix,index,columns,colMinWidth,colDefaults,fillLastColumn,lastColSize)
+	[<fillLastColumn>match[yes]then<index>compare:integer:eq<columns>then<statePrefix>addsuffix[/col-]addsuffix<index>addsuffix[-min]get[text]trim[]!is[blank]]
+	~[<fillLastColumn>match[yes]then<index>compare:integer:eq<columns>then<statePrefix>addsuffix[/col-]addsuffix<index>get[text]trim[]!is[blank]!match<lastColSize>]
+	~[<colMinWidth>]
+	+[addprefix[-min: ]addprefix<index>addprefix[--btc-rgrid-col-]addsuffix[;]]
+\end
+
+\function btc.rgrid.xy.column-min-variables(statePrefix,columns,colMinWidth,fillLastColumn,lastColSize)
+	[range[1],<columns>]
+	:map[function[btc.rgrid.xy.column-min-variable],<statePrefix>,<currentTiddler>,<columns>,<colMinWidth>,<fillLastColumn>,<lastColSize>]
+	+[join[ ]]
+\end
+
+\function btc.rgrid.xy.row-min-variable(statePrefix,index,rows,rowMinHeight,rowDefaults,fillLastRow,lastRowSize)
+	[<fillLastRow>match[yes]then<index>compare:integer:eq<rows>then<statePrefix>addsuffix[/row-]addsuffix<index>addsuffix[-min]get[text]trim[]!is[blank]]
+	~[<fillLastRow>match[yes]then<index>compare:integer:eq<rows>then<statePrefix>addsuffix[/row-]addsuffix<index>get[text]trim[]!is[blank]!match<lastRowSize>]
+	~[<fillLastRow>!match[yes]then<rowMinHeight>]
+	~[<fillLastRow>match[yes]then<index>compare:integer:lt<rows>then<rowMinHeight>]
+	+[addprefix[-min: ]addprefix<index>addprefix[--btc-rgrid-row-]addsuffix[;]]
+\end
+
+\function btc.rgrid.xy.row-min-variables(statePrefix,rows,rowMinHeight,fillLastRow,lastRowSize)
+	[range[1],<rows>]
+	:map[function[btc.rgrid.xy.row-min-variable],<statePrefix>,<currentTiddler>,<rows>,<rowMinHeight>,<fillLastRow>,<lastRowSize>]
 	+[join[ ]]
 \end
 
@@ -1546,6 +1651,10 @@ code-body: yes
 
 	btcRgridDefaultColSize=<<effectiveDefaultColSize>>
 	btcRgridDefaultRowSize=<<effectiveDefaultRowSize>>
+	btcRgridFillLastColumn={{{ [function[btc.rgrid.xy.effective-fill-last],<fillLastColumn>,<statePrefix>,[col],<colDefaults>,<columns>,<lastColSize>] }}}
+	btcRgridLastColSize=<<lastColSize>>
+	btcRgridFillLastRow={{{ [function[btc.rgrid.xy.effective-fill-last],<fillLastRow>,<statePrefix>,[row],<rowDefaults>,<rows>,<lastRowSize>] }}}
+	btcRgridLastRowSize=<<lastRowSize>>
 	btcRgridColMinWidth=<<colMinWidth>>
 	btcRgridDefaultCellPadding=<<defaultCellPadding>>
 	btcRgridCellPaddingDefaults=<<cellPaddingDefaults>>
@@ -1564,12 +1673,14 @@ code-body: yes
 	btcRgridSelector={{{ [[.btc-rgrid-instance-]addsuffix<gridId>] }}}
 
 	btcRgridColumnTemplate={{{ [function[btc.rgrid.xy.columns-template],<columns>,<effectiveDefaultColSize>,<colMinWidth>] }}}
-	btcRgridRowsTemplate={{{ [function[btc.rgrid.xy.rows-template],<rows>,<effectiveDefaultRowSize>] }}}
+	btcRgridRowsTemplate={{{ [function[btc.rgrid.xy.rows-template],<rows>,<effectiveDefaultRowSize>,<rowMinHeight>] }}}
 
-	btcRgridColumnVariables={{{ [function[btc.rgrid.xy.column-variables],<statePrefix>,<columns>,<effectiveDefaultColSize>,<colDefaults>,<fillLastColumn>,<lastColSize>] }}}
-	btcRgridRowVariables={{{ [function[btc.rgrid.xy.row-variables],<statePrefix>,<rows>,<effectiveDefaultRowSize>,<rowDefaults>,<fillLastRow>,<lastRowSize>] }}}
+	btcRgridColumnVariables={{{ [function[btc.rgrid.xy.column-variables],<statePrefix>,<columns>,<effectiveDefaultColSize>,<colDefaults>,<btcRgridFillLastColumn>,<lastColSize>] }}}
+	btcRgridRowVariables={{{ [function[btc.rgrid.xy.row-variables],<statePrefix>,<rows>,<effectiveDefaultRowSize>,<rowDefaults>,<btcRgridFillLastRow>,<lastRowSize>] }}}
+	btcRgridColumnMinVariables={{{ [function[btc.rgrid.xy.column-min-variables],<statePrefix>,<columns>,<colMinWidth>,<btcRgridFillLastColumn>,<lastColSize>] }}}
+	btcRgridRowMinVariables={{{ [function[btc.rgrid.xy.row-min-variables],<statePrefix>,<rows>,<rowMinHeight>,<btcRgridFillLastRow>,<lastRowSize>] }}}
 
-	btcRgridStyle={{{ [[--btc-rgrid-columns-template: ]addsuffix<btcRgridColumnTemplate>addsuffix[; --btc-rgrid-col-min-width: ]addsuffix<colMinWidth>addsuffix[; --btc-rgrid-rows-template: ]addsuffix<btcRgridRowsTemplate>addsuffix[; --btc-rgrid-row-min-height: ]addsuffix<rowMinHeight>addsuffix[; --btc-rgrid-cell-gap: ]addsuffix<cellGap>addsuffix[; --btc-rgrid-height: ]addsuffix<height>addsuffix[; --btc-rgrid-cell-padding: ]addsuffix<defaultCellPadding>addsuffix[; ]addsuffix<btcRgridColumnVariables>addsuffix[ ]addsuffix<btcRgridRowVariables>] }}}
+	btcRgridStyle={{{ [[--btc-rgrid-columns-template: ]addsuffix<btcRgridColumnTemplate>addsuffix[; --btc-rgrid-col-min-width: ]addsuffix<colMinWidth>addsuffix[; --btc-rgrid-rows-template: ]addsuffix<btcRgridRowsTemplate>addsuffix[; --btc-rgrid-row-min-height: ]addsuffix<rowMinHeight>addsuffix[; --btc-rgrid-cell-gap: ]addsuffix<cellGap>addsuffix[; --btc-rgrid-height: ]addsuffix<height>addsuffix[; --btc-rgrid-cell-padding: ]addsuffix<defaultCellPadding>addsuffix[; ]addsuffix<btcRgridColumnVariables>addsuffix[ ]addsuffix<btcRgridRowVariables>addsuffix[ ]addsuffix<btcRgridColumnMinVariables>addsuffix[ ]addsuffix<btcRgridRowMinVariables>] }}}
 >
 	<div
 		class={{{ [[btc-rgrid-table btc-rgrid-instance-]addsuffix<gridId>addsuffix[ ]addsuffix<class>] }}}
@@ -1579,6 +1690,8 @@ code-body: yes
 		data-rows=<<rows>>
 		data-resize-columns=<<resizeColumns>>
 		data-resize-rows=<<resizeRows>>
+		data-fill-last-column=<<btcRgridFillLastColumn>>
+		data-fill-last-row=<<btcRgridFillLastRow>>
 	>
 		<div class="btc-rgrid-content">
 			<$list filter="[range[1],<rows>]">
@@ -1880,6 +1993,9 @@ code-body: yes
 	gridSelector=<<btcRgridSelector>>
 	gridTrackAxis="column"
 	gridTrackIndex=<<index>>
+	gridTrackTrackCount=<<btcRgridColumns>>
+	gridTrackFillLast=<<btcRgridFillLastColumn>>
+	gridTrackLastSize=<<btcRgridLastColSize>>
 	gridTrackStatePrefix=<<btcRgridStatePrefix>>
 	gridTrackUnit=<<btcRgridColUnit>>
 	gridTrackMin=<<btcRgridMinColSize>>
@@ -1902,6 +2018,9 @@ code-body: yes
 	gridSelector=<<btcRgridSelector>>
 	gridTrackAxis="row"
 	gridTrackIndex=<<index>>
+	gridTrackTrackCount=<<btcRgridRows>>
+	gridTrackFillLast=<<btcRgridFillLastRow>>
+	gridTrackLastSize=<<btcRgridLastRowSize>>
 	gridTrackStatePrefix=<<btcRgridStatePrefix>>
 	gridTrackUnit=<<btcRgridRowUnit>>
 	gridTrackMin=<<btcRgridMinRowSize>>
