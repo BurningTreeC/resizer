@@ -174,7 +174,7 @@ ResizerWidget.prototype.executeGridTrackMode = function(domNode, event) {
 		return false;
 	}
 
-	var gridElement = this.getGridTrackElement();
+	var gridElement = this.getGridTrackElement(domNode);
 	if(!gridElement) {
 		return false;
 	}
@@ -336,8 +336,31 @@ ResizerWidget.prototype.handleGridTrackPointerMove = function(domNode, event, op
 	}
 };
 
-ResizerWidget.prototype.getGridTrackElement = function() {
-	var selector = this.gridSelector || this.gridTrackSelector || "";
+ResizerWidget.prototype.getGridTrackElement = function(domNode) {
+	var selector = this.gridSelector || this.gridTrackSelector || "",
+		node = domNode || this.domNode || (this.domNodes && this.domNodes[0]);
+
+	/*
+		Resolve the grid that actually contains this resizer rather than the
+		first document-wide match for the selector. gridId is decoupled from
+		statePrefix, so several placed/xy tables can share the same
+		.btc-rgrid-instance-* class. A global querySelector would then return
+		the wrong grid and cross-wire the handle, collapsing a column. Walking
+		up from the resizer's own DOM node keeps each handle bound to its grid.
+	*/
+	if(node && node.closest) {
+		if(selector) {
+			var scoped = node.closest(selector);
+			if(scoped) {
+				return scoped;
+			}
+		}
+		var ownGrid = node.closest(".btc-rgrid-table");
+		if(ownGrid) {
+			return ownGrid;
+		}
+	}
+
 	return selector ? this.document.querySelector(selector) : null;
 };
 
