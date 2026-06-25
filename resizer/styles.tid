@@ -106,8 +106,15 @@ body.tc-resizing .tc-edit-texteditor textarea {
 		right: 0;
 		bottom: 0;
 		left: {{{ [{$:/themes/tiddlywiki/vanilla/options/sidebarlayout}match[fixed-fluid]then{$:/themes/tiddlywiki/vanilla/metrics/storyright}] :else[[auto]] }}};
-		width: {{{ [{$:/themes/tiddlywiki/vanilla/options/sidebarlayout}match[fluid-fixed]then{$:/themes/tiddlywiki/vanilla/metrics/sidebarwidth}] :else[[auto]] }}};
-		max-width: calc(100vw - {{$:/themes/tiddlywiki/vanilla/metrics/storyminwidth}} - {{$:/themes/tiddlywiki/vanilla/metrics/storyleft}});
+		/* An optional minimap rendered at the sidebar's right edge widens the whole
+		   sidebar by --tv-minimap-width. The wrapper is anchored to right:0, so the
+		   extra width grows it leftward. The variable defaults to 0px when absent. */
+		<%if [{$:/themes/tiddlywiki/vanilla/options/sidebarlayout}match[fluid-fixed]] %>
+		width: calc({{$:/themes/tiddlywiki/vanilla/metrics/sidebarwidth}} + var(--tv-minimap-width, 0px));
+		<% else %>
+		width: auto;
+		<% endif %>
+		max-width: calc(100vw - {{$:/themes/tiddlywiki/vanilla/metrics/storyminwidth}} - {{$:/themes/tiddlywiki/vanilla/metrics/storyleft}} + var(--tv-minimap-width, 0px));
 		z-index: 100;
 	}
 
@@ -120,7 +127,9 @@ body.tc-resizing .tc-edit-texteditor textarea {
 		<%if [{$:/state/sidebar}!match[no]] %>
 
 			.tc-story-river {
-				margin-right: clamp({{$:/themes/tiddlywiki/vanilla/metrics/sidebarminwidth}},{{$:/themes/tiddlywiki/vanilla/metrics/sidebarwidth}},calc(100vw - {{$:/themes/tiddlywiki/vanilla/metrics/storyminwidth}} - {{$:/themes/tiddlywiki/vanilla/metrics/storyleft}}));
+				/* Reserve the same minimap space the wrapper claims so the story
+				   river never sits beneath the sidebar/minimap. */
+				margin-right: calc(clamp({{$:/themes/tiddlywiki/vanilla/metrics/sidebarminwidth}},{{$:/themes/tiddlywiki/vanilla/metrics/sidebarwidth}},calc(100vw - {{$:/themes/tiddlywiki/vanilla/metrics/storyminwidth}} - {{$:/themes/tiddlywiki/vanilla/metrics/storyleft}})) + var(--tv-minimap-width, 0px));
 			}
 
 		<% endif %>
@@ -134,7 +143,9 @@ body.tc-resizing .tc-edit-texteditor textarea {
 		<%if [{$:/state/sidebar}!match[no]] %>
 
 			.tc-story-river {
-				max-width: calc(100% - {{$:/themes/tiddlywiki/vanilla/metrics/sidebarminwidth}} + {{$:/themes/tiddlywiki/vanilla/metrics/storywidth}} - {{$:/themes/tiddlywiki/vanilla/metrics/storyright}} + {{$:/themes/tiddlywiki/vanilla/metrics/storyleft}});
+				/* Subtract the minimap width too, so the fluid sidebar keeps room
+				   for both its minimum content width and the minimap. */
+				max-width: calc(100% - {{$:/themes/tiddlywiki/vanilla/metrics/sidebarminwidth}} - var(--tv-minimap-width, 0px) + {{$:/themes/tiddlywiki/vanilla/metrics/storywidth}} - {{$:/themes/tiddlywiki/vanilla/metrics/storyright}} + {{$:/themes/tiddlywiki/vanilla/metrics/storyleft}});
 			}
 
 		<% endif %>
@@ -149,6 +160,10 @@ body.tc-resizing .tc-edit-texteditor textarea {
 <% endif %>
 
 /* Sidebar resizer bar */
+/* The handle is positioned relative to .tc-sidebar-scrollable-wrapper, whose left
+   edge already absorbs --tv-minimap-width (fluid-fixed) or sits at storyright
+   (fixed-fluid, unaffected by the minimap). It therefore stays on the story/sidebar
+   boundary without needing an explicit minimap term here. */
 .tc-sidebar-resizer {
 	position: absolute;
 	top: 0;
