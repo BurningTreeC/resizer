@@ -2,6 +2,15 @@ title: $:/plugins/BTC/resizer/styles
 tags: $:/tags/Stylesheet
 
 \rules only filteredtranscludeinline transcludeinline macrodef macrocallinline macrocallblock conditional
+\define btc-minimap-width() {{{ [{$:/config/BurningTreeC/minimap/enabled}!match[no]then[var(--tv-minimap-width, 0px)]] :else[[0px]] }}}
+
+/* The btc-minimap-width macro above yields the minimap's contribution to the
+   sidebar geometry. The BurningTreeC/minimap plugin always publishes a baseline
+   --tv-minimap-width on <html> (even while the minimap is hidden), so a var()
+   fallback cannot detect whether it is active: the macro gates explicitly on
+   $:/config/BurningTreeC/minimap/enabled. It returns the live variable only when
+   the minimap is enabled, otherwise 0px so every calc() below collapses to its
+   pre-minimap value. */
 
 /* =================================================================
    BASE RESIZER STYLES
@@ -106,10 +115,18 @@ body.tc-resizing .tc-edit-texteditor textarea {
 		right: 0;
 		bottom: 0;
 		left: {{{ [{$:/themes/tiddlywiki/vanilla/options/sidebarlayout}match[fixed-fluid]then{$:/themes/tiddlywiki/vanilla/metrics/storyright}] :else[[auto]] }}};
-		width: {{{ [{$:/themes/tiddlywiki/vanilla/options/sidebarlayout}match[fluid-fixed]then{$:/themes/tiddlywiki/vanilla/metrics/sidebarwidth}] :else[[auto]] }}};
+		/* fluid-fixed: the minimap widens the fixed sidebar column, so the wrapper
+		   must grow by the minimap width to contain the widened scrollable. The
+		   wrapper is anchored right:0, so it grows leftward to the story boundary.
+		   fixed-fluid keeps width:auto (it already fills to the viewport edge). */
+		<%if [{$:/themes/tiddlywiki/vanilla/options/sidebarlayout}match[fluid-fixed]] %>
+		width: calc({{$:/themes/tiddlywiki/vanilla/metrics/sidebarwidth}} + <<btc-minimap-width>>);
+		<% else %>
+		width: auto;
+		<% endif %>
 		/* Floor the wrapper at the sidebar content minimum plus the minimap, matching
 		   the story-river clamp floor so the two stay aligned when resized down. */
-		min-width: calc({{$:/themes/tiddlywiki/vanilla/metrics/sidebarminwidth}} + var(--tv-minimap-width, 0px));
+		min-width: calc({{$:/themes/tiddlywiki/vanilla/metrics/sidebarminwidth}} + <<btc-minimap-width>>);
 		max-width: calc(100vw - {{$:/themes/tiddlywiki/vanilla/metrics/storyminwidth}} - {{$:/themes/tiddlywiki/vanilla/metrics/storyleft}});
 		z-index: 100;
 	}
@@ -123,10 +140,12 @@ body.tc-resizing .tc-edit-texteditor textarea {
 		<%if [{$:/state/sidebar}!match[no]] %>
 
 			.tc-story-river {
-				/* sidebarwidth already includes the minimap (it is measured to the
-				   viewport's right edge), so only the clamp floor needs the minimap
-				   added, to keep the sidebar's content above sidebarminwidth. */
-				margin-right: clamp(calc({{$:/themes/tiddlywiki/vanilla/metrics/sidebarminwidth}} + var(--tv-minimap-width, 0px)),{{$:/themes/tiddlywiki/vanilla/metrics/sidebarwidth}},calc(100vw - {{$:/themes/tiddlywiki/vanilla/metrics/storyminwidth}} - {{$:/themes/tiddlywiki/vanilla/metrics/storyleft}}));
+				/* Add the minimap to the clamp floor so the sidebar's content stays
+				   above sidebarminwidth when the minimap reserves space on its right.
+				   (When the minimap plugin is active it overrides this margin with its
+				   own higher-specificity rule; this keeps the resizer self-consistent
+				   regardless.) */
+				margin-right: clamp(calc({{$:/themes/tiddlywiki/vanilla/metrics/sidebarminwidth}} + <<btc-minimap-width>>),{{$:/themes/tiddlywiki/vanilla/metrics/sidebarwidth}},calc(100vw - {{$:/themes/tiddlywiki/vanilla/metrics/storyminwidth}} - {{$:/themes/tiddlywiki/vanilla/metrics/storyleft}}));
 			}
 
 		<% endif %>
@@ -141,9 +160,11 @@ body.tc-resizing .tc-edit-texteditor textarea {
 
 			.tc-story-river {
 				/* The sidebarminwidth term is the fluid sidebar's content-minimum
-				   guard (the fixed-fluid analogue of the clamp floor); add the minimap
-				   to it so the content keeps its minimum when a minimap is present. */
-				max-width: calc(100% - {{$:/themes/tiddlywiki/vanilla/metrics/sidebarminwidth}} - var(--tv-minimap-width, 0px) + {{$:/themes/tiddlywiki/vanilla/metrics/storywidth}} - {{$:/themes/tiddlywiki/vanilla/metrics/storyright}} + {{$:/themes/tiddlywiki/vanilla/metrics/storyleft}});
+				   guard (the fixed-fluid analogue of the clamp floor); subtract the
+				   minimap from the story's max-width so the fluid sidebar keeps room
+				   for both its content minimum and the minimap. The minimap plugin has
+				   no fixed-fluid story rule, so this is the only guard in this mode. */
+				max-width: calc(100% - {{$:/themes/tiddlywiki/vanilla/metrics/sidebarminwidth}} - <<btc-minimap-width>> + {{$:/themes/tiddlywiki/vanilla/metrics/storywidth}} - {{$:/themes/tiddlywiki/vanilla/metrics/storyright}} + {{$:/themes/tiddlywiki/vanilla/metrics/storyleft}});
 			}
 
 		<% endif %>
@@ -878,7 +899,7 @@ body.tc-resizing .tc-resize-overlay {
 		box-sizing: border-box;
 		/* Keep the minimap in the wrapper floor here too, so this later rule does
 		   not override the positioning block back down to 0. */
-		min-width: calc({{$:/themes/tiddlywiki/vanilla/metrics/sidebarminwidth}} + var(--tv-minimap-width, 0px));
+		min-width: calc({{$:/themes/tiddlywiki/vanilla/metrics/sidebarminwidth}} + <<btc-minimap-width>>);
 		min-height: 0;
 		overflow: visible;
 	}
