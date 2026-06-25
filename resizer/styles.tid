@@ -106,15 +106,11 @@ body.tc-resizing .tc-edit-texteditor textarea {
 		right: 0;
 		bottom: 0;
 		left: {{{ [{$:/themes/tiddlywiki/vanilla/options/sidebarlayout}match[fixed-fluid]then{$:/themes/tiddlywiki/vanilla/metrics/storyright}] :else[[auto]] }}};
-		/* An optional minimap rendered at the sidebar's right edge widens the whole
-		   sidebar by --tv-minimap-width. The wrapper is anchored to right:0, so the
-		   extra width grows it leftward. The variable defaults to 0px when absent. */
-		<%if [{$:/themes/tiddlywiki/vanilla/options/sidebarlayout}match[fluid-fixed]] %>
-		width: calc({{$:/themes/tiddlywiki/vanilla/metrics/sidebarwidth}} + var(--tv-minimap-width, 0px));
-		<% else %>
-		width: auto;
-		<% endif %>
-		max-width: calc(100vw - {{$:/themes/tiddlywiki/vanilla/metrics/storyminwidth}} - {{$:/themes/tiddlywiki/vanilla/metrics/storyleft}} + var(--tv-minimap-width, 0px));
+		width: {{{ [{$:/themes/tiddlywiki/vanilla/options/sidebarlayout}match[fluid-fixed]then{$:/themes/tiddlywiki/vanilla/metrics/sidebarwidth}] :else[[auto]] }}};
+		/* Floor the wrapper at the sidebar content minimum plus the minimap, matching
+		   the story-river clamp floor so the two stay aligned when resized down. */
+		min-width: calc({{$:/themes/tiddlywiki/vanilla/metrics/sidebarminwidth}} + var(--tv-minimap-width, 0px));
+		max-width: calc(100vw - {{$:/themes/tiddlywiki/vanilla/metrics/storyminwidth}} - {{$:/themes/tiddlywiki/vanilla/metrics/storyleft}});
 		z-index: 100;
 	}
 
@@ -127,9 +123,10 @@ body.tc-resizing .tc-edit-texteditor textarea {
 		<%if [{$:/state/sidebar}!match[no]] %>
 
 			.tc-story-river {
-				/* Reserve the same minimap space the wrapper claims so the story
-				   river never sits beneath the sidebar/minimap. */
-				margin-right: calc(clamp({{$:/themes/tiddlywiki/vanilla/metrics/sidebarminwidth}},{{$:/themes/tiddlywiki/vanilla/metrics/sidebarwidth}},calc(100vw - {{$:/themes/tiddlywiki/vanilla/metrics/storyminwidth}} - {{$:/themes/tiddlywiki/vanilla/metrics/storyleft}})) + var(--tv-minimap-width, 0px));
+				/* sidebarwidth already includes the minimap (it is measured to the
+				   viewport's right edge), so only the clamp floor needs the minimap
+				   added, to keep the sidebar's content above sidebarminwidth. */
+				margin-right: clamp(calc({{$:/themes/tiddlywiki/vanilla/metrics/sidebarminwidth}} + var(--tv-minimap-width, 0px)),{{$:/themes/tiddlywiki/vanilla/metrics/sidebarwidth}},calc(100vw - {{$:/themes/tiddlywiki/vanilla/metrics/storyminwidth}} - {{$:/themes/tiddlywiki/vanilla/metrics/storyleft}}));
 			}
 
 		<% endif %>
@@ -143,8 +140,9 @@ body.tc-resizing .tc-edit-texteditor textarea {
 		<%if [{$:/state/sidebar}!match[no]] %>
 
 			.tc-story-river {
-				/* Subtract the minimap width too, so the fluid sidebar keeps room
-				   for both its minimum content width and the minimap. */
+				/* The sidebarminwidth term is the fluid sidebar's content-minimum
+				   guard (the fixed-fluid analogue of the clamp floor); add the minimap
+				   to it so the content keeps its minimum when a minimap is present. */
 				max-width: calc(100% - {{$:/themes/tiddlywiki/vanilla/metrics/sidebarminwidth}} - var(--tv-minimap-width, 0px) + {{$:/themes/tiddlywiki/vanilla/metrics/storywidth}} - {{$:/themes/tiddlywiki/vanilla/metrics/storyright}} + {{$:/themes/tiddlywiki/vanilla/metrics/storyleft}});
 			}
 
@@ -160,10 +158,6 @@ body.tc-resizing .tc-edit-texteditor textarea {
 <% endif %>
 
 /* Sidebar resizer bar */
-/* The handle is positioned relative to .tc-sidebar-scrollable-wrapper, whose left
-   edge already absorbs --tv-minimap-width (fluid-fixed) or sits at storyright
-   (fixed-fluid, unaffected by the minimap). It therefore stays on the story/sidebar
-   boundary without needing an explicit minimap term here. */
 .tc-sidebar-resizer {
 	position: absolute;
 	top: 0;
@@ -882,7 +876,9 @@ body.tc-resizing .tc-resize-overlay {
 @media (min-width: {{$:/themes/tiddlywiki/vanilla/metrics/sidebarbreakpoint}}) {
 	.tc-sidebar-scrollable-wrapper {
 		box-sizing: border-box;
-		min-width: 0;
+		/* Keep the minimap in the wrapper floor here too, so this later rule does
+		   not override the positioning block back down to 0. */
+		min-width: calc({{$:/themes/tiddlywiki/vanilla/metrics/sidebarminwidth}} + var(--tv-minimap-width, 0px));
 		min-height: 0;
 		overflow: visible;
 	}
