@@ -2,13 +2,15 @@ title: $:/plugins/BTC/resizer/styles
 tags: $:/tags/Stylesheet
 
 \rules only filteredtranscludeinline transcludeinline macrodef macrocallinline macrocallblock conditional
-\define btc-minimap-width() {{{ [{$:/config/BurningTreeC/minimap/enabled}!match[no]then[var(--tv-minimap-width, 0px)]] :else[[0px]] }}}
+\define btc-minimap-reserve() {{{ [{$:/config/BurningTreeC/minimap/enabled}!match[no]then[calc(var(--tv-minimap-width, 0px) + var(--tv-minimap-scrollbar-width, 0px))]] :else[[0px]] }}}
 
-/* The btc-minimap-width macro above yields the minimap's contribution to the
-   sidebar geometry. The BurningTreeC/minimap plugin always publishes a baseline
-   --tv-minimap-width on <html> (even while the minimap is hidden), so a var()
-   fallback cannot detect whether it is active: the macro gates explicitly on
-   $:/config/BurningTreeC/minimap/enabled. It returns the live variable only when
+/* The btc-minimap-reserve macro above yields the total space the shown minimap
+   consumes at the sidebar's right edge: its own width (--tv-minimap-width) plus the
+   sidebar scrollbar gutter (--tv-minimap-scrollbar-width) that the minimap plugin
+   leaves to the minimap's right. The BurningTreeC/minimap plugin always publishes a
+   baseline --tv-minimap-width on <html> (even while the minimap is hidden), so a
+   var() fallback cannot detect whether it is active: the macro gates explicitly on
+   $:/config/BurningTreeC/minimap/enabled. It returns the live reservation only when
    the minimap is enabled, otherwise 0px so every calc() below collapses to its
    pre-minimap value. */
 
@@ -112,22 +114,40 @@ body.tc-resizing .tc-edit-texteditor textarea {
 	.tc-sidebar-scrollable-wrapper {
 		position: fixed;
 		top: 0;
-		right: 0;
 		bottom: 0;
-		left: {{{ [{$:/themes/tiddlywiki/vanilla/options/sidebarlayout}match[fixed-fluid]then{$:/themes/tiddlywiki/vanilla/metrics/storyright}] :else[[auto]] }}};
-		/* fluid-fixed: the minimap widens the fixed sidebar column, so the wrapper
-		   must grow by the minimap width to contain the widened scrollable. The
-		   wrapper is anchored right:0, so it grows leftward to the story boundary.
-		   fixed-fluid keeps width:auto (it already fills to the viewport edge). */
 		<%if [{$:/themes/tiddlywiki/vanilla/options/sidebarlayout}match[fluid-fixed]] %>
-		width: calc({{$:/themes/tiddlywiki/vanilla/metrics/sidebarwidth}} + <<btc-minimap-width>>);
+		/* fluid-fixed: the wrapper IS the fixed sidebar content box, and the resizer
+		   measures this element (element="parent"), using its right edge as the fixed
+		   edge. The minimap sits at the sidebar's right edge, so offset the wrapper to
+		   the LEFT of it (right: minimap) and keep width: sidebarwidth - rather than
+		   widening the wrapper to the viewport edge. That keeps the wrapper's right
+		   edge on the content's right edge, so dragging maps 1:1 to sidebarwidth
+		   instead of jumping left by the minimap width. min-width floors the content
+		   at sidebarminwidth; max-width also subtracts the minimap because it consumes
+		   viewport space that is no longer available to the content. */
+		left: auto;
+		right: <<btc-minimap-reserve>>;
+		width: {{$:/themes/tiddlywiki/vanilla/metrics/sidebarwidth}};
+		min-width: {{$:/themes/tiddlywiki/vanilla/metrics/sidebarminwidth}};
+		max-width: calc(100vw - {{$:/themes/tiddlywiki/vanilla/metrics/storyminwidth}} - {{$:/themes/tiddlywiki/vanilla/metrics/storyleft}} - <<btc-minimap-reserve>>);
 		<% else %>
+		/* fixed-fluid: the sidebar is fluid and fills to the viewport edge beneath the
+		   minimap; the minimap plugin clears its content with padding-right. The
+		   wrapper therefore spans the minimap region, so floor it at
+		   sidebarminwidth + reserve.
+		   The wrapper's left edge follows the storyright metric, which the resizer can
+		   drive past the point where the fluid sidebar would drop below its minimum.
+		   Clamp it so the sidebar always keeps sidebarminwidth + reserve on-screen
+		   (min-width alone would only push the overflow off the right edge). The
+		   resizer writes the live value as an inline style during drag, which beats a
+		   plain rule, so this clamp must be !important to win and actually cap the
+		   sidebar's left edge. */
+		left: min({{$:/themes/tiddlywiki/vanilla/metrics/storyright}}, calc(100vw - {{$:/themes/tiddlywiki/vanilla/metrics/sidebarminwidth}} - <<btc-minimap-reserve>>)) !important;
+		right: 0;
 		width: auto;
-		<% endif %>
-		/* Floor the wrapper at the sidebar content minimum plus the minimap, matching
-		   the story-river clamp floor so the two stay aligned when resized down. */
-		min-width: calc({{$:/themes/tiddlywiki/vanilla/metrics/sidebarminwidth}} + <<btc-minimap-width>>);
+		min-width: calc({{$:/themes/tiddlywiki/vanilla/metrics/sidebarminwidth}} + <<btc-minimap-reserve>>);
 		max-width: calc(100vw - {{$:/themes/tiddlywiki/vanilla/metrics/storyminwidth}} - {{$:/themes/tiddlywiki/vanilla/metrics/storyleft}});
+		<% endif %>
 		z-index: 100;
 	}
 
@@ -140,12 +160,14 @@ body.tc-resizing .tc-edit-texteditor textarea {
 		<%if [{$:/state/sidebar}!match[no]] %>
 
 			.tc-story-river {
-				/* Add the minimap to the clamp floor so the sidebar's content stays
-				   above sidebarminwidth when the minimap reserves space on its right.
-				   (When the minimap plugin is active it overrides this margin with its
-				   own higher-specificity rule; this keeps the resizer self-consistent
-				   regardless.) */
-				margin-right: clamp(calc({{$:/themes/tiddlywiki/vanilla/metrics/sidebarminwidth}} + <<btc-minimap-width>>),{{$:/themes/tiddlywiki/vanilla/metrics/sidebarwidth}},calc(100vw - {{$:/themes/tiddlywiki/vanilla/metrics/storyminwidth}} - {{$:/themes/tiddlywiki/vanilla/metrics/storyleft}}));
+				/* The story keeps the remaining width after the sidebar; the minimap
+				   plugin sets this same margin to calc(sidebarwidth + minimap) but with
+				   no upper bound, so dragging the sidebar wide can shrink the story
+				   below storyminwidth. Re-assert it here as a clamp (floor = sidebar
+				   content min + reserve, preferred = sidebarwidth + reserve, ceiling =
+				   leave storyminwidth) and win over the minimap plugin's
+				   higher-specificity rule with !important. */
+				margin-right: clamp(calc({{$:/themes/tiddlywiki/vanilla/metrics/sidebarminwidth}} + <<btc-minimap-reserve>>),calc({{$:/themes/tiddlywiki/vanilla/metrics/sidebarwidth}} + <<btc-minimap-reserve>>),calc(100vw - {{$:/themes/tiddlywiki/vanilla/metrics/storyminwidth}} - {{$:/themes/tiddlywiki/vanilla/metrics/storyleft}})) !important;
 			}
 
 		<% endif %>
@@ -158,13 +180,23 @@ body.tc-resizing .tc-edit-texteditor textarea {
 
 		<%if [{$:/state/sidebar}!match[no]] %>
 
+			/* In fixed-fluid the resizer drags the inner pair: it shrinks
+			   .tc-sidebar-scrollable and grows .tc-story-river. The scrollable
+			   otherwise has min-width:0 forced on it (the flex/scroll safety rules
+			   further down), so nothing stops it collapsing past the sidebar minimum.
+			   Floor it here; !important is needed to beat those min-width:0 rules and
+			   the inline width the resizer writes during the drag. */
+			.tc-sidebar-scrollable {
+				min-width: calc({{$:/themes/tiddlywiki/vanilla/metrics/sidebarminwidth}} + <<btc-minimap-reserve>>) !important;
+			}
+
 			.tc-story-river {
-				/* The sidebarminwidth term is the fluid sidebar's content-minimum
-				   guard (the fixed-fluid analogue of the clamp floor); subtract the
-				   minimap from the story's max-width so the fluid sidebar keeps room
-				   for both its content minimum and the minimap. The minimap plugin has
-				   no fixed-fluid story rule, so this is the only guard in this mode. */
-				max-width: calc(100% - {{$:/themes/tiddlywiki/vanilla/metrics/sidebarminwidth}} - <<btc-minimap-width>> + {{$:/themes/tiddlywiki/vanilla/metrics/storywidth}} - {{$:/themes/tiddlywiki/vanilla/metrics/storyright}} + {{$:/themes/tiddlywiki/vanilla/metrics/storyleft}});
+				/* Cap the story so the sidebar keeps sidebarminwidth + reserve. This must
+				   be a constant: the previous formula added storywidth, which the resizer
+				   rewrites larger during the drag, so the cap grew with the story and
+				   never actually bound. The minimap plugin has no fixed-fluid story rule,
+				   so this is the only guard in this mode. */
+				max-width: calc(100% - {{$:/themes/tiddlywiki/vanilla/metrics/storyleft}} - {{$:/themes/tiddlywiki/vanilla/metrics/sidebarminwidth}} - <<btc-minimap-reserve>>) !important;
 			}
 
 		<% endif %>
@@ -654,13 +686,13 @@ body.tc-resizing .tc-edit-texteditor textarea {
 	.tc-collapsible-master-detail {
 		gap: 10px;
 	}
-	
+
 	.tc-vertical-split-panel {
 		gap: 10px;
 		/* Prevent vertical scroll interference on touch */
 		/*touch-action: pan-x pinch-zoom;*/
 	}
-	
+
 	/* Center resizers in gap space */
 	.tc-horizontal-split-panel .tc-panel-splitter-vertical,
 	.tc-three-column-panels .tc-panel-splitter-vertical,
@@ -668,7 +700,7 @@ body.tc-resizing .tc-edit-texteditor textarea {
 		margin-left: -10px;
 		margin-right: -10px;
 	}
-	
+
 	.tc-vertical-split-panel .tc-panel-splitter-horizontal {
 		margin-top: -10px;
 		margin-bottom: -10px;
@@ -676,23 +708,23 @@ body.tc-resizing .tc-edit-texteditor textarea {
 		position: relative;
 		z-index: 10;
 	}
-	
+
 	/* Enhanced splitters for touch */
 	.tc-panel-splitter-vertical,
 	.tc-panel-splitter-horizontal {
 		opacity: 0.3;
 	}
-	
+
 	.tc-panel-splitter-vertical {
 		width: 20px;
 		flex-shrink: 0;
 	}
-	
+
 	.tc-panel-splitter-horizontal {
 		height: 20px;
 		flex-shrink: 0;
 	}
-	
+
 	.tc-panel-splitter-vertical::before {
 		width: 3px;
 		height: 40px;
@@ -700,7 +732,7 @@ body.tc-resizing .tc-edit-texteditor textarea {
 		border-radius: 1.5px;
 		opacity: 1;
 	}
-	
+
 	.tc-panel-splitter-horizontal::before {
 		width: 40px;
 		height: 3px;
@@ -708,34 +740,34 @@ body.tc-resizing .tc-edit-texteditor textarea {
 		border-radius: 1.5px;
 		opacity: 1;
 	}
-	
+
 	.tc-panel-splitter-vertical:hover,
 	.tc-panel-splitter-horizontal:hover,
 	.tc-panel-splitter-vertical.tc-resizer-active,
 	.tc-panel-splitter-horizontal.tc-resizer-active {
 		opacity: 1;
 	}
-	
+
 	/* Enhanced touch targets for all resizers */
 	.tc-resizer:not(.tc-sidebar-resizer):not(.tc-flexbox-story-column-resizer-flexbox) {
 		position: relative;
 	}
-	
+
 	.tc-resizer[data-direction="horizontal"]:not(.tc-tiddler-editor-resizer):not(.tc-flexbox-story-column-resizer-flexbox) {
 		min-width: 20px;
 	}
-	
+
 	.tc-resizer[data-direction="vertical"]:not(.tc-tiddler-editor-resizer) {
 		min-height: 20px;
 	}
-	
+
 	/* Editor resizer enhancement for touch */
 	.tc-tiddler-editor-resizer {
 		width: 15px;
 		opacity: 0.3;
 		padding: 0 5px;
 	}
-	
+
 	/*.tc-tiddler-editor-resizer::after {
 		content: "⋮";
 		position: absolute;
@@ -746,13 +778,13 @@ body.tc-resizing .tc-edit-texteditor textarea {
 		color: <<colour muted-foreground>>;
 		opacity: 0.7;
 	}*/
-	
+
 	/* Active state for touch */
 	.tc-resizer.tc-resizer-active:not(.btc-rgrid-cell-resizer) {
 		opacity: 1 !important;
 		background-color: <<colour primary>>;
 	}
-	
+
 	.tc-tiddler-editor-resizer.tc-resizer-active::after {
 		color: <<colour background>>;
 		opacity: 1;
@@ -897,9 +929,9 @@ body.tc-resizing .tc-resize-overlay {
 @media (min-width: {{$:/themes/tiddlywiki/vanilla/metrics/sidebarbreakpoint}}) {
 	.tc-sidebar-scrollable-wrapper {
 		box-sizing: border-box;
-		/* Keep the minimap in the wrapper floor here too, so this later rule does
-		   not override the positioning block back down to 0. */
-		min-width: calc({{$:/themes/tiddlywiki/vanilla/metrics/sidebarminwidth}} + <<btc-minimap-width>>);
+		/* min-width (the per-layout sidebar floor) is set authoritatively in the
+		   positioning block above; intentionally not repeated here so it cannot be
+		   clobbered. */
 		min-height: 0;
 		overflow: visible;
 	}
