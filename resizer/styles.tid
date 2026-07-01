@@ -159,14 +159,16 @@ body.tc-resizing .tc-edit-texteditor textarea {
 
 		<%if [{$:/state/sidebar}!match[no]] %>
 
-			.tc-story-river {
+			.tc-page-container-inner > .tc-story-river {
 				/* The story keeps the remaining width after the sidebar; the minimap
 				   plugin sets this same margin to calc(sidebarwidth + minimap) but with
 				   no upper bound, so dragging the sidebar wide can shrink the story
 				   below storyminwidth. Re-assert it here as a clamp (floor = sidebar
 				   content min + reserve, preferred = sidebarwidth + reserve, ceiling =
 				   leave storyminwidth) and win over the minimap plugin's
-				   higher-specificity rule with !important. */
+				   higher-specificity rule with !important. Scoped to the direct child of
+				   .tc-page-container-inner so a nested story-river (a story rendered inside
+				   a tiddler) is never targeted, and to raise specificity. */
 				margin-right: clamp(calc({{$:/themes/tiddlywiki/vanilla/metrics/sidebarminwidth}} + <<btc-minimap-reserve>>),calc({{$:/themes/tiddlywiki/vanilla/metrics/sidebarwidth}} + <<btc-minimap-reserve>>),calc(100vw - {{$:/themes/tiddlywiki/vanilla/metrics/storyminwidth}} - {{$:/themes/tiddlywiki/vanilla/metrics/storyleft}})) !important;
 			}
 
@@ -190,12 +192,14 @@ body.tc-resizing .tc-edit-texteditor textarea {
 				min-width: calc({{$:/themes/tiddlywiki/vanilla/metrics/sidebarminwidth}} + <<btc-minimap-reserve>>) !important;
 			}
 
-			.tc-story-river {
+			.tc-page-container-inner > .tc-story-river {
 				/* Cap the story so the sidebar keeps sidebarminwidth + reserve. This must
 				   be a constant: the previous formula added storywidth, which the resizer
 				   rewrites larger during the drag, so the cap grew with the story and
 				   never actually bound. The minimap plugin has no fixed-fluid story rule,
-				   so this is the only guard in this mode. */
+				   so this is the only guard in this mode. Scoped to the direct child of
+				   .tc-page-container-inner so a nested story-river (a story rendered inside
+				   a tiddler) is never targeted, and to raise specificity. */
 				max-width: calc(100% - {{$:/themes/tiddlywiki/vanilla/metrics/storyleft}} - {{$:/themes/tiddlywiki/vanilla/metrics/sidebarminwidth}} - <<btc-minimap-reserve>>) !important;
 			}
 
