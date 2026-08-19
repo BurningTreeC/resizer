@@ -109,6 +109,40 @@ body.tc-resizing .tc-edit-texteditor textarea {
    Styles for the main sidebar resizer
    ================================================================= */
 
+/* The rules from here to the matching endif describe VANILLA's page layout: the
+   fixed sidebar wrapper, the story river's trailing margin, and the clamps that
+   stop a drag squeezing either past its minimum. They are written against the
+   $:/themes/tiddlywiki/vanilla metrics namespace, and several of them are
+   !important because they have to beat the inline width the widget writes
+   during a drag.
+
+   That combination is fine in the theme they were written for and actively
+   harmful in one that lays its page out differently: an !important physical
+   margin-right on the story river overrides a theme's own logical margin, so
+   the river stops following whatever the theme animates it with. A theme that
+   places the sidebar itself therefore has to be able to turn this off - and it
+   cannot do that from CSS, because nothing outranks !important except more
+   !important, which would mean restating the theme's entire layout matrix here.
+
+   So the theme has to be able to say "I place these myself", and it has to say
+   it somewhere a user cannot casually contradict. A configuration tiddler is
+   the wrong place for exactly that reason: it is a switch, switches invite
+   flipping, and flipping this one silently pins the story river's margin with
+   !important and stops it animating - a failure that looks nothing like its
+   cause, since the resting layout is identical either way and only the
+   transition breaks.
+
+   So it is a declaration rather than a setting. A theme that positions its own
+   sidebar and story river puts
+
+       "manages-sidebar-layout": "yes"
+
+   in its plugin.info. That travels inside the theme plugin, applies exactly
+   while that theme is active, and is not something a user can toggle by
+   accident. Any theme that does not declare it - which is every existing theme,
+   Vanilla included - gets these rules exactly as before. */
+<%if [{$:/theme}!has[manages-sidebar-layout]] %>
+
 /* Sidebar wrapper positioning */
 @media (min-width: {{$:/themes/tiddlywiki/vanilla/metrics/sidebarbreakpoint}}) {
 	.tc-sidebar-scrollable-wrapper {
@@ -212,6 +246,8 @@ body.tc-resizing .tc-edit-texteditor textarea {
 .tc-sidebar-scrollable-wrapper {
 	z-index: initial;
 }
+<% endif %>
+
 <% endif %>
 
 /* Sidebar resizer bar */

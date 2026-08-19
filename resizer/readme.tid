@@ -2428,6 +2428,49 @@ Example styling:
 }
 ```
 
+!!! Themes that lay out their own sidebar
+
+The plugin's stylesheet carries a block of rules describing the ''vanilla'' page
+layout: the fixed sidebar wrapper, the story river's trailing margin, and the
+clamps that stop a drag squeezing either side past its minimum. Several of them
+are `!important`, because they have to beat the inline width the widget writes
+to the target element during a drag.
+
+That is correct for the layout they were written for and wrong for any theme
+that positions the sidebar and story river itself — an `!important` physical
+`margin-right` on the river overrides the theme's own logical margin, so the
+river stops tracking whatever the theme animates it with. CSS gives the theme no
+way out: nothing outranks `!important` except more `!important`, which would
+mean restating the theme's whole layout matrix inside the plugin.
+
+So a theme declares that it owns its page geometry, in its `plugin.info`:
+
+```
+{
+	"title": "$:/themes/example/mytheme",
+	"plugin-type": "theme",
+	"manages-sidebar-layout": "yes"
+}
+```
+
+While that theme is active the plugin contributes behaviour only — the widget,
+the drag, the handle — and the theme keeps sole authority over where anything
+sits. Any theme that does not declare it, Vanilla included, gets these rules
+exactly as before.
+
+It is a field on the theme rather than a configuration tiddler on purpose. The
+resting layout is identical whether the block is emitted or not; the only
+difference appears ''during'' a transition, where the `!important` margin pins
+the story river so it cannot animate. A setting that breaks nothing you can see
+until you toggle the sidebar is a setting that will get switched on and then
+reported as an unrelated bug, so it is not offered as a setting.
+
+Such a theme is also responsible for rendering the sidebar handle itself, since
+the plugin no longer ships a sidebar `PageTemplate`. `$:/themes/BurningTreeC/vanilla-paper`
+is a worked example: it renders `<$resizer class="tc-sidebar-resizer">` from its
+own sidebar template, against its own metrics, and places it with `position:
+fixed` so the sidebar's transform and overflow clip cannot reach it.
+
 !!! Handle style examples
 
 The widget adds:
