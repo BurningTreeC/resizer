@@ -50,6 +50,15 @@ ResizerWidget.prototype.execute = function() {
 	this.gridSelector = this.getAttribute("gridSelector", this.getAttribute("gridTrackSelector", ""));
 	this.gridTrackSelector = this.gridSelector;
 	this.gridTrackIndex = this.getAttribute("gridTrackIndex", this.getAttribute("trackIndex", "1"));
+	// The number of tracks on the active axis. Left empty the runtime falls back
+	// to the measured track count, which is only correct while every track of the
+	// grid is resolvable. It is also what tells isGridTrackLastFillerIndex() which
+	// index is the final one, so fill-last needs it.
+	this.gridTrackTrackCount = this.getAttribute("gridTrackTrackCount", this.getAttribute("trackCount", ""));
+	// Whether the final track is a filler that is restored to gridTrackLastSize
+	// after a drag, with its dragged pixel size remembered as a per-track minimum.
+	this.gridTrackFillLast = this.getAttribute("gridTrackFillLast", this.getAttribute("fillLastTrack", "no"));
+	this.gridTrackLastSize = this.getAttribute("gridTrackLastSize", this.getAttribute("lastTrackSize", "1fr"));
 	this.gridTrackStatePrefix = this.getAttribute("gridTrackStatePrefix", this.getAttribute("statePrefix", this.getAttribute("tiddler", "$:/state/grid")));
 	this.gridTrackField = this.getAttribute("gridTrackField", this.getAttribute("field", "text"));
 	this.gridTrackUnit = this.getAttribute("gridTrackUnit", this.getAttribute("unit", this.gridTrackAxis === "row" ? "px" : "%"));
